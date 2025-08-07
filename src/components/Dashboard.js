@@ -20,7 +20,9 @@ const Dashboard = () => {
     const fetchCurrency = async () => {
         try {
             const response = await axios.get('/api/settings/currency');
-            setCurrency(response.data.value);
+            if (response.data.value) {
+                setCurrency(response.data.value);
+            }
         } catch (error) {
             console.error("Error fetching currency setting", error);
         }
@@ -36,11 +38,11 @@ const Dashboard = () => {
                 axios.get('/api/reports/revenue-stats')
             ]);
 
-            setSummaryStats(summary.data);
-            setMemberGrowth(growth.data);
-            setAttendanceStats(attendance.data);
-            setPopularClasses(classes.data);
-            setRevenueStats(revenue.data);
+            setSummaryStats(summary.data || {});
+            setMemberGrowth(growth.data || []);
+            setAttendanceStats(attendance.data || []);
+            setPopularClasses(classes.data || []);
+            setRevenueStats(revenue.data || []);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching reports:', error);
@@ -51,6 +53,12 @@ const Dashboard = () => {
     if (loading) {
         return <div><h2>Dashboard</h2><p>Loading analytics...</p></div>;
     }
+    
+    const displayValue = (value, isCurrency = false) => {
+        const num = Number(value);
+        if (isNaN(num)) return isCurrency ? formatCurrency(0, currency) : 0;
+        return isCurrency ? formatCurrency(num, currency) : num;
+    };
 
     return (
         <div>
@@ -60,19 +68,19 @@ const Dashboard = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                 <div style={{ padding: '20px', backgroundColor: '#f0f8ff', borderRadius: '8px', textAlign: 'center' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#2c5aa0' }}>Total Members</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{summaryStats.totalMembers}</p>
+                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.totalMembers)}</p>
                 </div>
                 <div style={{ padding: '20px', backgroundColor: '#f0fff0', borderRadius: '8px', textAlign: 'center' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#228b22' }}>Total Revenue</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{formatCurrency(summaryStats.totalRevenue, currency)}</p>
+                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.totalRevenue, true)}</p>
                 </div>
                 <div style={{ padding: '20px', backgroundColor: '#fff8dc', borderRadius: '8px', textAlign: 'center' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#daa520' }}>New Members This Month</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{summaryStats.newMembersThisMonth}</p>
+                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.newMembersThisMonth)}</p>
                 </div>
                 <div style={{ padding: '20px', backgroundColor: '#ffe4e1', borderRadius: '8px', textAlign: 'center' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#dc143c' }}>Active Schedules</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{summaryStats.activeSchedules}</p>
+                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.activeSchedules)}</p>
                 </div>
             </div>
 

@@ -117,7 +117,7 @@ const Settings = () => {
                             <Chip
                                 key={type}
                                 label={type}
-.                                onDelete={() => handleDeleteMembershipType(type)}
+                                onDelete={() => handleDeleteMembershipType(type)}
                             />
                         ))}
                     </Box>
