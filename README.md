@@ -1,70 +1,109 @@
-# Getting Started with Create React App
+# Gym Management Software - Frontend Dashboard
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This is the React frontend for the Gym Management Software, providing a comprehensive admin dashboard for gym owners and staff to manage their operations.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+The frontend dashboard includes:
 
-### `npm start`
+- **Analytics Dashboard:** Real-time reporting with summary statistics, member growth trends, revenue analytics, and popular class rankings
+- **Member Management:** Add, view, edit, and delete gym members with automated welcome emails
+- **Class Management:** Create and manage fitness classes with instructor and duration details
+- **Schedule Management:** Schedule classes with datetime pickers and capacity management
+- **Attendance Tracking:** View member attendance history and simulate biometric check-ins
+- **Financial Management:** Create membership plans and view Stripe payment integration
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Technology Stack
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **React.js** with functional components and hooks
+- **React Router** for multi-page navigation
+- **Axios** for API communication with the backend
+- **Professional styling** with responsive design
 
-### `npm test`
+## Getting Started
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Prerequisites
 
-### `npm run build`
+Make sure the backend server is running on `http://localhost:3000` before starting the frontend.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Installation
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+# From the client directory
+npm install
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Development
 
-### `npm run eject`
+```bash
+# Start the development server
+npm start
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+This will start the React development server and open the dashboard in your browser at `http://localhost:3001`.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+The application will automatically proxy API requests to the backend server running on port 3000.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Available Scripts
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+#### `npm start`
 
-## Learn More
+Runs the app in development mode. The page will reload when you make changes and display any lint errors in the console.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+#### `npm test`
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Launches the test runner in interactive watch mode.
 
-### Code Splitting
+#### `npm run build`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Builds the app for production to the `build` folder. The build is minified and optimized for best performance.
 
-### Analyzing the Bundle Size
+## Dashboard Navigation
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Once running, you can navigate between different sections:
 
-### Making a Progressive Web App
+- **Dashboard (/):** Analytics and reporting overview
+- **Members (/members):** Manage gym members
+- **Classes (/classes):** Manage fitness classes
+- **Schedules (/schedules):** Schedule classes and manage capacity
+- **Attendance (/attendance):** Track member attendance
+- **Financials (/financials):** Manage membership plans
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Component Structure
 
-### Advanced Configuration
+```
+src/
+├── components/
+│   ├── Dashboard.js          # Analytics dashboard with reporting
+│   ├── Member.js             # Member management interface
+│   ├── ClassManager.js       # Class management interface
+│   ├── ScheduleManager.js    # Schedule management interface
+│   ├── AttendanceTracker.js  # Attendance tracking interface
+│   ├── Financials.js         # Financial management interface
+│   └── Pages.js              # Placeholder components
+├── App.js                    # Main app with routing
+├── App.css                   # Application styling
+└── index.js                  # App entry point
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## API Integration
 
-### Deployment
+The frontend communicates with the backend through REST API calls using Axios. All API requests are automatically proxied to `http://localhost:3000` during development.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Deployment
 
-### `npm run build` fails to minify
+For production deployment:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+1. Build the application: `npm run build`
+2. The `build` folder contains the optimized production files
+3. Deploy the contents to your web server
+4. Ensure your production backend API is accessible
+
+## Development Notes
+
+- The application uses React Router for client-side routing
+- All components are functional components using React hooks
+- API calls are made using async/await pattern with proper error handling
+- The proxy configuration in package.json handles CORS during development
+
+For more information about the backend API and overall system architecture, see the main README.md in the project root.
