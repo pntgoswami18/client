@@ -9,11 +9,26 @@ const Financials = () => {
     const [planDuration, setPlanDuration] = useState('');
     const [planDescription, setPlanDescription] = useState('');
     const [currency, setCurrency] = useState('INR');
+    const [financialSummary, setFinancialSummary] = useState({
+        outstandingInvoices: [],
+        paymentHistory: [],
+        memberPaymentStatus: []
+    });
 
     useEffect(() => {
         fetchPlans();
         fetchCurrency();
+        fetchFinancialSummary();
     }, []);
+
+    const fetchFinancialSummary = async () => {
+        try {
+            const response = await axios.get('/api/reports/financial-summary');
+            setFinancialSummary(response.data);
+        } catch (error) {
+            console.error("Error fetching financial summary", error);
+        }
+    };
 
     const fetchCurrency = async () => {
         try {
@@ -152,15 +167,92 @@ const Financials = () => {
             {/* Financial Summary Section */}
             <div>
                 <h3>Financial Summary</h3>
-                <div style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '5px', backgroundColor: '#f0f8ff' }}>
-                    <p><strong>Coming Soon:</strong> Advanced reporting and analytics will be implemented in the next phase.</p>
-                    <p>This section will include:</p>
-                    <ul>
-                        <li>Monthly revenue reports</li>
-                        <li>Member payment status</li>
-                        <li>Outstanding invoices</li>
-                        <li>Payment history</li>
-                    </ul>
+                
+                {/* Outstanding Invoices */}
+                <div style={{ marginBottom: '30px' }}>
+                    <h4>Outstanding Invoices</h4>
+                    {financialSummary.outstandingInvoices.length > 0 ? (
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Invoice ID</th>
+                                    <th>Member Name</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {financialSummary.outstandingInvoices.map(invoice => (
+                                    <tr key={invoice.id}>
+                                        <td>{invoice.id}</td>
+                                        <td>{invoice.member_name}</td>
+                                        <td>{formatCurrency(invoice.amount, currency)}</td>
+                                        <td>{new Date(invoice.due_date).toLocaleDateString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p>No outstanding invoices.</p>
+                    )}
+                </div>
+
+                {/* Payment History */}
+                <div style={{ marginBottom: '30px' }}>
+                    <h4>Recent Payment History</h4>
+                    {financialSummary.paymentHistory.length > 0 ? (
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Payment ID</th>
+                                    <th>Member Name</th>
+                                    <th>Amount</th>
+                                    <th>Payment Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {financialSummary.paymentHistory.map(payment => (
+                                    <tr key={payment.id}>
+                                        <td>{payment.id}</td>
+                                        <td>{payment.member_name}</td>
+                                        <td>{formatCurrency(payment.amount, currency)}</td>
+                                        <td>{new Date(payment.payment_date).toLocaleDateString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p>No payment history available.</p>
+                    )}
+                </div>
+
+                {/* Member Payment Status */}
+                <div>
+                    <h4>Member Payment Status</h4>
+                    {financialSummary.memberPaymentStatus.length > 0 ? (
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Member Name</th>
+                                    <th>Email</th>
+                                    <th>Last Payment Date</th>
+                                    <th>Last Invoice Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {financialSummary.memberPaymentStatus.map(member => (
+                                    <tr key={member.id}>
+                                        <td>{member.name}</td>
+                                        <td>{member.email}</td>
+                                        <td>{member.last_payment_date ? new Date(member.last_payment_date).toLocaleDateString() : 'N/A'}</td>
+                                        <td>{member.last_invoice_status || 'N/A'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p>No member payment status available.</p>
+                    )}
                 </div>
             </div>
         </div>
