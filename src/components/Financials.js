@@ -32,8 +32,8 @@ const Financials = () => {
 
     const fetchCurrency = async () => {
         try {
-            const response = await axios.get('/api/settings/currency');
-            setCurrency(response.data.value);
+            const response = await axios.get('/api/settings');
+            setCurrency(response.data.currency);
         } catch (error) {
             console.error("Error fetching currency setting", error);
         }

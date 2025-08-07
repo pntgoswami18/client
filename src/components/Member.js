@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
+import {
+    TextField,
+    Button,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Box,
+    List,
+    ListItem,
+    ListItemText,
+    Typography
+} from '@mui/material';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -10,11 +23,13 @@ const Member = () => {
     const [email, setEmail] = useState('');
     const [membershipType, setMembershipType] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
+    const [currency, setCurrency] = useState('INR');
 
     useEffect(() => {
         fetchMembers();
         fetchPlans();
         fetchMembershipTypes();
+        fetchCurrency();
     }, []);
 
     const fetchMembers = async () => {
@@ -40,13 +55,24 @@ const Member = () => {
 
     const fetchMembershipTypes = async () => {
         try {
-            const response = await axios.get('/api/settings/membership_types');
-            setMembershipTypes(response.data.value);
-            if (response.data.value.length > 0) {
-                setMembershipType(response.data.value[0]);
+            const response = await axios.get('/api/settings');
+            const types = response.data.membership_types || [];
+            setMembershipTypes(types);
+            if (types.length > 0) {
+                setMembershipType(types[0]);
             }
         } catch (error) {
             console.error("Error fetching membership types", error);
+        }
+    };
+
+    const fetchCurrency = async () => {
+        try {
+            const response = await axios.get('/api/settings');
+            const currentCurrency = response.data.currency || 'INR';
+            setCurrency(currentCurrency);
+        } catch (error) {
+            console.error("Error fetching currency", error);
         }
     };
 
@@ -76,53 +102,62 @@ const Member = () => {
 
     return (
         <div>
-            <h2>Members</h2>
-            <form onSubmit={addMember}>
-                <input
-                    type="text"
+            <Typography variant="h4" gutterBottom>Members</Typography>
+            <Box component="form" onSubmit={addMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px', margin: '0 auto 2rem auto' }}>
+                <TextField
+                    label="Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Name"
                     required
                 />
-                <input
+                <TextField
+                    label="Email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Email"
                     required
                 />
-                <select value={membershipType} onChange={(e) => setMembershipType(e.target.value)} required disabled={membershipTypes.length === 0}>
-                    {membershipTypes.length > 0 ? (
-                        membershipTypes.map(type => (
-                            <option key={type} value={type}>
-                                {type}
-                            </option>
-                        ))
-                    ) : (
-                        <option>Please create a membership type first</option>
-                    )}
-                </select>
-                <select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)} required disabled={plans.length === 0}>
-                    {plans.length > 0 ? (
-                        plans.map(plan => (
-                            <option key={plan.id} value={plan.id}>
-                                {plan.name} - {formatCurrency(plan.price)}
-                            </option>
-                        ))
-                    ) : (
-                        <option>Please create a membership plan first</option>
-                    )}
-                </select>
-                <button type="submit" disabled={plans.length === 0 || membershipTypes.length === 0}>Add Member</button>
-            </form>
-            <ul>
+                <FormControl fullWidth required disabled={membershipTypes.length === 0}>
+                    <InputLabel>Membership Type</InputLabel>
+                    <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
+                        {membershipTypes.length > 0 ? (
+                            membershipTypes.map(type => (
+                                <MenuItem key={type} value={type}>
+                                    {type}
+                                </MenuItem>
+                            ))
+                        ) : (
+                            <MenuItem disabled>Please create a membership type first</MenuItem>
+                        )}
+                    </Select>
+                </FormControl>
+                <FormControl fullWidth required disabled={plans.length === 0}>
+                    <InputLabel>Membership Plan</InputLabel>
+                    <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
+                        {plans.length > 0 ? (
+                            plans.map(plan => (
+                                <MenuItem key={plan.id} value={plan.id}>
+                                    {plan.name} - {formatCurrency(plan.price, currency)}
+                                </MenuItem>
+                            ))
+                        ) : (
+                            <MenuItem disabled>Please create a membership plan first</MenuItem>
+                        )}
+                    </Select>
+                </FormControl>
+                <Button type="submit" variant="contained" disabled={plans.length === 0 || membershipTypes.length === 0}>Add Member</Button>
+            </Box>
+            <Typography variant="h5" gutterBottom>Current Members</Typography>
+            <List>
                 {members.map(member => (
-                    <li key={member.id}>
-                        {member.name} ({member.email}) - {member.membership_type}
-                    </li>
+                    <ListItem key={member.id} divider>
+                        <ListItemText 
+                            primary={member.name}
+                            secondary={`${member.email} - ${member.membership_type}`}
+                        />
+                    </ListItem>
                 ))}
-            </ul>
+            </List>
         </div>
     );
 };

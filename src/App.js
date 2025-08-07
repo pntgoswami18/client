@@ -35,10 +35,9 @@ function App() {
 
   const fetchGymSettings = async () => {
     try {
-      const nameRes = await axios.get('/api/settings/gym_name');
-      const logoRes = await axios.get('/api/settings/gym_logo');
-      setGymName(nameRes.data.value);
-      setGymLogo(logoRes.data.value);
+      const response = await axios.get('/api/settings');
+      setGymName(response.data.gym_name);
+      setGymLogo(response.data.gym_logo);
     } catch (error) {
       console.error("Error fetching gym settings", error);
     }

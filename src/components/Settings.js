@@ -16,16 +16,12 @@ const Settings = () => {
 
     const fetchSettings = async () => {
         try {
-            const [currencyRes, typesRes, nameRes, logoRes] = await Promise.all([
-                axios.get('/api/settings/currency'),
-                axios.get('/api/settings/membership_types'),
-                axios.get('/api/settings/gym_name'),
-                axios.get('/api/settings/gym_logo')
-            ]);
-            setCurrency(currencyRes.data.value);
-            setMembershipTypes(typesRes.data.value);
-            setGymName(nameRes.data.value);
-            setGymLogo(logoRes.data.value);
+            const response = await axios.get('/api/settings');
+            const { currency, membership_types, gym_name, gym_logo } = response.data;
+            if (currency) setCurrency(currency);
+            if (membership_types) setMembershipTypes(membership_types);
+            if (gym_name) setGymName(gym_name);
+            if (gym_logo) setGymLogo(gym_logo);
         } catch (error) {
             console.error("Error fetching settings", error);
         }
@@ -33,6 +29,8 @@ const Settings = () => {
 
     const handleSaveAllSettings = async () => {
         try {
+            let logoUrl = gymLogo;
+
             if (logoFile) {
                 const formData = new FormData();
                 formData.append('logo', logoFile);
@@ -41,14 +39,17 @@ const Settings = () => {
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                await axios.put('/api/settings/gym_logo', { value: uploadRes.data.logoUrl });
+                logoUrl = uploadRes.data.logoUrl;
             }
             
-            await Promise.all([
-                axios.put('/api/settings/currency', { value: currency }),
-                axios.put('/api/settings/membership_types', { value: membershipTypes }),
-                axios.put('/api/settings/gym_name', { value: gymName })
-            ]);
+            const settingsToUpdate = {
+                currency,
+                membership_types: membershipTypes,
+                gym_name: gymName,
+                gym_logo: logoUrl
+            };
+
+            await axios.put('/api/settings', settingsToUpdate);
 
             alert('Settings updated successfully!');
             fetchSettings();

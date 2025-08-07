@@ -1,5 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import {
+    TextField,
+    Button,
+    Box,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    IconButton
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const ClassManager = () => {
     const [classes, setClasses] = useState([]);
@@ -66,40 +82,45 @@ const ClassManager = () => {
 
     return (
         <div>
-            <h2>Class Management</h2>
-            <form onSubmit={handleSubmit}>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Class Name" required />
-                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description"></textarea>
-                <input type="text" value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Instructor" required />
-                <input type="number" value={duration} onChange={e => setDuration(e.target.value)} placeholder="Duration (minutes)" required />
-                <button type="submit">{editingClass ? 'Update Class' : 'Add Class'}</button>
-                {editingClass && <button type="button" onClick={resetForm}>Cancel Edit</button>}
-            </form>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Instructor</th>
-                        <th>Duration</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {classes.map(cls => (
-                        <tr key={cls.id}>
-                            <td>{cls.name}</td>
-                            <td>{cls.description}</td>
-                            <td>{cls.instructor}</td>
-                            <td>{cls.duration_minutes}</td>
-                            <td>
-                                <button onClick={() => handleEdit(cls)}>Edit</button>
-                                <button onClick={() => handleDelete(cls.id)}>Delete</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <Typography variant="h4" gutterBottom>Class Management</Typography>
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px', margin: '0 auto 2rem auto' }}>
+                <TextField label="Class Name" value={name} onChange={e => setName(e.target.value)} required />
+                <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
+                <TextField label="Instructor" value={instructor} onChange={e => setInstructor(e.target.value)} required />
+                <TextField label="Duration (minutes)" type="number" value={duration} onChange={e => setDuration(e.target.value)} required />
+                <Box sx={{ display: 'flex', gap: '1rem' }}>
+                    <Button type="submit" variant="contained">{editingClass ? 'Update Class' : 'Add Class'}</Button>
+                    {editingClass && <Button variant="outlined" onClick={resetForm}>Cancel</Button>}
+                </Box>
+            </Box>
+
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Description</TableCell>
+                            <TableCell>Instructor</TableCell>
+                            <TableCell>Duration (min)</TableCell>
+                            <TableCell>Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {classes.map(cls => (
+                            <TableRow key={cls.id}>
+                                <TableCell>{cls.name}</TableCell>
+                                <TableCell>{cls.description}</TableCell>
+                                <TableCell>{cls.instructor}</TableCell>
+                                <TableCell>{cls.duration_minutes}</TableCell>
+                                <TableCell>
+                                    <IconButton onClick={() => handleEdit(cls)}><EditIcon /></IconButton>
+                                    <IconButton onClick={() => handleDelete(cls.id)}><DeleteIcon /></IconButton>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
         </div>
     );
 };
