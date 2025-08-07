@@ -57,6 +57,63 @@ main {
   color: #61dafb;
 }
 
+/* Form Styles */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="datetime-local"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Ensures padding doesn't affect overall width */
+}
+
+textarea {
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 80px;
+}
+
+button {
+    padding: 10px 15px;
+    font-size: 1rem;
+    color: white;
+    background-color: #282c34;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #61dafb;
+    color: #282c34;
+}
+
+button[type="button"] {
+    background-color: #6c757d;
+}
+
+button[type="button"]:hover {
+    background-color: #5a6268;
+}
+
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);

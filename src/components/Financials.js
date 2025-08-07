@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { formatCurrency } from '../utils/formatting';
 
 const Financials = () => {
     const [plans, setPlans] = useState([]);
@@ -7,10 +8,21 @@ const Financials = () => {
     const [planPrice, setPlanPrice] = useState('');
     const [planDuration, setPlanDuration] = useState('');
     const [planDescription, setPlanDescription] = useState('');
+    const [currency, setCurrency] = useState('INR');
 
     useEffect(() => {
         fetchPlans();
+        fetchCurrency();
     }, []);
+
+    const fetchCurrency = async () => {
+        try {
+            const response = await axios.get('/api/settings/currency');
+            setCurrency(response.data.value);
+        } catch (error) {
+            console.error("Error fetching currency setting", error);
+        }
+    };
 
     const fetchPlans = async () => {
         try {
@@ -109,7 +121,7 @@ const Financials = () => {
                                 {plans.map(plan => (
                                     <tr key={plan.id}>
                                         <td>{plan.name}</td>
-                                        <td>${plan.price}</td>
+                                        <td>{formatCurrency(plan.price, currency)}</td>
                                         <td>{plan.duration_days}</td>
                                         <td>{plan.description || 'No description'}</td>
                                     </tr>

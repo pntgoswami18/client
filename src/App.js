@@ -6,6 +6,7 @@ import ScheduleManager from './components/ScheduleManager';
 import AttendanceTracker from './components/AttendanceTracker';
 import Financials from './components/Financials';
 import Dashboard from './components/Dashboard';
+import Settings from './components/Settings';
 import './App.css';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
               <li><Link to="/schedules">Schedules</Link></li>
               <li><Link to="/attendance">Attendance</Link></li>
               <li><Link to="/financials">Financials</Link></li>
+              <li><Link to="/settings">Settings</Link></li>
             </ul>
           </nav>
         </header>
@@ -33,6 +35,7 @@ function App() {
             <Route path="/schedules" element={<ScheduleManager />} />
             <Route path="/attendance" element={<AttendanceTracker />} />
             <Route path="/financials" element={<Financials />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
       </div>

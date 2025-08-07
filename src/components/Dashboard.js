@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { formatCurrency, formatDate } from '../utils/formatting';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const Dashboard = () => {
     const [summaryStats, setSummaryStats] = useState({});
@@ -7,11 +9,22 @@ const Dashboard = () => {
     const [attendanceStats, setAttendanceStats] = useState([]);
     const [popularClasses, setPopularClasses] = useState([]);
     const [revenueStats, setRevenueStats] = useState([]);
+    const [currency, setCurrency] = useState('INR');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchAllReports();
+        fetchCurrency();
     }, []);
+
+    const fetchCurrency = async () => {
+        try {
+            const response = await axios.get('/api/settings/currency');
+            setCurrency(response.data.value);
+        } catch (error) {
+            console.error("Error fetching currency setting", error);
+        }
+    };
 
     const fetchAllReports = async () => {
         try {
@@ -39,17 +52,6 @@ const Dashboard = () => {
         return <div><h2>Dashboard</h2><p>Loading analytics...</p></div>;
     }
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD'
-        }).format(amount);
-    };
-
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString();
-    };
-
     return (
         <div>
             <h2>Dashboard - Analytics & Reports</h2>
@@ -62,7 +64,7 @@ const Dashboard = () => {
                 </div>
                 <div style={{ padding: '20px', backgroundColor: '#f0fff0', borderRadius: '8px', textAlign: 'center' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#228b22' }}>Total Revenue</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{formatCurrency(summaryStats.totalRevenue)}</p>
+                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{formatCurrency(summaryStats.totalRevenue, currency)}</p>
                 </div>
                 <div style={{ padding: '20px', backgroundColor: '#fff8dc', borderRadius: '8px', textAlign: 'center' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#daa520' }}>New Members This Month</h3>
@@ -105,22 +107,16 @@ const Dashboard = () => {
             <div style={{ marginBottom: '30px' }}>
                 <h3>Member Growth (Last 12 Months)</h3>
                 {memberGrowth.length > 0 ? (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Month</th>
-                                <th>New Members</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {memberGrowth.map((data, index) => (
-                                <tr key={index}>
-                                    <td>{formatDate(data.month)}</td>
-                                    <td>{data.new_members}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={memberGrowth}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" tickFormatter={formatDate} />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="new_members" fill="#8884d8" name="New Members" />
+                        </BarChart>
+                    </ResponsiveContainer>
                 ) : (
                     <p>No member growth data available yet.</p>
                 )}
@@ -130,22 +126,16 @@ const Dashboard = () => {
             <div style={{ marginBottom: '30px' }}>
                 <h3>Revenue Trend (Last 12 Months)</h3>
                 {revenueStats.length > 0 ? (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Month</th>
-                                <th>Revenue</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {revenueStats.map((data, index) => (
-                                <tr key={index}>
-                                    <td>{formatDate(data.month)}</td>
-                                    <td>{formatCurrency(data.total_revenue)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={revenueStats}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" tickFormatter={formatDate} />
+                            <YAxis tickFormatter={(value) => formatCurrency(value, currency)} />
+                            <Tooltip formatter={(value) => formatCurrency(value, currency)} />
+                            <Legend />
+                            <Line type="monotone" dataKey="total_revenue" stroke="#82ca9d" name="Revenue" />
+                        </LineChart>
+                    </ResponsiveContainer>
                 ) : (
                     <p>No revenue data available yet.</p>
                 )}
@@ -155,22 +145,16 @@ const Dashboard = () => {
             <div style={{ marginBottom: '30px' }}>
                 <h3>Daily Attendance (Last 30 Days)</h3>
                 {attendanceStats.length > 0 ? (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Check-ins</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {attendanceStats.map((data, index) => (
-                                <tr key={index}>
-                                    <td>{formatDate(data.date)}</td>
-                                    <td>{data.total_checkins}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={attendanceStats}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="date" tickFormatter={formatDate} />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Line type="monotone" dataKey="total_checkins" stroke="#8884d8" name="Check-ins" />
+                        </LineChart>
+                    </ResponsiveContainer>
                 ) : (
                     <p>No attendance data available yet.</p>
                 )}
