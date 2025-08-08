@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
+import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import {
     TextField,
@@ -22,6 +23,7 @@ import {
 
 const Member = () => {
     const [members, setMembers] = useState([]);
+    const [unpaidMembersThisMonth, setUnpaidMembersThisMonth] = useState([]);
     const location = useLocation();
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
@@ -52,6 +54,17 @@ const Member = () => {
         const qp = new URLSearchParams(location.search);
         const f = qp.get('filter') || 'all';
         setFilter(f);
+        if (f === 'unpaid-this-month') {
+            (async () => {
+                try {
+                    const res = await axios.get('/api/reports/unpaid-members-this-month');
+                    setUnpaidMembersThisMonth(res.data || []);
+                } catch (e) {
+                    console.error('Error fetching unpaid members this month', e);
+                    setUnpaidMembersThisMonth([]);
+                }
+            })();
+        }
     }, [location.search]);
 
     const fetchMembers = async () => {
@@ -179,9 +192,12 @@ const Member = () => {
             startOfMonth.setHours(0,0,0,0);
             return members.filter(m => m.join_date && new Date(m.join_date) >= startOfMonth);
         }
-        // unpaid-this-month is not directly derivable from members list without joins; fallback to showing all for now
+        if (filter === 'unpaid-this-month') {
+            const unpaidIds = new Set(unpaidMembersThisMonth.map(m => String(m.id)));
+            return members.filter(m => unpaidIds.has(String(m.id)));
+        }
         return members;
-    }, [members, filter]);
+    }, [members, filter, unpaidMembersThisMonth]);
 
     return (
         <div>

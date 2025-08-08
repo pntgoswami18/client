@@ -325,15 +325,22 @@ const Financials = () => {
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <Autocomplete
                             options={members}
-                            getOptionLabel={(option) => option.name || ''}
+                            isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
+                            getOptionLabel={(option) => option?.name || ''}
                             value={manualMember}
                             onChange={async (_e, value) => {
                                 setManualMember(value);
                                 setManualInvoiceId('');
+                                setManualAmount('');
                                 if (value && value.id) {
                                     try {
                                         const res = await axios.get(`/api/payments/unpaid`, { params: { member_id: value.id } });
-                                        setUnpaidInvoices(res.data || []);
+                                        const list = res.data || [];
+                                        setUnpaidInvoices(list);
+                                        if (list.length > 0) {
+                                            setManualInvoiceId(String(list[0].id));
+                                            setManualAmount(String(list[0].amount));
+                                        }
                                     } catch (e) {
                                         console.error('Error fetching unpaid invoices', e);
                                         setUnpaidInvoices([]);
