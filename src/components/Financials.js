@@ -29,17 +29,25 @@ import {
 
 const Financials = () => {
     const [plans, setPlans] = useState([]);
+    const [members, setMembers] = useState([]);
     const [planName, setPlanName] = useState('');
     const [planPrice, setPlanPrice] = useState('');
     const [planDuration, setPlanDuration] = useState('');
     const [planDescription, setPlanDescription] = useState('');
     const [currency, setCurrency] = useState('INR');
     const [openAddPlan, setOpenAddPlan] = useState(false);
+    const [openEditPlan, setOpenEditPlan] = useState(false);
+    const [editingPlan, setEditingPlan] = useState(null);
     const [openManualPayment, setOpenManualPayment] = useState(false);
     const [manualInvoiceId, setManualInvoiceId] = useState('');
     const [manualAmount, setManualAmount] = useState('');
     const [manualMethod, setManualMethod] = useState('cash');
     const [manualTxnId, setManualTxnId] = useState('');
+    const [openCreateInvoice, setOpenCreateInvoice] = useState(false);
+    const [invMemberId, setInvMemberId] = useState('');
+    const [invPlanId, setInvPlanId] = useState('');
+    const [invAmount, setInvAmount] = useState('');
+    const [invDueDate, setInvDueDate] = useState('');
     const [financialSummary, setFinancialSummary] = useState({
         outstandingInvoices: [],
         paymentHistory: [],
@@ -49,6 +57,7 @@ const Financials = () => {
     useEffect(() => {
         fetchPlans();
         fetchCurrency();
+        fetchMembers();
         fetchFinancialSummary();
     }, []);
 
@@ -79,6 +88,15 @@ const Financials = () => {
         }
     };
 
+    const fetchMembers = async () => {
+        try {
+            const res = await axios.get('/api/members');
+            setMembers(res.data);
+        } catch (e) {
+            console.error('Error fetching members', e);
+        }
+    };
+
     const handleCreatePlan = async (e) => {
         e.preventDefault();
         const planData = {
@@ -92,11 +110,39 @@ const Financials = () => {
             await axios.post('/api/plans', planData);
             fetchPlans();
             resetPlanForm();
+            setOpenAddPlan(false);
             alert('Membership plan created successfully!');
         } catch (error) {
             console.error("Error creating plan", error);
             alert('Error creating plan. Please try again.');
         }
+    };
+
+    const handleUpdatePlan = async (e) => {
+        e.preventDefault();
+        if (!editingPlan) return;
+        try {
+            await axios.put(`/api/plans/${editingPlan.id}`, {
+                name: planName,
+                price: parseFloat(planPrice),
+                duration_days: parseInt(planDuration),
+                description: planDescription
+            });
+            setOpenEditPlan(false);
+            setEditingPlan(null);
+            resetPlanForm();
+            fetchPlans();
+        } catch (error) {
+            console.error('Error updating plan', error);
+        }
+    };
+
+    const handleDeletePlan = async (id) => {
+        if (!window.confirm('Delete this plan?')) return;
+        try {
+            await axios.delete(`/api/plans/${id}`);
+            fetchPlans();
+        } catch (e) { console.error(e); }
     };
 
     const resetPlanForm = () => {
@@ -185,6 +231,7 @@ const Financials = () => {
                                     <TableCell>Price</TableCell>
                                     <TableCell>Duration (Days)</TableCell>
                                     <TableCell>Description</TableCell>
+                                    <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -194,6 +241,17 @@ const Financials = () => {
                                         <TableCell>{formatCurrency(plan.price, currency)}</TableCell>
                                         <TableCell>{plan.duration_days}</TableCell>
                                         <TableCell>{plan.description || 'No description'}</TableCell>
+                                        <TableCell>
+                                            <Button size="small" onClick={() => {
+                                                setEditingPlan(plan);
+                                                setPlanName(plan.name);
+                                                setPlanPrice(String(plan.price));
+                                                setPlanDuration(String(plan.duration_days));
+                                                setPlanDescription(plan.description || '');
+                                                setOpenEditPlan(true);
+                                            }}>Edit</Button>
+                                            <Button size="small" color="error" onClick={() => handleDeletePlan(plan.id)}>Delete</Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -203,6 +261,22 @@ const Financials = () => {
                     <Typography>No membership plans found. Create one above.</Typography>
                 )}
             </Box>
+
+            <Dialog open={openEditPlan} onClose={() => setOpenEditPlan(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Edit Membership Plan</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={handleUpdatePlan} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <TextField label="Plan Name" value={planName} onChange={e => setPlanName(e.target.value)} required />
+                        <TextField label="Price" type="number" inputProps={{ step: '0.01' }} value={planPrice} onChange={e => setPlanPrice(e.target.value)} required />
+                        <TextField label="Duration (Days)" type="number" value={planDuration} onChange={e => setPlanDuration(e.target.value)} required />
+                        <TextField label="Description" value={planDescription} onChange={e => setPlanDescription(e.target.value)} multiline rows={3} />
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenEditPlan(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained">Save</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
 
             <Divider sx={{ marginY: '2rem' }} />
 
@@ -219,8 +293,12 @@ const Financials = () => {
                     </ul>
                     <Typography variant="body2">For testing, you can use Stripe's test card numbers.</Typography>
                 </Alert>
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
                     <Button variant="outlined" onClick={() => setOpenManualPayment(true)}>Record Manual Payment</Button>
+                    <Button variant="outlined" onClick={() => {
+                        setOpenCreateInvoice(true);
+                        setInvDueDate(new Date().toISOString().slice(0,10));
+                    }}>Create Invoice</Button>
                 </Box>
             </Box>
 
@@ -255,6 +333,51 @@ const Financials = () => {
                             fetchFinancialSummary();
                         } catch (e) { console.error(e); }
                     }} variant="contained">Save</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={openCreateInvoice} onClose={() => setOpenCreateInvoice(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Create Invoice</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <FormControl fullWidth>
+                            <InputLabel>Member</InputLabel>
+                            <Select value={invMemberId} onChange={(e)=>{ setInvMemberId(e.target.value); }}>
+                                {members.map(m => (
+                                    <MenuItem key={m.id} value={m.id}>{m.name} - {m.email}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <InputLabel>Plan</InputLabel>
+                            <Select value={invPlanId} onChange={(e)=>{
+                                setInvPlanId(e.target.value);
+                                const p = plans.find(pl => String(pl.id) === String(e.target.value));
+                                if (p) setInvAmount(String(p.price));
+                            }}>
+                                {plans.map(p => (
+                                    <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <TextField label="Amount" type="number" value={invAmount} onChange={(e)=>setInvAmount(e.target.value)} />
+                        <TextField label="Due Date" type="date" value={invDueDate} onChange={(e)=>setInvDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={()=>setOpenCreateInvoice(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={async ()=>{
+                        try {
+                            await axios.post('/api/payments/invoice', {
+                                member_id: parseInt(invMemberId,10),
+                                plan_id: invPlanId ? parseInt(invPlanId,10) : null,
+                                amount: parseFloat(invAmount),
+                                due_date: invDueDate
+                            });
+                            setOpenCreateInvoice(false);
+                            fetchFinancialSummary();
+                        } catch (e) { console.error(e); }
+                    }}>Create</Button>
                 </DialogActions>
             </Dialog>
 
