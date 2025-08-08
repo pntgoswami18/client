@@ -307,8 +307,8 @@ const Financials = () => {
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                            <TextField label="Invoice ID" type="number" value={manualInvoiceId} onChange={(e)=>setManualInvoiceId(e.target.value)} required sx={{ flex: 1 }} />
-                            <Button onClick={() => setManualInvoiceId(String(Math.floor(100000 + Math.random() * 900000)))}>Random</Button>
+                            <TextField label="Invoice ID" type="number" value={manualInvoiceId} onChange={(e)=>setManualInvoiceId(e.target.value)} sx={{ flex: 1 }} />
+                            <Button onClick={() => setManualInvoiceId(String(Math.floor(100000 + Math.random() * 900000)))}>Generate Invoice ID</Button>
                         </Box>
                         <TextField label="Amount" type="number" value={manualAmount} onChange={(e)=>setManualAmount(e.target.value)} required />
                         <FormControl fullWidth>
@@ -326,12 +326,13 @@ const Financials = () => {
                     <Button onClick={() => setOpenManualPayment(false)}>Cancel</Button>
                     <Button onClick={async ()=>{
                         try {
-                            await axios.post('/api/payments/manual', {
-                                invoice_id: parseInt(manualInvoiceId,10),
+                            const payload = {
                                 amount: parseFloat(manualAmount),
                                 method: manualMethod,
                                 transaction_id: manualTxnId || undefined
-                            });
+                            };
+                            if (manualInvoiceId) payload.invoice_id = parseInt(manualInvoiceId,10);
+                            await axios.post('/api/payments/manual', payload);
                             setOpenManualPayment(false);
                             fetchFinancialSummary();
                         } catch (e) { console.error(e); }
