@@ -78,6 +78,10 @@ const Dashboard = () => {
                     <h3 style={{ margin: '0 0 10px 0', color: '#daa520' }}>New Members This Month</h3>
                     <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.newMembersThisMonth)}</p>
                 </div>
+                <div style={{ padding: '20px', backgroundColor: '#fde2e1', borderRadius: '8px', textAlign: 'center' }}>
+                    <h3 style={{ margin: '0 0 10px 0', color: '#b22222' }}>Unpaid Members This Month</h3>
+                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.unpaidMembersThisMonth)}</p>
+                </div>
                 <div style={{ padding: '20px', backgroundColor: '#ffe4e1', borderRadius: '8px', textAlign: 'center' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#dc143c' }}>Active Schedules</h3>
                     <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.activeSchedules)}</p>
