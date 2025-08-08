@@ -15,6 +15,7 @@ import ClassManager from './components/ClassManager';
 import ScheduleManager from './components/ScheduleManager';
 import AttendanceTracker from './components/AttendanceTracker';
 import Financials from './components/Financials';
+import InvoiceView from './components/InvoiceView';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 
@@ -154,6 +155,7 @@ function App() {
               <Route path="/schedules" element={<ScheduleManager />} />
               <Route path="/attendance" element={<AttendanceTracker />} />
               <Route path="/financials" element={<Financials />} />
+              <Route path="/invoices/:id" element={<InvoiceView />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </Box>

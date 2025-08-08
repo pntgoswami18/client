@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Chip, TextField, Button, Box } from '@mui/material';
+import { Chip, TextField, Button, Box, Grid, Typography } from '@mui/material';
 
 const Settings = () => {
     const [currency, setCurrency] = useState('INR');
@@ -12,6 +12,10 @@ const Settings = () => {
     const [primaryColor, setPrimaryColor] = useState('#3f51b5');
     const [secondaryColor, setSecondaryColor] = useState('#f50057');
     const [paymentReminderDays, setPaymentReminderDays] = useState('7');
+    const [morningStart, setMorningStart] = useState('05:00');
+    const [morningEnd, setMorningEnd] = useState('11:00');
+    const [eveningStart, setEveningStart] = useState('16:00');
+    const [eveningEnd, setEveningEnd] = useState('22:00');
 
     useEffect(() => {
         fetchSettings();
@@ -20,14 +24,18 @@ const Settings = () => {
     const fetchSettings = async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, payment_reminder_days } = response.data;
-            if (currency) setCurrency(currency);
-            if (membership_types) setMembershipTypes(membership_types);
-            if (gym_name) setGymName(gym_name);
-            if (gym_logo) setGymLogo(gym_logo);
-            if (primary_color) setPrimaryColor(primary_color);
-            if (secondary_color) setSecondaryColor(secondary_color);
-            if (payment_reminder_days) setPaymentReminderDays(String(payment_reminder_days));
+            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end } = response.data;
+            if (currency) { setCurrency(currency); }
+            if (membership_types) { setMembershipTypes(membership_types); }
+            if (gym_name) { setGymName(gym_name); }
+            if (gym_logo) { setGymLogo(gym_logo); }
+            if (primary_color) { setPrimaryColor(primary_color); }
+            if (secondary_color) { setSecondaryColor(secondary_color); }
+            if (payment_reminder_days) { setPaymentReminderDays(String(payment_reminder_days)); }
+            if (morning_session_start) { setMorningStart(morning_session_start); }
+            if (morning_session_end) { setMorningEnd(morning_session_end); }
+            if (evening_session_start) { setEveningStart(evening_session_start); }
+            if (evening_session_end) { setEveningEnd(evening_session_end); }
         } catch (error) {
             console.error("Error fetching settings", error);
         }
@@ -55,7 +63,11 @@ const Settings = () => {
                 gym_logo: logoUrl,
                 primary_color: primaryColor,
                 secondary_color: secondaryColor,
-                payment_reminder_days: paymentReminderDays
+                payment_reminder_days: paymentReminderDays,
+                morning_session_start: morningStart,
+                morning_session_end: morningEnd,
+                evening_session_start: eveningStart,
+                evening_session_end: eveningEnd
             };
 
             await axios.put('/api/settings', settingsToUpdate);
@@ -146,6 +158,54 @@ const Settings = () => {
                         />
                         <Button variant="contained" onClick={handleAddMembershipType}>Add</Button>
                     </Box>
+                </div>
+                <div style={{ marginTop: '30px' }}>
+                    <label>Working Hours</label>
+                    <Grid container spacing={2} sx={{ mt: 1 }}>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <TextField
+                                label="Morning Start"
+                                type="time"
+                                value={morningStart}
+                                onChange={(e) => setMorningStart(e.target.value)}
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <TextField
+                                label="Morning End"
+                                type="time"
+                                value={morningEnd}
+                                onChange={(e) => setMorningEnd(e.target.value)}
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <TextField
+                                label="Evening Start"
+                                type="time"
+                                value={eveningStart}
+                                onChange={(e) => setEveningStart(e.target.value)}
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6} md={3}>
+                            <TextField
+                                label="Evening End"
+                                type="time"
+                                value={eveningEnd}
+                                onChange={(e) => setEveningEnd(e.target.value)}
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                    </Grid>
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        These values control check-in allowed hours used by Attendance.
+                    </Typography>
                 </div>
                 <div style={{ marginTop: '30px' }}>
                     <label>Accent Colors</label>

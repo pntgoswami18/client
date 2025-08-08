@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import {
@@ -58,6 +58,7 @@ const Financials = () => {
         memberPaymentStatus: []
     });
     const location = useLocation();
+    const navigate = useNavigate();
     const outstandingRef = useRef(null);
 
     useEffect(() => {
@@ -512,7 +513,12 @@ const Financials = () => {
                             </TableHead>
                             <TableBody>
                                 {financialSummary.paymentHistory.map(payment => (
-                                    <TableRow key={payment.id}>
+                                    <TableRow 
+                                        key={payment.id}
+                                        hover
+                                        sx={{ cursor: 'pointer' }}
+                                        onClick={() => navigate(`/invoices/${payment.id}`)}
+                                    >
                                         <TableCell>{payment.id}</TableCell>
                                         <TableCell>{payment.member_name}</TableCell>
                                         <TableCell>{formatCurrency(payment.amount, currency)}</TableCell>

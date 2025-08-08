@@ -25,6 +25,7 @@ const AttendanceTracker = () => {
     const [selectedMemberId, setSelectedMemberId] = useState('');
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     const [simulateMemberId, setSimulateMemberId] = useState('');
+    const [checkInError, setCheckInError] = useState('');
 
     useEffect(() => {
         fetchMembers();
@@ -61,9 +62,12 @@ const AttendanceTracker = () => {
 
     const simulateCheckIn = async (e) => {
         e.preventDefault();
-        if (!simulateMemberId) return;
+        if (!simulateMemberId) {
+            return;
+        }
 
         try {
+            setCheckInError('');
             await axios.post('/api/attendance/check-in', { memberId: parseInt(simulateMemberId) });
             alert('Check-in successful!');
             
@@ -74,7 +78,9 @@ const AttendanceTracker = () => {
             setSimulateMemberId('');
         } catch (error) {
             console.error("Error simulating check-in", error);
-            alert('Error during check-in. Please check if the member exists.');
+            const msg = error?.response?.data?.message || 'Error during check-in. Please check if the member exists.';
+            setCheckInError(msg);
+            alert(msg);
         }
     };
 
@@ -98,6 +104,9 @@ const AttendanceTracker = () => {
                     <Alert severity="info" sx={{ marginBottom: '1rem' }}>
                         This simulates what a biometric device would do when a member checks in.
                     </Alert>
+                    {checkInError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>{checkInError}</Alert>
+                    )}
                     <Box component="form" onSubmit={simulateCheckIn} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px' }}>
                         <FormControl fullWidth required>
                             <InputLabel>Select Member to Check In</InputLabel>
@@ -139,18 +148,14 @@ const AttendanceTracker = () => {
                         <TableContainer component={Paper}>
                             <Table>
                                 <TableHead>
-                                    <TableRow>
-                                        <TableCell>Check-in Time</TableCell>
-                                        <TableCell>Check-out Time</TableCell>
-                                    </TableRow>
+                                <TableRow>
+                                    <TableCell>Check-in Time</TableCell>
+                                </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {attendanceRecords.map(record => (
                                         <TableRow key={record.id}>
                                             <TableCell>{formatDateTime(record.check_in_time)}</TableCell>
-                                            <TableCell>
-                                                {record.check_out_time ? formatDateTime(record.check_out_time) : 'Still in gym'}
-                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
