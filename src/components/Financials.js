@@ -326,8 +326,14 @@ const Financials = () => {
                     <Button onClick={() => setOpenManualPayment(false)}>Cancel</Button>
                     <Button onClick={async ()=>{
                         try {
+                            const amountNum = Number(manualAmount);
+                            if (!manualAmount || Number.isNaN(amountNum) || amountNum <= 0) {
+                                alert('Please enter a valid amount greater than 0.');
+                                return;
+                            }
+
                             const payload = {
-                                amount: parseFloat(manualAmount),
+                                amount: amountNum,
                                 method: manualMethod,
                                 transaction_id: manualTxnId || undefined
                             };
@@ -335,7 +341,10 @@ const Financials = () => {
                             await axios.post('/api/payments/manual', payload);
                             setOpenManualPayment(false);
                             fetchFinancialSummary();
-                        } catch (e) { console.error(e); }
+                        } catch (e) {
+                            console.error(e);
+                            alert(e?.response?.data?.message || 'Error recording manual payment.');
+                        }
                     }} variant="contained">Save</Button>
                 </DialogActions>
             </Dialog>
