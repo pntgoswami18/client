@@ -138,7 +138,9 @@ const Financials = () => {
 
     const handleUpdatePlan = async (e) => {
         e.preventDefault();
-        if (!editingPlan) return;
+        if (!editingPlan) {
+            return;
+        }
         try {
             await axios.put(`/api/plans/${editingPlan.id}`, {
                 name: planName,
@@ -156,7 +158,9 @@ const Financials = () => {
     };
 
     const handleDeletePlan = async (id) => {
-        if (!window.confirm('Delete this plan?')) return;
+        if (!window.confirm('Delete this plan?')) {
+            return;
+        }
         try {
             await axios.delete(`/api/plans/${id}`);
             fetchPlans();
@@ -180,7 +184,7 @@ const Financials = () => {
                 
                 {/* Create New Plan Form */}
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                    <Button variant="contained" onClick={() => setOpenAddPlan(true)}>Add Plan</Button>
+                    <Button onClick={() => setOpenAddPlan(true)}>Add Plan</Button>
                 </Box>
                 <Dialog open={openAddPlan} onClose={() => setOpenAddPlan(false)} fullWidth maxWidth="sm">
                     <DialogTitle>Create New Membership Plan</DialogTitle>
@@ -241,26 +245,26 @@ const Financials = () => {
                 {/* Existing Plans Table */}
                 <Typography variant="h6" gutterBottom>Existing Plans</Typography>
                     {plans.length > 0 ? (
-                    <TableContainer component={Paper}>
+                    <TableContainer component={Paper} sx={{ overflow: 'hidden' }}>
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Plan Name</TableCell>
-                                    <TableCell>Price</TableCell>
-                                    <TableCell>Duration (Days)</TableCell>
-                                    <TableCell>Description</TableCell>
-                                    <TableCell>Actions</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Plan Name</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Price</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Duration (Days)</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {plans.map(plan => (
-                                    <TableRow key={plan.id}>
+                                    <TableRow key={plan.id} hover>
                                         <TableCell>{plan.name}</TableCell>
                                         <TableCell>{formatCurrency(plan.price, currency)}</TableCell>
                                         <TableCell>{plan.duration_days}</TableCell>
                                         <TableCell>{plan.description || 'No description'}</TableCell>
                                         <TableCell>
-                                            <Button size="small" onClick={() => {
+                                            <Button size="small" variant="outlined" onClick={() => {
                                                 setEditingPlan(plan);
                                                 setPlanName(plan.name);
                                                 setPlanPrice(String(plan.price));
@@ -268,7 +272,7 @@ const Financials = () => {
                                                 setPlanDescription(plan.description || '');
                                                 setOpenEditPlan(true);
                                             }}>Edit</Button>
-                                            <Button size="small" color="error" onClick={() => handleDeletePlan(plan.id)}>Delete</Button>
+                                            <Button size="small" color="error" variant="outlined" onClick={() => handleDeletePlan(plan.id)} sx={{ ml: 1 }}>Delete</Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -366,7 +370,7 @@ const Financials = () => {
                                         const invId = e.target.value;
                                         setManualInvoiceId(String(invId));
                                         const inv = unpaidInvoices.find(u => String(u.id) === String(invId));
-                                        if (inv) setManualAmount(String(inv.amount));
+                                        if (inv) { setManualAmount(String(inv.amount)); }
                                     }}
                                 >
                                     {unpaidInvoices.map(inv => (
@@ -404,7 +408,7 @@ const Financials = () => {
                                 method: manualMethod,
                                 transaction_id: manualTxnId || undefined
                             };
-                            if (manualInvoiceId) payload.invoice_id = parseInt(manualInvoiceId,10);
+                            if (manualInvoiceId) { payload.invoice_id = parseInt(manualInvoiceId,10); }
                             await axios.post('/api/payments/manual', payload);
                             setOpenManualPayment(false);
                             fetchFinancialSummary();
@@ -433,7 +437,7 @@ const Financials = () => {
                             <Select value={invPlanId} onChange={(e)=>{
                                 setInvPlanId(e.target.value);
                                 const p = plans.find(pl => String(pl.id) === String(e.target.value));
-                                if (p) setInvAmount(String(p.price));
+                                if (p) { setInvAmount(String(p.price)); }
                             }}>
                                 {plans.map(p => (
                                     <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>

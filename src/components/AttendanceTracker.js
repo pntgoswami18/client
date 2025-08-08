@@ -95,7 +95,7 @@ const AttendanceTracker = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom>Attendance Tracking</Typography>
+            <Typography variant="h4" gutterBottom>Attendance</Typography>
             
             {/* Simulate Check-in Section */}
             <Card sx={{ marginBottom: '2rem' }}>
@@ -118,7 +118,7 @@ const AttendanceTracker = () => {
                                 ))}
                             </Select>
                         </FormControl>
-                        <Button type="submit" variant="contained">Simulate Check-in</Button>
+                        <Button type="submit">Simulate Check-in</Button>
                     </Box>
                 </CardContent>
             </Card>

@@ -230,9 +230,8 @@ const Member = () => {
                         <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>
                     </Select>
                 </FormControl>
-            </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <Button variant="contained" onClick={() => setOpenAdd(true)}>Add Member</Button>
+                <Box sx={{ flex: 1 }} />
+                <Button onClick={() => setOpenAdd(true)}>Add Member</Button>
             </Box>
 
             <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">

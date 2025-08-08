@@ -71,8 +71,8 @@ const InvoiceView = () => {
   const gymName = settings?.gym_name || 'Gym';
 
   return (
-    <Box sx={{ backgroundColor: '#fafafa', p: 2 }}>
-      <Box sx={{ maxWidth: 900, mx: 'auto', background: 'white', p: 3, borderRadius: 1, boxShadow: 1 }}>
+    <Box>
+      <Box sx={{ maxWidth: 900, mx: 'auto', background: 'white', p: 4, borderRadius: 2, boxShadow: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="h5" fontWeight={700}>{gymName}</Typography>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Link, useLocation } from 'react-router-dom';
-import { createTheme, ThemeProvider, CssBaseline, AppBar, Toolbar, Typography, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, IconButton, Divider } from '@mui/material';
+import { createTheme, ThemeProvider, CssBaseline, AppBar, Toolbar, Typography, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, IconButton, Divider, Container } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
@@ -24,6 +24,19 @@ const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
     palette: {
       primary: { main: primary },
       secondary: { main: secondary },
+      background: { default: '#f7f8fa' },
+    },
+    shape: { borderRadius: 10 },
+    typography: {
+      fontFamily: "-apple-system, 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif",
+      h4: { fontWeight: 700 },
+      h5: { fontWeight: 700 },
+    },
+    components: {
+      MuiButton: { defaultProps: { variant: 'contained' } },
+      MuiTable: { defaultProps: { size: 'small' } },
+      MuiTableRow: { styleOverrides: { root: { transition: 'background 0.2s' } } },
+      MuiPaper: { styleOverrides: { root: { borderRadius: 12 } } },
     },
   });
 
@@ -45,8 +58,8 @@ function App() {
       const response = await axios.get('/api/settings');
       setGymName(response.data.gym_name);
       setGymLogo(response.data.gym_logo);
-      if (response.data.primary_color) setPrimaryColor(response.data.primary_color);
-      if (response.data.secondary_color) setSecondaryColor(response.data.secondary_color);
+      if (response.data.primary_color) { setPrimaryColor(response.data.primary_color); }
+      if (response.data.secondary_color) { setSecondaryColor(response.data.secondary_color); }
     } catch (error) {
       console.error("Error fetching gym settings", error);
     }
@@ -148,16 +161,18 @@ function App() {
             sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
           >
             <Toolbar />
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/members" element={<Member />} />
-              <Route path="/classes" element={<ClassManager />} />
-              <Route path="/schedules" element={<ScheduleManager />} />
-              <Route path="/attendance" element={<AttendanceTracker />} />
-              <Route path="/financials" element={<Financials />} />
-              <Route path="/invoices/:id" element={<InvoiceView />} />
-              <Route path="/settings" element={<Settings />} />
-            </Routes>
+            <Container maxWidth="lg" sx={{ pb: 6 }}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/members" element={<Member />} />
+                <Route path="/classes" element={<ClassManager />} />
+                <Route path="/schedules" element={<ScheduleManager />} />
+                <Route path="/attendance" element={<AttendanceTracker />} />
+                <Route path="/financials" element={<Financials />} />
+                <Route path="/invoices/:id" element={<InvoiceView />} />
+                <Route path="/settings" element={<Settings />} />
+              </Routes>
+            </Container>
           </Box>
         </Box>
       </Router>
