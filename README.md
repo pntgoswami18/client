@@ -24,7 +24,7 @@ The frontend dashboard includes:
 
 ### Prerequisites
 
-Make sure the backend server is running on `http://localhost:3000` before starting the frontend.
+Make sure the backend server is running on `http://localhost:3001` before starting the frontend.
 
 ### Installation
 
@@ -40,9 +40,9 @@ npm install
 npm start
 ```
 
-This will start the React development server and open the dashboard in your browser at `http://localhost:3001`.
+This will start the React development server and open the dashboard in your browser at `http://localhost:3000`.
 
-The application will automatically proxy API requests to the backend server running on port 3000.
+The application will automatically proxy API requests to the backend server running on port 3001 (configured via `client/package.json` `proxy`).
 
 ### Available Scripts
 
@@ -66,8 +66,8 @@ Once running, you can navigate between different sections:
 - **Members (/members):** Manage gym members
 - **Classes (/classes):** Manage fitness classes
 - **Schedules (/schedules):** Schedule classes and manage capacity
-- **Attendance (/attendance):** Track member attendance
-- **Financials (/financials):** Manage membership plans
+- **Attendance (/attendance):** Track member attendance. Session check-in rules are enforced (Morning 05:00–11:00, Evening 16:00–22:00) with max one check-in per calendar date.
+- **Financials (/financials):** Manage membership plans and billing. Manual payment modal supports selecting a member to fetch unpaid invoices and autofilling invoice/amount.
 
 ## Component Structure
 
@@ -88,7 +88,13 @@ src/
 
 ## API Integration
 
-The frontend communicates with the backend through REST API calls using Axios. All API requests are automatically proxied to `http://localhost:3000` during development.
+The frontend communicates with the backend through REST API calls using Axios. All API requests are automatically proxied to `http://localhost:3001` during development.
+
+Key endpoints integrated in the UI:
+- `GET /api/reports/summary` (includes `unpaidMembersThisMonth` for dashboard card)
+- `GET /api/reports/unpaid-members-this-month` (Members filter)
+- `GET /api/payments/unpaid?member_id=<id>` (Financials modal unpaid invoices)
+- `POST /api/payments/manual` (Record manual payment)
 
 ## Deployment
 
