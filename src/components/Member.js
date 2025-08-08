@@ -269,49 +269,7 @@ const Member = () => {
                     <Button onClick={handleCreateInvoice} variant="contained">Create Invoice</Button>
                 </DialogActions>
             </Dialog>
-                <TextField
-                    label="Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                />
-                <TextField
-                    label="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
-                <FormControl fullWidth required disabled={membershipTypes.length === 0}>
-                    <InputLabel>Membership Type</InputLabel>
-                    <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
-                        {membershipTypes.length > 0 ? (
-                            membershipTypes.map(type => (
-                                <MenuItem key={type} value={type}>
-                                    {type}
-                                </MenuItem>
-                            ))
-                        ) : (
-                            <MenuItem disabled>Please create a membership type first</MenuItem>
-                        )}
-                    </Select>
-                </FormControl>
-                <FormControl fullWidth required disabled={plans.length === 0}>
-                    <InputLabel>Membership Plan</InputLabel>
-                    <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
-                        {plans.length > 0 ? (
-                            plans.map(plan => (
-                                <MenuItem key={plan.id} value={plan.id}>
-                                    {plan.name} - {formatCurrency(plan.price, currency)}
-                                </MenuItem>
-                            ))
-                        ) : (
-                            <MenuItem disabled>Please create a membership plan first</MenuItem>
-                        )}
-                    </Select>
-                </FormControl>
-                <Button type="submit" variant="contained" disabled={plans.length === 0 || membershipTypes.length === 0}>Add Member</Button>
-            </Box>
+            
             <Typography variant="h5" gutterBottom>Current Members</Typography>
             <List>
                 {members.map(member => (
