@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
-import { createTheme, ThemeProvider, CssBaseline, AppBar, Toolbar, Typography, Drawer, List, ListItem, ListItemText, Box, IconButton } from '@mui/material';
+import { BrowserRouter as Router, Route, Routes, Link, useLocation } from 'react-router-dom';
+import { createTheme, ThemeProvider, CssBaseline, AppBar, Toolbar, Typography, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, IconButton, Divider } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PeopleIcon from '@mui/icons-material/People';
+import ClassIcon from '@mui/icons-material/Class';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import PaidIcon from '@mui/icons-material/Paid';
+import { Settings as SettingsIcon } from '@mui/icons-material';
 import axios from 'axios';
 import Member from './components/Member';
 import ClassManager from './components/ClassManager';
@@ -48,34 +55,40 @@ function App() {
     setMobileOpen(!mobileOpen);
   };
 
-  const drawer = (
-    <div>
-      <Toolbar />
-      <List>
-        <ListItem button component={Link} to="/">
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-        <ListItem button component={Link} to="/members">
-          <ListItemText primary="Members" />
-        </ListItem>
-        <ListItem button component={Link} to="/classes">
-          <ListItemText primary="Classes" />
-        </ListItem>
-        <ListItem button component={Link} to="/schedules">
-          <ListItemText primary="Schedules" />
-        </ListItem>
-        <ListItem button component={Link} to="/attendance">
-          <ListItemText primary="Attendance" />
-        </ListItem>
-        <ListItem button component={Link} to="/financials">
-          <ListItemText primary="Financials" />
-        </ListItem>
-        <ListItem button component={Link} to="/settings">
-          <ListItemText primary="Settings" />
-        </ListItem>
-      </List>
-    </div>
-  );
+  const LocationAwareDrawerContent = () => {
+    const location = useLocation();
+    const navigationItems = [
+      { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
+      { label: 'Members', to: '/members', icon: <PeopleIcon /> },
+      { label: 'Classes', to: '/classes', icon: <ClassIcon /> },
+      { label: 'Schedules', to: '/schedules', icon: <ScheduleIcon /> },
+      { label: 'Attendance', to: '/attendance', icon: <AccessTimeIcon /> },
+      { label: 'Financials', to: '/financials', icon: <PaidIcon /> },
+      { label: 'Settings', to: '/settings', icon: <SettingsIcon /> },
+    ];
+
+    return (
+      <div>
+        <Toolbar />
+        <Divider />
+        <List>
+          {navigationItems.map((item) => (
+            <ListItemButton
+              key={item.to}
+              component={Link}
+              to={item.to}
+              selected={location.pathname === item.to}
+            >
+              <ListItemIcon>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          ))}
+        </List>
+      </div>
+    );
+  };
 
   return (
     <ThemeProvider theme={buildTheme(primaryColor, secondaryColor)}>
@@ -116,7 +129,7 @@ function App() {
                 '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
               }}
             >
-              {drawer}
+              <LocationAwareDrawerContent />
             </Drawer>
             <Drawer
               variant="permanent"
@@ -126,7 +139,7 @@ function App() {
               }}
               open
             >
-              {drawer}
+              <LocationAwareDrawerContent />
             </Drawer>
           </Box>
           <Box

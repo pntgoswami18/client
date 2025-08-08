@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import {
@@ -21,6 +22,9 @@ import {
 
 const Member = () => {
     const [members, setMembers] = useState([]);
+    const location = useLocation();
+    const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
     const [plans, setPlans] = useState([]);
     const [membershipTypes, setMembershipTypes] = useState([]);
     const [name, setName] = useState('');
@@ -43,6 +47,12 @@ const Member = () => {
         fetchMembershipTypes();
         fetchCurrency();
     }, []);
+
+    useEffect(() => {
+        const qp = new URLSearchParams(location.search);
+        const f = qp.get('filter') || 'all';
+        setFilter(f);
+    }, [location.search]);
 
     const fetchMembers = async () => {
         try {
@@ -162,9 +172,30 @@ const Member = () => {
         }
     };
 
+    const filteredMembers = useMemo(() => {
+        if (filter === 'new-this-month') {
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0,0,0,0);
+            return members.filter(m => m.join_date && new Date(m.join_date) >= startOfMonth);
+        }
+        // unpaid-this-month is not directly derivable from members list without joins; fallback to showing all for now
+        return members;
+    }, [members, filter]);
+
     return (
         <div>
             <Typography variant="h4" gutterBottom>Members</Typography>
+            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 220 }}>
+                    <InputLabel>Filter</InputLabel>
+                    <Select label="Filter" value={filter} onChange={(e)=>setFilter(e.target.value)}>
+                        <MenuItem value="all">All Members</MenuItem>
+                        <MenuItem value="new-this-month">Joined This Month</MenuItem>
+                        <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                 <Button variant="contained" onClick={() => setOpenAdd(true)}>Add Member</Button>
             </Box>
@@ -272,7 +303,7 @@ const Member = () => {
             
             <Typography variant="h5" gutterBottom>Current Members</Typography>
             <List>
-                {members.map(member => (
+                {filteredMembers.map(member => (
                     <ListItem key={member.id} divider secondaryAction={
                         <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
                     }>

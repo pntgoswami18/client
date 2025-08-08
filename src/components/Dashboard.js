@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -11,6 +12,7 @@ const Dashboard = () => {
     const [revenueStats, setRevenueStats] = useState([]);
     const [currency, setCurrency] = useState('INR');
     const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchAllReports();
@@ -66,23 +68,23 @@ const Dashboard = () => {
             
             {/* Summary Stats Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div style={{ padding: '20px', backgroundColor: '#f0f8ff', borderRadius: '8px', textAlign: 'center' }}>
+                <div onClick={() => navigate('/members')} style={{ padding: '20px', backgroundColor: '#f0f8ff', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#2c5aa0' }}>Total Members</h3>
                     <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.totalMembers)}</p>
                 </div>
-                <div style={{ padding: '20px', backgroundColor: '#f0fff0', borderRadius: '8px', textAlign: 'center' }}>
+                <div onClick={() => navigate('/financials?section=pending-payments')} style={{ padding: '20px', backgroundColor: '#f0fff0', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#228b22' }}>Total Revenue</h3>
                     <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.totalRevenue, true)}</p>
                 </div>
-                <div style={{ padding: '20px', backgroundColor: '#fff8dc', borderRadius: '8px', textAlign: 'center' }}>
+                <div onClick={() => navigate('/members?filter=new-this-month')} style={{ padding: '20px', backgroundColor: '#fff8dc', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#daa520' }}>New Members This Month</h3>
                     <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.newMembersThisMonth)}</p>
                 </div>
-                <div style={{ padding: '20px', backgroundColor: '#fde2e1', borderRadius: '8px', textAlign: 'center' }}>
+                <div onClick={() => navigate('/members?filter=unpaid-this-month')} style={{ padding: '20px', backgroundColor: '#fde2e1', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#b22222' }}>Unpaid Members This Month</h3>
                     <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.unpaidMembersThisMonth)}</p>
                 </div>
-                <div style={{ padding: '20px', backgroundColor: '#ffe4e1', borderRadius: '8px', textAlign: 'center' }}>
+                <div onClick={() => navigate('/schedules')} style={{ padding: '20px', backgroundColor: '#ffe4e1', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
                     <h3 style={{ margin: '0 0 10px 0', color: '#dc143c' }}>Active Schedules</h3>
                     <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.activeSchedules)}</p>
                 </div>

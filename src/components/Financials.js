@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import {
@@ -24,7 +25,8 @@ import {
     FormControl,
     InputLabel,
     Select,
-    MenuItem
+    MenuItem,
+    Autocomplete
 } from '@mui/material';
 
 const Financials = () => {
@@ -43,6 +45,8 @@ const Financials = () => {
     const [manualAmount, setManualAmount] = useState('');
     const [manualMethod, setManualMethod] = useState('cash');
     const [manualTxnId, setManualTxnId] = useState('');
+    const [manualMember, setManualMember] = useState(null);
+    const [unpaidInvoices, setUnpaidInvoices] = useState([]);
     const [openCreateInvoice, setOpenCreateInvoice] = useState(false);
     const [invMemberId, setInvMemberId] = useState('');
     const [invPlanId, setInvPlanId] = useState('');
@@ -53,6 +57,8 @@ const Financials = () => {
         paymentHistory: [],
         memberPaymentStatus: []
     });
+    const location = useLocation();
+    const outstandingRef = useRef(null);
 
     useEffect(() => {
         fetchPlans();
@@ -60,6 +66,17 @@ const Financials = () => {
         fetchMembers();
         fetchFinancialSummary();
     }, []);
+
+    useEffect(() => {
+        const qp = new URLSearchParams(location.search);
+        const section = qp.get('section');
+        if (section === 'pending-payments' && outstandingRef.current) {
+            // Scroll to Outstanding Invoices
+            setTimeout(() => {
+                outstandingRef.current.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    }, [location.search]);
 
     const fetchFinancialSummary = async () => {
         try {
@@ -306,10 +323,52 @@ const Financials = () => {
                 <DialogTitle>Record Manual Payment</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <Autocomplete
+                            options={members}
+                            getOptionLabel={(option) => option.name || ''}
+                            value={manualMember}
+                            onChange={async (_e, value) => {
+                                setManualMember(value);
+                                setManualInvoiceId('');
+                                if (value && value.id) {
+                                    try {
+                                        const res = await axios.get(`/api/payments/unpaid`, { params: { member_id: value.id } });
+                                        setUnpaidInvoices(res.data || []);
+                                    } catch (e) {
+                                        console.error('Error fetching unpaid invoices', e);
+                                        setUnpaidInvoices([]);
+                                    }
+                                } else {
+                                    setUnpaidInvoices([]);
+                                }
+                            }}
+                            renderInput={(params) => <TextField {...params} label="Member" placeholder="Type member name" />}
+                        />
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                             <TextField label="Invoice ID" type="number" value={manualInvoiceId} onChange={(e)=>setManualInvoiceId(e.target.value)} sx={{ flex: 1 }} />
                             <Button onClick={() => setManualInvoiceId(String(Math.floor(100000 + Math.random() * 900000)))}>Generate Invoice ID</Button>
                         </Box>
+                        {unpaidInvoices.length > 0 && (
+                            <FormControl fullWidth>
+                                <InputLabel>Unpaid Invoices</InputLabel>
+                                <Select
+                                    label="Unpaid Invoices"
+                                    value={manualInvoiceId || ''}
+                                    onChange={(e) => {
+                                        const invId = e.target.value;
+                                        setManualInvoiceId(String(invId));
+                                        const inv = unpaidInvoices.find(u => String(u.id) === String(invId));
+                                        if (inv) setManualAmount(String(inv.amount));
+                                    }}
+                                >
+                                    {unpaidInvoices.map(inv => (
+                                        <MenuItem key={inv.id} value={inv.id}>
+                                            #{inv.id} — {formatCurrency(inv.amount, currency)} — Due {new Date(inv.due_date).toLocaleDateString()}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        )}
                         <TextField label="Amount" type="number" value={manualAmount} onChange={(e)=>setManualAmount(e.target.value)} required />
                         <FormControl fullWidth>
                             <InputLabel>Method</InputLabel>
@@ -400,7 +459,7 @@ const Financials = () => {
             <Typography variant="h5" gutterBottom>Financial Summary</Typography>
             
             {/* Outstanding Invoices */}
-            <Box sx={{ marginBottom: '2rem' }}>
+            <Box ref={outstandingRef} sx={{ marginBottom: '2rem' }}>
                 <Typography variant="h6" gutterBottom>Outstanding Invoices</Typography>
                 {financialSummary.outstandingInvoices.length > 0 ? (
                     <TableContainer component={Paper}>
