@@ -147,6 +147,37 @@ const Settings = () => {
                         <Button variant="contained" onClick={handleAddMembershipType}>Add</Button>
                     </Box>
                 </div>
+                <div style={{ marginTop: '30px' }}>
+                    <label>Accent Colors</label>
+                    <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center' }}>
+                        <TextField
+                            label="Primary Color"
+                            type="color"
+                            value={primaryColor}
+                            onChange={(e) => setPrimaryColor(e.target.value)}
+                            sx={{ width: 120 }}
+                        />
+                        <TextField
+                            label="Secondary Color"
+                            type="color"
+                            value={secondaryColor}
+                            onChange={(e) => setSecondaryColor(e.target.value)}
+                            sx={{ width: 120 }}
+                        />
+                    </Box>
+                </div>
+
+                <div style={{ marginTop: '30px' }}>
+                    <TextField
+                        label="Payment Reminder (days before due date)"
+                        type="number"
+                        value={paymentReminderDays}
+                        onChange={(e) => setPaymentReminderDays(e.target.value)}
+                        inputProps={{ min: 1 }}
+                        fullWidth
+                        margin="normal"
+                    />
+                </div>
                 <Button variant="contained" color="primary" onClick={handleSaveAllSettings} style={{marginTop: '20px'}}>Save All Settings</Button>
             </div>
         </div>

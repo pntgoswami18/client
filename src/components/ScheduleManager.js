@@ -16,7 +16,11 @@ import {
     FormControl,
     InputLabel,
     Select,
-    MenuItem
+    MenuItem,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 
@@ -27,6 +31,9 @@ const ScheduleManager = () => {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [maxCapacity, setMaxCapacity] = useState('');
+    const [openAdd, setOpenAdd] = useState(false);
+    const [openEdit, setOpenEdit] = useState(false);
+    const [editingSchedule, setEditingSchedule] = useState(null);
 
     useEffect(() => {
         fetchSchedules();
@@ -80,6 +87,16 @@ const ScheduleManager = () => {
         }
     };
 
+    const openEditDialog = (schedule) => {
+        setEditingSchedule(schedule);
+        const cls = classes.find(c => c.name === schedule.class_name && c.instructor === schedule.instructor);
+        setClassId(cls ? cls.id : '');
+        setStartTime(schedule.start_time?.slice(0,16));
+        setEndTime(schedule.end_time?.slice(0,16));
+        setMaxCapacity(String(schedule.max_capacity || ''));
+        setOpenEdit(true);
+    };
+
     const resetForm = () => {
         setClassId('');
         setStartTime('');
@@ -94,50 +111,73 @@ const ScheduleManager = () => {
     return (
         <div>
             <Typography variant="h4" gutterBottom>Schedule Management</Typography>
-            
-            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px', margin: '0 auto 2rem auto' }}>
-                <Typography variant="h6" gutterBottom>Create New Schedule</Typography>
-                
-                <FormControl fullWidth required>
-                    <InputLabel>Select Class</InputLabel>
-                    <Select value={classId} onChange={e => setClassId(e.target.value)}>
-                        {classes.map(cls => (
-                            <MenuItem key={cls.id} value={cls.id}>
-                                {cls.name} - {cls.instructor}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                
-                <TextField
-                    label="Start Time"
-                    type="datetime-local"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    required
-                />
-                
-                <TextField
-                    label="End Time"
-                    type="datetime-local"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    required
-                />
-                
-                <TextField
-                    label="Max Capacity"
-                    type="number"
-                    value={maxCapacity}
-                    onChange={e => setMaxCapacity(e.target.value)}
-                    inputProps={{ min: 1 }}
-                    required
-                />
-                
-                <Button type="submit" variant="contained">Create Schedule</Button>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Button variant="contained" onClick={() => setOpenAdd(true)}>Add Schedule</Button>
             </Box>
+
+            <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Create New Schedule</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Select Class</InputLabel>
+                            <Select value={classId} onChange={e => setClassId(e.target.value)}>
+                                {classes.map(cls => (
+                                    <MenuItem key={cls.id} value={cls.id}>
+                                        {cls.name} - {cls.instructor}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <TextField label="Start Time" type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} InputLabelProps={{ shrink: true }} required />
+                        <TextField label="End Time" type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} InputLabelProps={{ shrink: true }} required />
+                        <TextField label="Max Capacity" type="number" value={maxCapacity} onChange={e => setMaxCapacity(e.target.value)} inputProps={{ min: 1 }} required />
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained">Create</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Edit Schedule</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={async (e)=>{
+                        e.preventDefault();
+                        try {
+                            await axios.put(`/api/schedules/${editingSchedule.id}`, {
+                                class_id: parseInt(classId,10),
+                                start_time: startTime,
+                                end_time: endTime,
+                                max_capacity: parseInt(maxCapacity,10)
+                            });
+                            setOpenEdit(false);
+                            setEditingSchedule(null);
+                            resetForm();
+                            fetchSchedules();
+                        } catch (err) { console.error('Error updating schedule', err); }
+                    }} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Select Class</InputLabel>
+                            <Select value={classId} onChange={e => setClassId(e.target.value)}>
+                                {classes.map(cls => (
+                                    <MenuItem key={cls.id} value={cls.id}>
+                                        {cls.name} - {cls.instructor}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <TextField label="Start Time" type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} InputLabelProps={{ shrink: true }} required />
+                        <TextField label="End Time" type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} InputLabelProps={{ shrink: true }} required />
+                        <TextField label="Max Capacity" type="number" value={maxCapacity} onChange={e => setMaxCapacity(e.target.value)} inputProps={{ min: 1 }} required />
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained">Save</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
 
             <Typography variant="h5" gutterBottom>Scheduled Classes</Typography>
             {schedules.length === 0 ? (
@@ -164,6 +204,7 @@ const ScheduleManager = () => {
                                     <TableCell>{formatDateTime(schedule.end_time)}</TableCell>
                                     <TableCell>{schedule.max_capacity}</TableCell>
                                     <TableCell>
+                                        <Button size="small" onClick={() => openEditDialog(schedule)} sx={{ mr: 1 }}>Edit</Button>
                                         <IconButton onClick={() => handleDelete(schedule.id)}>
                                             <DeleteIcon />
                                         </IconButton>

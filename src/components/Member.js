@@ -12,7 +12,11 @@ import {
     List,
     ListItem,
     ListItemText,
-    Typography
+    Typography,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 
 const Member = () => {
@@ -24,6 +28,14 @@ const Member = () => {
     const [membershipType, setMembershipType] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
     const [currency, setCurrency] = useState('INR');
+    const [openAdd, setOpenAdd] = useState(false);
+    const [openEdit, setOpenEdit] = useState(false);
+    const [editingMember, setEditingMember] = useState(null);
+    const [openInvoice, setOpenInvoice] = useState(false);
+    const [invoicePlanId, setInvoicePlanId] = useState('');
+    const [invoiceAmount, setInvoiceAmount] = useState('');
+    const [invoiceDueDate, setInvoiceDueDate] = useState('');
+    const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
 
     useEffect(() => {
         fetchMembers();
@@ -85,7 +97,7 @@ const Member = () => {
                 membership_type: membershipType,
                 membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null
             };
-            await axios.post('/api/members', newMember);
+            const res = await axios.post('/api/members', newMember);
             fetchMembers();
             setName('');
             setEmail('');
@@ -95,15 +107,168 @@ const Member = () => {
             if (plans.length > 0) {
                 setMembershipPlanId(plans[0].id);
             }
+            setOpenAdd(false);
+            if (res && res.data && res.data.id) {
+                setLastCreatedMemberId(res.data.id);
+                setInvoicePlanId(membershipPlanId || (plans[0]?.id || ''));
+                const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId)) || plans[0];
+                setInvoiceAmount(selectedPlan ? String(selectedPlan.price) : '');
+                setInvoiceDueDate(new Date().toISOString().slice(0,10));
+                setOpenInvoice(true);
+            }
         } catch (error) {
             console.error("Error adding member", error);
+        }
+    };
+
+    const updateMember = async (e) => {
+        e.preventDefault();
+        if (!editingMember) return;
+        try {
+            const body = {
+                name,
+                email,
+                membership_type: membershipType
+            };
+            await axios.put(`/api/members/${editingMember.id}`, body);
+            fetchMembers();
+            setOpenEdit(false);
+            setEditingMember(null);
+        } catch (error) {
+            console.error('Error updating member', error);
+        }
+    };
+
+    const openEditDialog = (member) => {
+        setEditingMember(member);
+        setName(member.name);
+        setEmail(member.email);
+        setMembershipType(member.membership_type || '');
+        setOpenEdit(true);
+    };
+
+    const handleCreateInvoice = async () => {
+        if (!lastCreatedMemberId) { setOpenInvoice(false); return; }
+        try {
+            await axios.post('/api/payments/invoice', {
+                member_id: lastCreatedMemberId,
+                plan_id: invoicePlanId ? parseInt(invoicePlanId,10) : null,
+                amount: parseFloat(invoiceAmount),
+                due_date: invoiceDueDate
+            });
+            setOpenInvoice(false);
+        } catch (error) {
+            console.error('Error creating invoice', error);
         }
     };
 
     return (
         <div>
             <Typography variant="h4" gutterBottom>Members</Typography>
-            <Box component="form" onSubmit={addMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px', margin: '0 auto 2rem auto' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Button variant="contained" onClick={() => setOpenAdd(true)}>Add Member</Button>
+            </Box>
+
+            <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Add Member</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={addMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <TextField
+                            label="Name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                        />
+                        <TextField
+                            label="Email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                        <FormControl fullWidth required disabled={membershipTypes.length === 0}>
+                            <InputLabel>Membership Type</InputLabel>
+                            <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
+                                {membershipTypes.length > 0 ? (
+                                    membershipTypes.map(type => (
+                                        <MenuItem key={type} value={type}>
+                                            {type}
+                                        </MenuItem>
+                                    ))
+                                ) : (
+                                    <MenuItem disabled>Please create a membership type first</MenuItem>
+                                )}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth required disabled={plans.length === 0}>
+                            <InputLabel>Membership Plan</InputLabel>
+                            <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
+                                {plans.length > 0 ? (
+                                    plans.map(plan => (
+                                        <MenuItem key={plan.id} value={plan.id}>
+                                            {plan.name} - {formatCurrency(plan.price, currency)}
+                                        </MenuItem>
+                                    ))
+                                ) : (
+                                    <MenuItem disabled>Please create a membership plan first</MenuItem>
+                                )}
+                            </Select>
+                        </FormControl>
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained" disabled={plans.length === 0 || membershipTypes.length === 0}>Add Member</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Edit Member</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                        <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        <FormControl fullWidth>
+                            <InputLabel>Membership Type</InputLabel>
+                            <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
+                                {membershipTypes.map(type => (
+                                    <MenuItem key={type} value={type}>{type}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained">Save</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={openInvoice} onClose={() => setOpenInvoice(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Create Invoice for New Member</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <FormControl fullWidth>
+                            <InputLabel>Plan</InputLabel>
+                            <Select value={invoicePlanId} onChange={(e) => {
+                                setInvoicePlanId(e.target.value);
+                                const p = plans.find(pl => String(pl.id) === String(e.target.value));
+                                if (p) setInvoiceAmount(String(p.price));
+                            }}>
+                                {plans.map(p => (
+                                    <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <TextField label="Amount" type="number" value={invoiceAmount} onChange={(e)=>setInvoiceAmount(e.target.value)} />
+                        <TextField label="Due Date" type="date" value={invoiceDueDate} onChange={(e)=>setInvoiceDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenInvoice(false)}>Skip</Button>
+                    <Button onClick={handleCreateInvoice} variant="contained">Create Invoice</Button>
+                </DialogActions>
+            </Dialog>
                 <TextField
                     label="Name"
                     value={name}
@@ -150,8 +315,10 @@ const Member = () => {
             <Typography variant="h5" gutterBottom>Current Members</Typography>
             <List>
                 {members.map(member => (
-                    <ListItem key={member.id} divider>
-                        <ListItemText 
+                    <ListItem key={member.id} divider secondaryAction={
+                        <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
+                    }>
+                        <ListItemText
                             primary={member.name}
                             secondary={`${member.email} - ${member.membership_type}`}
                         />

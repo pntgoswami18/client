@@ -12,7 +12,11 @@ import {
     TableHead,
     TableRow,
     Paper,
-    IconButton
+    IconButton,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -24,6 +28,8 @@ const ClassManager = () => {
     const [instructor, setInstructor] = useState('');
     const [duration, setDuration] = useState('');
     const [editingClass, setEditingClass] = useState(null);
+    const [openAdd, setOpenAdd] = useState(false);
+    const [openEdit, setOpenEdit] = useState(false);
 
     useEffect(() => {
         fetchClasses();
@@ -45,8 +51,10 @@ const ClassManager = () => {
         try {
             if (editingClass) {
                 await axios.put(`/api/classes/${editingClass.id}`, classData);
+                setOpenEdit(false);
             } else {
                 await axios.post('/api/classes', classData);
+                setOpenAdd(false);
             }
             fetchClasses();
             resetForm();
@@ -61,6 +69,7 @@ const ClassManager = () => {
         setDescription(cls.description);
         setInstructor(cls.instructor);
         setDuration(cls.duration_minutes);
+        setOpenEdit(true);
     };
 
     const handleDelete = async (id) => {
@@ -83,16 +92,41 @@ const ClassManager = () => {
     return (
         <div>
             <Typography variant="h4" gutterBottom>Class Management</Typography>
-            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px', margin: '0 auto 2rem auto' }}>
-                <TextField label="Class Name" value={name} onChange={e => setName(e.target.value)} required />
-                <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
-                <TextField label="Instructor" value={instructor} onChange={e => setInstructor(e.target.value)} required />
-                <TextField label="Duration (minutes)" type="number" value={duration} onChange={e => setDuration(e.target.value)} required />
-                <Box sx={{ display: 'flex', gap: '1rem' }}>
-                    <Button type="submit" variant="contained">{editingClass ? 'Update Class' : 'Add Class'}</Button>
-                    {editingClass && <Button variant="outlined" onClick={resetForm}>Cancel</Button>}
-                </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Button variant="contained" onClick={() => setOpenAdd(true)}>Add Class</Button>
             </Box>
+
+            <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Add Class</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <TextField label="Class Name" value={name} onChange={e => setName(e.target.value)} required />
+                        <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
+                        <TextField label="Instructor" value={instructor} onChange={e => setInstructor(e.target.value)} required />
+                        <TextField label="Duration (minutes)" type="number" value={duration} onChange={e => setDuration(e.target.value)} required />
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained">Create</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Edit Class</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <TextField label="Class Name" value={name} onChange={e => setName(e.target.value)} required />
+                        <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
+                        <TextField label="Instructor" value={instructor} onChange={e => setInstructor(e.target.value)} required />
+                        <TextField label="Duration (minutes)" type="number" value={duration} onChange={e => setDuration(e.target.value)} required />
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained">Save</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
 
             <TableContainer component={Paper}>
                 <Table>
