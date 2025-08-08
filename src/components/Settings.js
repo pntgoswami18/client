@@ -9,6 +9,9 @@ const Settings = () => {
     const [gymName, setGymName] = useState('');
     const [gymLogo, setGymLogo] = useState('');
     const [logoFile, setLogoFile] = useState(null);
+    const [primaryColor, setPrimaryColor] = useState('#3f51b5');
+    const [secondaryColor, setSecondaryColor] = useState('#f50057');
+    const [paymentReminderDays, setPaymentReminderDays] = useState('7');
 
     useEffect(() => {
         fetchSettings();
@@ -17,11 +20,14 @@ const Settings = () => {
     const fetchSettings = async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, membership_types, gym_name, gym_logo } = response.data;
+            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, payment_reminder_days } = response.data;
             if (currency) setCurrency(currency);
             if (membership_types) setMembershipTypes(membership_types);
             if (gym_name) setGymName(gym_name);
             if (gym_logo) setGymLogo(gym_logo);
+            if (primary_color) setPrimaryColor(primary_color);
+            if (secondary_color) setSecondaryColor(secondary_color);
+            if (payment_reminder_days) setPaymentReminderDays(String(payment_reminder_days));
         } catch (error) {
             console.error("Error fetching settings", error);
         }
@@ -46,7 +52,10 @@ const Settings = () => {
                 currency,
                 membership_types: membershipTypes,
                 gym_name: gymName,
-                gym_logo: logoUrl
+                gym_logo: logoUrl,
+                primary_color: primaryColor,
+                secondary_color: secondaryColor,
+                payment_reminder_days: paymentReminderDays
             };
 
             await axios.put('/api/settings', settingsToUpdate);

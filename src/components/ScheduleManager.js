@@ -1,5 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import {
+    TextField,
+    Button,
+    Box,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    IconButton,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const ScheduleManager = () => {
     const [schedules, setSchedules] = useState([]);
@@ -74,77 +93,87 @@ const ScheduleManager = () => {
 
     return (
         <div>
-            <h2>Schedule Management</h2>
+            <Typography variant="h4" gutterBottom>Schedule Management</Typography>
             
-            <div style={{ marginBottom: '30px' }}>
-                <h3>Create New Schedule</h3>
-                <form onSubmit={handleSubmit}>
-                    <select value={classId} onChange={e => setClassId(e.target.value)} required>
-                        <option value="">Select Class</option>
+            <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px', margin: '0 auto 2rem auto' }}>
+                <Typography variant="h6" gutterBottom>Create New Schedule</Typography>
+                
+                <FormControl fullWidth required>
+                    <InputLabel>Select Class</InputLabel>
+                    <Select value={classId} onChange={e => setClassId(e.target.value)}>
                         {classes.map(cls => (
-                            <option key={cls.id} value={cls.id}>{cls.name} - {cls.instructor}</option>
+                            <MenuItem key={cls.id} value={cls.id}>
+                                {cls.name} - {cls.instructor}
+                            </MenuItem>
                         ))}
-                    </select>
-                    
-                    <input
-                        type="datetime-local"
-                        value={startTime}
-                        onChange={e => setStartTime(e.target.value)}
-                        placeholder="Start Time"
-                        required
-                    />
-                    
-                    <input
-                        type="datetime-local"
-                        value={endTime}
-                        onChange={e => setEndTime(e.target.value)}
-                        placeholder="End Time"
-                        required
-                    />
-                    
-                    <input
-                        type="number"
-                        value={maxCapacity}
-                        onChange={e => setMaxCapacity(e.target.value)}
-                        placeholder="Max Capacity"
-                        min="1"
-                        required
-                    />
-                    
-                    <button type="submit">Create Schedule</button>
-                </form>
-            </div>
+                    </Select>
+                </FormControl>
+                
+                <TextField
+                    label="Start Time"
+                    type="datetime-local"
+                    value={startTime}
+                    onChange={e => setStartTime(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    required
+                />
+                
+                <TextField
+                    label="End Time"
+                    type="datetime-local"
+                    value={endTime}
+                    onChange={e => setEndTime(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    required
+                />
+                
+                <TextField
+                    label="Max Capacity"
+                    type="number"
+                    value={maxCapacity}
+                    onChange={e => setMaxCapacity(e.target.value)}
+                    inputProps={{ min: 1 }}
+                    required
+                />
+                
+                <Button type="submit" variant="contained">Create Schedule</Button>
+            </Box>
 
-            <div>
-                <h3>Scheduled Classes</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Class Name</th>
-                            <th>Instructor</th>
-                            <th>Start Time</th>
-                            <th>End Time</th>
-                            <th>Capacity</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {schedules.map(schedule => (
-                            <tr key={schedule.id}>
-                                <td>{schedule.class_name}</td>
-                                <td>{schedule.instructor}</td>
-                                <td>{formatDateTime(schedule.start_time)}</td>
-                                <td>{formatDateTime(schedule.end_time)}</td>
-                                <td>{schedule.max_capacity}</td>
-                                <td>
-                                    <button onClick={() => handleDelete(schedule.id)}>Delete</button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {schedules.length === 0 && <p>No schedules found. Create one above.</p>}
-            </div>
+            <Typography variant="h5" gutterBottom>Scheduled Classes</Typography>
+            {schedules.length === 0 ? (
+                <Typography>No schedules found. Create one above.</Typography>
+            ) : (
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Class Name</TableCell>
+                                <TableCell>Instructor</TableCell>
+                                <TableCell>Start Time</TableCell>
+                                <TableCell>End Time</TableCell>
+                                <TableCell>Capacity</TableCell>
+                                <TableCell>Actions</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {schedules.map(schedule => (
+                                <TableRow key={schedule.id}>
+                                    <TableCell>{schedule.class_name}</TableCell>
+                                    <TableCell>{schedule.instructor}</TableCell>
+                                    <TableCell>{formatDateTime(schedule.start_time)}</TableCell>
+                                    <TableCell>{formatDateTime(schedule.end_time)}</TableCell>
+                                    <TableCell>{schedule.max_capacity}</TableCell>
+                                    <TableCell>
+                                        <IconButton onClick={() => handleDelete(schedule.id)}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            )}
         </div>
     );
 };

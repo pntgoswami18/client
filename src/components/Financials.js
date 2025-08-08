@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
+import {
+    Typography,
+    TextField,
+    Button,
+    Box,
+    Card,
+    CardContent,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Alert,
+    Divider
+} from '@mui/material';
 
 const Financials = () => {
     const [plans, setPlans] = useState([]);
@@ -77,184 +94,198 @@ const Financials = () => {
 
     return (
         <div>
-            <h2>Financials</h2>
+            <Typography variant="h4" gutterBottom>Financials</Typography>
             
             {/* Membership Plans Section */}
-            <div style={{ marginBottom: '40px' }}>
-                <h3>Membership Plans</h3>
+            <Box sx={{ marginBottom: '3rem' }}>
+                <Typography variant="h5" gutterBottom>Membership Plans</Typography>
                 
                 {/* Create New Plan Form */}
-                <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
-                    <h4>Create New Membership Plan</h4>
-                    <form onSubmit={handleCreatePlan}>
-                        <input
-                            type="text"
-                            value={planName}
-                            onChange={e => setPlanName(e.target.value)}
-                            placeholder="Plan Name (e.g., Monthly Premium)"
-                            required
-                        />
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={planPrice}
-                            onChange={e => setPlanPrice(e.target.value)}
-                            placeholder="Price (e.g., 49.99)"
-                            required
-                        />
-                        <input
-                            type="number"
-                            value={planDuration}
-                            onChange={e => setPlanDuration(e.target.value)}
-                            placeholder="Duration in Days (e.g., 30)"
-                            required
-                        />
-                        <textarea
-                            value={planDescription}
-                            onChange={e => setPlanDescription(e.target.value)}
-                            placeholder="Description (optional)"
-                            rows="3"
-                        ></textarea>
-                        <button type="submit">Create Plan</button>
-                    </form>
-                </div>
+                <Card sx={{ marginBottom: '2rem' }}>
+                    <CardContent>
+                        <Typography variant="h6" gutterBottom>Create New Membership Plan</Typography>
+                        <Box component="form" onSubmit={handleCreatePlan} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px' }}>
+                            <TextField
+                                label="Plan Name"
+                                value={planName}
+                                onChange={e => setPlanName(e.target.value)}
+                                placeholder="e.g., Monthly Premium"
+                                required
+                            />
+                            <TextField
+                                label="Price"
+                                type="number"
+                                inputProps={{ step: "0.01" }}
+                                value={planPrice}
+                                onChange={e => setPlanPrice(e.target.value)}
+                                placeholder="e.g., 49.99"
+                                required
+                            />
+                            <TextField
+                                label="Duration (Days)"
+                                type="number"
+                                value={planDuration}
+                                onChange={e => setPlanDuration(e.target.value)}
+                                placeholder="e.g., 30"
+                                required
+                            />
+                            <TextField
+                                label="Description"
+                                value={planDescription}
+                                onChange={e => setPlanDescription(e.target.value)}
+                                placeholder="Description (optional)"
+                                multiline
+                                rows={3}
+                            />
+                            <Button type="submit" variant="contained">Create Plan</Button>
+                        </Box>
+                    </CardContent>
+                </Card>
 
                 {/* Existing Plans Table */}
-                <div>
-                    <h4>Existing Plans</h4>
-                    {plans.length > 0 ? (
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Plan Name</th>
-                                    <th>Price</th>
-                                    <th>Duration (Days)</th>
-                                    <th>Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                <Typography variant="h6" gutterBottom>Existing Plans</Typography>
+                {plans.length > 0 ? (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Plan Name</TableCell>
+                                    <TableCell>Price</TableCell>
+                                    <TableCell>Duration (Days)</TableCell>
+                                    <TableCell>Description</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {plans.map(plan => (
-                                    <tr key={plan.id}>
-                                        <td>{plan.name}</td>
-                                        <td>{formatCurrency(plan.price, currency)}</td>
-                                        <td>{plan.duration_days}</td>
-                                        <td>{plan.description || 'No description'}</td>
-                                    </tr>
+                                    <TableRow key={plan.id}>
+                                        <TableCell>{plan.name}</TableCell>
+                                        <TableCell>{formatCurrency(plan.price, currency)}</TableCell>
+                                        <TableCell>{plan.duration_days}</TableCell>
+                                        <TableCell>{plan.description || 'No description'}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <p>No membership plans found. Create one above.</p>
-                    )}
-                </div>
-            </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Typography>No membership plans found. Create one above.</Typography>
+                )}
+            </Box>
+
+            <Divider sx={{ marginY: '2rem' }} />
 
             {/* Payment Processing Section */}
-            <div style={{ marginBottom: '40px' }}>
-                <h3>Payment Processing</h3>
-                <div style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '5px', backgroundColor: '#f9f9f9' }}>
-                    <p><strong>Payment Integration:</strong> This system is integrated with Stripe for secure payment processing.</p>
-                    <p><strong>Note:</strong> To process actual payments, you'll need to:</p>
+            <Box sx={{ marginBottom: '3rem' }}>
+                <Typography variant="h5" gutterBottom>Payment Processing</Typography>
+                <Alert severity="info">
+                    <Typography variant="subtitle1" gutterBottom><strong>Payment Integration:</strong> This system is integrated with Stripe for secure payment processing.</Typography>
+                    <Typography variant="body2" gutterBottom><strong>Note:</strong> To process actual payments, you'll need to:</Typography>
                     <ul>
                         <li>Set up your Stripe account and add the secret key to your .env file</li>
                         <li>Create invoices for members through the backend API</li>
                         <li>Use the /api/payments endpoint to process payments</li>
                     </ul>
-                    <p>For testing, you can use Stripe's test card numbers.</p>
-                </div>
-            </div>
+                    <Typography variant="body2">For testing, you can use Stripe's test card numbers.</Typography>
+                </Alert>
+            </Box>
+
+            <Divider sx={{ marginY: '2rem' }} />
 
             {/* Financial Summary Section */}
-            <div>
-                <h3>Financial Summary</h3>
-                
-                {/* Outstanding Invoices */}
-                <div style={{ marginBottom: '30px' }}>
-                    <h4>Outstanding Invoices</h4>
-                    {financialSummary.outstandingInvoices.length > 0 ? (
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Invoice ID</th>
-                                    <th>Member Name</th>
-                                    <th>Amount</th>
-                                    <th>Due Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+            <Typography variant="h5" gutterBottom>Financial Summary</Typography>
+            
+            {/* Outstanding Invoices */}
+            <Box sx={{ marginBottom: '2rem' }}>
+                <Typography variant="h6" gutterBottom>Outstanding Invoices</Typography>
+                {financialSummary.outstandingInvoices.length > 0 ? (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Invoice ID</TableCell>
+                                    <TableCell>Member Name</TableCell>
+                                    <TableCell>Amount</TableCell>
+                                    <TableCell>Due Date</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {financialSummary.outstandingInvoices.map(invoice => (
-                                    <tr key={invoice.id}>
-                                        <td>{invoice.id}</td>
-                                        <td>{invoice.member_name}</td>
-                                        <td>{formatCurrency(invoice.amount, currency)}</td>
-                                        <td>{new Date(invoice.due_date).toLocaleDateString()}</td>
-                                    </tr>
+                                    <TableRow key={invoice.id}>
+                                        <TableCell>{invoice.id}</TableCell>
+                                        <TableCell>{invoice.member_name}</TableCell>
+                                        <TableCell>{formatCurrency(invoice.amount, currency)}</TableCell>
+                                        <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <p>No outstanding invoices.</p>
-                    )}
-                </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Typography>No outstanding invoices.</Typography>
+                )}
+            </Box>
 
-                {/* Payment History */}
-                <div style={{ marginBottom: '30px' }}>
-                    <h4>Recent Payment History</h4>
-                    {financialSummary.paymentHistory.length > 0 ? (
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Payment ID</th>
-                                    <th>Member Name</th>
-                                    <th>Amount</th>
-                                    <th>Payment Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+            {/* Payment History */}
+            <Box sx={{ marginBottom: '2rem' }}>
+                <Typography variant="h6" gutterBottom>Recent Payment History</Typography>
+                {financialSummary.paymentHistory.length > 0 ? (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Payment ID</TableCell>
+                                    <TableCell>Member Name</TableCell>
+                                    <TableCell>Amount</TableCell>
+                                    <TableCell>Payment Date</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {financialSummary.paymentHistory.map(payment => (
-                                    <tr key={payment.id}>
-                                        <td>{payment.id}</td>
-                                        <td>{payment.member_name}</td>
-                                        <td>{formatCurrency(payment.amount, currency)}</td>
-                                        <td>{new Date(payment.payment_date).toLocaleDateString()}</td>
-                                    </tr>
+                                    <TableRow key={payment.id}>
+                                        <TableCell>{payment.id}</TableCell>
+                                        <TableCell>{payment.member_name}</TableCell>
+                                        <TableCell>{formatCurrency(payment.amount, currency)}</TableCell>
+                                        <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <p>No payment history available.</p>
-                    )}
-                </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Typography>No payment history available.</Typography>
+                )}
+            </Box>
 
-                {/* Member Payment Status */}
-                <div>
-                    <h4>Member Payment Status</h4>
-                    {financialSummary.memberPaymentStatus.length > 0 ? (
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Member Name</th>
-                                    <th>Email</th>
-                                    <th>Last Payment Date</th>
-                                    <th>Last Invoice Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+            {/* Member Payment Status */}
+            <Box>
+                <Typography variant="h6" gutterBottom>Member Payment Status</Typography>
+                {financialSummary.memberPaymentStatus.length > 0 ? (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Member Name</TableCell>
+                                    <TableCell>Email</TableCell>
+                                    <TableCell>Last Payment Date</TableCell>
+                                    <TableCell>Last Invoice Status</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {financialSummary.memberPaymentStatus.map(member => (
-                                    <tr key={member.id}>
-                                        <td>{member.name}</td>
-                                        <td>{member.email}</td>
-                                        <td>{member.last_payment_date ? new Date(member.last_payment_date).toLocaleDateString() : 'N/A'}</td>
-                                        <td>{member.last_invoice_status || 'N/A'}</td>
-                                    </tr>
+                                    <TableRow key={member.id}>
+                                        <TableCell>{member.name}</TableCell>
+                                        <TableCell>{member.email}</TableCell>
+                                        <TableCell>{member.last_payment_date ? new Date(member.last_payment_date).toLocaleDateString() : 'N/A'}</TableCell>
+                                        <TableCell>{member.last_invoice_status || 'N/A'}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <p>No member payment status available.</p>
-                    )}
-                </div>
-            </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Typography>No member payment status available.</Typography>
+                )}
+            </Box>
         </div>
     );
 };

@@ -83,7 +83,7 @@ const Member = () => {
                 name, 
                 email, 
                 membership_type: membershipType,
-                membership_plan_id: membershipPlanId || null
+                membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null
             };
             await axios.post('/api/members', newMember);
             fetchMembers();

@@ -11,16 +11,13 @@ import Financials from './components/Financials';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#3f51b5',
+const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
+  createTheme({
+    palette: {
+      primary: { main: primary },
+      secondary: { main: secondary },
     },
-    secondary: {
-      main: '#f50057',
-    },
-  },
-});
+  });
 
 const drawerWidth = 240;
 
@@ -28,6 +25,8 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [gymName, setGymName] = useState('');
   const [gymLogo, setGymLogo] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#3f51b5');
+  const [secondaryColor, setSecondaryColor] = useState('#f50057');
 
   useEffect(() => {
     fetchGymSettings();
@@ -38,6 +37,8 @@ function App() {
       const response = await axios.get('/api/settings');
       setGymName(response.data.gym_name);
       setGymLogo(response.data.gym_logo);
+      if (response.data.primary_color) setPrimaryColor(response.data.primary_color);
+      if (response.data.secondary_color) setSecondaryColor(response.data.secondary_color);
     } catch (error) {
       console.error("Error fetching gym settings", error);
     }
@@ -77,7 +78,7 @@ function App() {
   );
 
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={buildTheme(primaryColor, secondaryColor)}>
       <CssBaseline />
       <Router>
         <Box sx={{ display: 'flex' }}>

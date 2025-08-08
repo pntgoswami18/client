@@ -1,5 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import {
+    Typography,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Button,
+    Box,
+    Card,
+    CardContent,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Alert
+} from '@mui/material';
 
 const AttendanceTracker = () => {
     const [members, setMembers] = useState([]);
@@ -70,67 +89,78 @@ const AttendanceTracker = () => {
 
     return (
         <div>
-            <h2>Attendance Tracking</h2>
+            <Typography variant="h4" gutterBottom>Attendance Tracking</Typography>
             
             {/* Simulate Check-in Section */}
-            <div style={{ marginBottom: '30px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
-                <h3>Simulate Biometric Check-in</h3>
-                <p>This simulates what a biometric device would do when a member checks in.</p>
-                <form onSubmit={simulateCheckIn}>
-                    <select 
-                        value={simulateMemberId} 
-                        onChange={e => setSimulateMemberId(e.target.value)} 
-                        required
-                    >
-                        <option value="">Select Member to Check In</option>
-                        {members.map(member => (
-                            <option key={member.id} value={member.id}>
-                                {member.name} (ID: {member.id})
-                            </option>
-                        ))}
-                    </select>
-                    <button type="submit">Simulate Check-in</button>
-                </form>
-            </div>
+            <Card sx={{ marginBottom: '2rem' }}>
+                <CardContent>
+                    <Typography variant="h6" gutterBottom>Simulate Biometric Check-in</Typography>
+                    <Alert severity="info" sx={{ marginBottom: '1rem' }}>
+                        This simulates what a biometric device would do when a member checks in.
+                    </Alert>
+                    <Box component="form" onSubmit={simulateCheckIn} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px' }}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Select Member to Check In</InputLabel>
+                            <Select value={simulateMemberId} onChange={e => setSimulateMemberId(e.target.value)}>
+                                {members.map(member => (
+                                    <MenuItem key={member.id} value={member.id}>
+                                        {member.name} (ID: {member.id})
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Button type="submit" variant="contained">Simulate Check-in</Button>
+                    </Box>
+                </CardContent>
+            </Card>
 
             {/* View Attendance Section */}
-            <div>
-                <h3>View Attendance Records</h3>
-                <select value={selectedMemberId} onChange={handleMemberSelect}>
-                    <option value="">Select a member to view attendance</option>
-                    {members.map(member => (
-                        <option key={member.id} value={member.id}>
-                            {member.name} - {member.email}
-                        </option>
-                    ))}
-                </select>
+            <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
+            <Box sx={{ marginBottom: '2rem', maxWidth: '400px' }}>
+                <FormControl fullWidth>
+                    <InputLabel>Select a member to view attendance</InputLabel>
+                    <Select value={selectedMemberId} onChange={handleMemberSelect}>
+                        <MenuItem value="">Select a member to view attendance</MenuItem>
+                        {members.map(member => (
+                            <MenuItem key={member.id} value={member.id}>
+                                {member.name} - {member.email}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Box>
 
-                {selectedMemberId && (
-                    <div style={{ marginTop: '20px' }}>
-                        <h4>Attendance for {getMemberName(parseInt(selectedMemberId))}</h4>
-                        {attendanceRecords.length > 0 ? (
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Check-in Time</th>
-                                        <th>Check-out Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+            {selectedMemberId && (
+                <Box>
+                    <Typography variant="h6" gutterBottom>
+                        Attendance for {getMemberName(parseInt(selectedMemberId))}
+                    </Typography>
+                    {attendanceRecords.length > 0 ? (
+                        <TableContainer component={Paper}>
+                            <Table>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Check-in Time</TableCell>
+                                        <TableCell>Check-out Time</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
                                     {attendanceRecords.map(record => (
-                                        <tr key={record.id}>
-                                            <td>{formatDateTime(record.check_in_time)}</td>
-                                            <td>{record.check_out_time ? formatDateTime(record.check_out_time) : 'Still in gym'}</td>
-                                        </tr>
+                                        <TableRow key={record.id}>
+                                            <TableCell>{formatDateTime(record.check_in_time)}</TableCell>
+                                            <TableCell>
+                                                {record.check_out_time ? formatDateTime(record.check_out_time) : 'Still in gym'}
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
-                        ) : (
-                            <p>No attendance records found for this member.</p>
-                        )}
-                    </div>
-                )}
-            </div>
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    ) : (
+                        <Typography>No attendance records found for this member.</Typography>
+                    )}
+                </Box>
+            )}
         </div>
     );
 };
