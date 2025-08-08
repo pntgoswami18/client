@@ -185,33 +185,33 @@ const Financials = () => {
                         <Box component="form" onSubmit={handleCreatePlan} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '500px' }}>
                             <TextField
                                 label="Plan Name"
-                                value={planName}
-                                onChange={e => setPlanName(e.target.value)}
+                            value={planName}
+                            onChange={e => setPlanName(e.target.value)}
                                 placeholder="e.g., Monthly Premium"
-                                required
-                            />
+                            required
+                        />
                             <TextField
                                 label="Price"
-                                type="number"
+                            type="number"
                                 inputProps={{ step: "0.01" }}
-                                value={planPrice}
-                                onChange={e => setPlanPrice(e.target.value)}
+                            value={planPrice}
+                            onChange={e => setPlanPrice(e.target.value)}
                                 placeholder="e.g., 49.99"
-                                required
-                            />
+                            required
+                        />
                             <TextField
                                 label="Duration (Days)"
-                                type="number"
-                                value={planDuration}
-                                onChange={e => setPlanDuration(e.target.value)}
+                            type="number"
+                            value={planDuration}
+                            onChange={e => setPlanDuration(e.target.value)}
                                 placeholder="e.g., 30"
-                                required
-                            />
+                            required
+                        />
                             <TextField
                                 label="Description"
-                                value={planDescription}
-                                onChange={e => setPlanDescription(e.target.value)}
-                                placeholder="Description (optional)"
+                            value={planDescription}
+                            onChange={e => setPlanDescription(e.target.value)}
+                            placeholder="Description (optional)"
                                 multiline
                                 rows={3}
                             />
@@ -222,7 +222,7 @@ const Financials = () => {
 
                 {/* Existing Plans Table */}
                 <Typography variant="h6" gutterBottom>Existing Plans</Typography>
-                {plans.length > 0 ? (
+                    {plans.length > 0 ? (
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
@@ -306,7 +306,10 @@ const Financials = () => {
                 <DialogTitle>Record Manual Payment</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <TextField label="Invoice ID" type="number" value={manualInvoiceId} onChange={(e)=>setManualInvoiceId(e.target.value)} required />
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <TextField label="Invoice ID" type="number" value={manualInvoiceId} onChange={(e)=>setManualInvoiceId(e.target.value)} required sx={{ flex: 1 }} />
+                            <Button onClick={() => setManualInvoiceId(String(Math.floor(100000 + Math.random() * 900000)))}>Random</Button>
+                        </Box>
                         <TextField label="Amount" type="number" value={manualAmount} onChange={(e)=>setManualAmount(e.target.value)} required />
                         <FormControl fullWidth>
                             <InputLabel>Method</InputLabel>
