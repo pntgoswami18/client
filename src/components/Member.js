@@ -35,6 +35,9 @@ const Member = () => {
     const [currency, setCurrency] = useState('INR');
     const [openAdd, setOpenAdd] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
+    const [openBiometric, setOpenBiometric] = useState(false);
+    const [bioDeviceUserId, setBioDeviceUserId] = useState('');
+    const [bioTemplate, setBioTemplate] = useState('');
     const [editingMember, setEditingMember] = useState(null);
     const [openInvoice, setOpenInvoice] = useState(false);
     const [invoicePlanId, setInvoicePlanId] = useState('');
@@ -79,9 +82,7 @@ const Member = () => {
         try {
             const response = await axios.get('/api/plans');
             setPlans(response.data);
-            if (response.data.length > 0) {
-                setMembershipPlanId(response.data[0].id);
-            }
+            if (response.data.length > 0) { setMembershipPlanId(response.data[0].id); }
         } catch (error) {
             console.error("Error fetching plans", error);
         }
@@ -92,9 +93,7 @@ const Member = () => {
             const response = await axios.get('/api/settings');
             const types = response.data.membership_types || [];
             setMembershipTypes(types);
-            if (types.length > 0) {
-                setMembershipType(types[0]);
-            }
+            if (types.length > 0) { setMembershipType(types[0]); }
         } catch (error) {
             console.error("Error fetching membership types", error);
         }
@@ -123,12 +122,8 @@ const Member = () => {
             fetchMembers();
             setName('');
             setEmail('');
-            if (membershipTypes.length > 0) {
-                setMembershipType(membershipTypes[0]);
-            }
-            if (plans.length > 0) {
-                setMembershipPlanId(plans[0].id);
-            }
+            if (membershipTypes.length > 0) { setMembershipType(membershipTypes[0]); }
+            if (plans.length > 0) { setMembershipPlanId(plans[0].id); }
             setOpenAdd(false);
             if (res && res.data && res.data.id) {
                 setLastCreatedMemberId(res.data.id);
@@ -145,7 +140,9 @@ const Member = () => {
 
     const updateMember = async (e) => {
         e.preventDefault();
-        if (!editingMember) return;
+        if (!editingMember) {
+            return;
+        }
         try {
             const body = {
                 name,
@@ -167,6 +164,29 @@ const Member = () => {
         setEmail(member.email);
         setMembershipType(member.membership_type || '');
         setOpenEdit(true);
+    };
+
+    const openBiometricDialog = (member) => {
+        setEditingMember(member);
+        setOpenBiometric(true);
+        setBioDeviceUserId('');
+        setBioTemplate('');
+    };
+
+    const saveBiometric = async () => {
+        if (!editingMember) {
+            return;
+        }
+        try {
+            const payload = {};
+            if (bioDeviceUserId) { payload.device_user_id = bioDeviceUserId; }
+            if (bioTemplate) { payload.template = bioTemplate; }
+            await axios.put(`/api/members/${editingMember.id}/biometric`, payload);
+            setOpenBiometric(false);
+        } catch (e) {
+            console.error('Error saving biometric', e);
+            alert(e?.response?.data?.message || 'Failed to save biometric');
+        }
     };
 
     const handleCreateInvoice = async () => {
@@ -299,7 +319,7 @@ const Member = () => {
                             <Select value={invoicePlanId} onChange={(e) => {
                                 setInvoicePlanId(e.target.value);
                                 const p = plans.find(pl => String(pl.id) === String(e.target.value));
-                                if (p) setInvoiceAmount(String(p.price));
+                                if (p) { setInvoiceAmount(String(p.price)); }
                             }}>
                                 {plans.map(p => (
                                     <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>
@@ -320,7 +340,10 @@ const Member = () => {
             <List>
                 {filteredMembers.map(member => (
                     <ListItem key={member.id} divider secondaryAction={
-                        <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
+                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
+                        </Box>
                     }>
                         <ListItemText
                             primary={member.name}
@@ -329,6 +352,20 @@ const Member = () => {
                     </ListItem>
                 ))}
             </List>
+
+            <Dialog open={openBiometric} onClose={() => setOpenBiometric(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Link Biometric to Member</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                        <TextField label="Device User ID (Secureye)" value={bioDeviceUserId} onChange={(e)=>setBioDeviceUserId(e.target.value)} helperText="User ID configured on device (if already enrolled)" />
+                        <TextField label="Template (Base64)" value={bioTemplate} onChange={(e)=>setBioTemplate(e.target.value)} multiline minRows={3} placeholder="Paste template string if captured via SDK" />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={()=>setOpenBiometric(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={saveBiometric}>Save</Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };
