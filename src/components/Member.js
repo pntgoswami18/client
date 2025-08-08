@@ -30,6 +30,7 @@ const Member = () => {
     const [membershipTypes, setMembershipTypes] = useState([]);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [membershipType, setMembershipType] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
     const [currency, setCurrency] = useState('INR');
@@ -115,6 +116,7 @@ const Member = () => {
             const newMember = { 
                 name, 
                 email, 
+                phone,
                 membership_type: membershipType,
                 membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null
             };
@@ -122,6 +124,7 @@ const Member = () => {
             fetchMembers();
             setName('');
             setEmail('');
+            setPhone('');
             if (membershipTypes.length > 0) { setMembershipType(membershipTypes[0]); }
             if (plans.length > 0) { setMembershipPlanId(plans[0].id); }
             setOpenAdd(false);
@@ -147,6 +150,7 @@ const Member = () => {
             const body = {
                 name,
                 email,
+                phone,
                 membership_type: membershipType
             };
             await axios.put(`/api/members/${editingMember.id}`, body);
@@ -245,11 +249,16 @@ const Member = () => {
                             required
                         />
                         <TextField
+                            label="Phone"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            required
+                        />
+                        <TextField
                             label="Email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            required
                         />
                         <FormControl fullWidth required disabled={membershipTypes.length === 0}>
                             <InputLabel>Membership Type</InputLabel>
@@ -292,7 +301,8 @@ const Member = () => {
                 <DialogContent>
                     <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-                        <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                        <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                         <FormControl fullWidth>
                             <InputLabel>Membership Type</InputLabel>
                             <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>

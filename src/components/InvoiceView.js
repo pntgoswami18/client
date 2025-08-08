@@ -41,11 +41,16 @@ const InvoiceView = () => {
       try {
         setLoading(true);
         let invoiceRes;
+        // Try by payment id endpoints
         try {
           invoiceRes = await axios.get(`/api/payments/${id}/invoice`);
         } catch (e1) {
-          // fallback to alternate path
-          invoiceRes = await axios.get(`/api/payments/invoice/${id}`);
+          try {
+            invoiceRes = await axios.get(`/api/payments/invoice/${id}`);
+          } catch (e2) {
+            // Try by invoice id endpoint
+            invoiceRes = await axios.get(`/api/payments/invoices/${id}`);
+          }
         }
         const settingsRes = await axios.get('/api/settings');
         setData({ invoice: invoiceRes.data, settings: settingsRes.data });
@@ -59,7 +64,54 @@ const InvoiceView = () => {
   }, [id]);
 
   const handlePrint = () => {
-    window.print();
+    const node = document.getElementById('invoice-root');
+    if (!node) { window.print(); return; }
+    const printWindow = window.open('', 'PRINT', 'height=800,width=800');
+    if (!printWindow) { window.print(); return; }
+    printWindow.document.write(`<html><head><title>Invoice</title>`);
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(el => el.outerHTML).join('\n');
+    printWindow.document.write(styles);
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(node.outerHTML);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const html2canvas = (await import('html2canvas')).default;
+      const node = document.getElementById('invoice-root');
+      if (!node) { return handlePrint(); }
+      const canvas = await html2canvas(node, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let position = 0;
+      if (imgHeight <= pageHeight) {
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      } else {
+        // paginate
+        let remaining = imgHeight;
+        let y = 0;
+        while (remaining > 0) {
+          pdf.addImage(imgData, 'PNG', 0, y ? -y : 0, imgWidth, imgHeight);
+          remaining -= pageHeight;
+          y += pageHeight;
+          if (remaining > 0) { pdf.addPage(); }
+        }
+      }
+      pdf.save(`invoice-${invoice.invoice_id || invoice.payment_id}.pdf`);
+    } catch (e) {
+      console.error(e);
+      handlePrint();
+    }
   };
 
   if (loading) { return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>; }
@@ -69,10 +121,11 @@ const InvoiceView = () => {
   const { invoice, settings } = data;
   const currency = settings?.currency || 'INR';
   const gymName = settings?.gym_name || 'Gym';
+  const memberPhone = settings?.member_phone || invoice?.member_phone; // fallback if included later
 
   return (
     <Box>
-      <Box sx={{ maxWidth: 900, mx: 'auto', background: 'white', p: 4, borderRadius: 2, boxShadow: 2 }}>
+      <Box id="invoice-root" sx={{ maxWidth: 900, mx: 'auto', background: 'white', p: 4, borderRadius: 2, boxShadow: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="h5" fontWeight={700}>{gymName}</Typography>
@@ -89,7 +142,8 @@ const InvoiceView = () => {
         <Box sx={{ mt: 2, p: 2, background: brand.primary, color: 'white', borderRadius: 1 }}>
           <Typography variant="subtitle2">Bill To</Typography>
           <Typography variant="body1" fontWeight={600}>{invoice.member_name || 'Member'}</Typography>
-          <Typography variant="body2">{invoice.member_email}</Typography>
+          {invoice.member_email && (<Typography variant="body2">{invoice.member_email}</Typography>)}
+          {invoice.member_phone && (<Typography variant="body2">{invoice.member_phone}</Typography>)}
         </Box>
 
         <Box sx={{ mt: 3 }}>
@@ -127,13 +181,29 @@ const InvoiceView = () => {
 
         <Divider sx={{ my: 3 }} />
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="caption">This is a computer-generated invoice.</Typography>
           <Box sx={{ '@media print': { display: 'none' } }}>
             <Button variant="outlined" onClick={handlePrint} sx={{ mr: 1 }}>Print</Button>
-            <Button variant="contained" onClick={handlePrint}>Download PDF</Button>
+            <Button variant="contained" onClick={handleDownloadPdf}>Download PDF</Button>
           </Box>
         </Box>
+      </Box>
+      {/* Actions row separated to avoid printing, plus WhatsApp share */}
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1, '@media print': { display: 'none' } }}>
+        <Button onClick={handlePrint}>Print</Button>
+        <Button variant="outlined" onClick={handleDownloadPdf}>Download PDF</Button>
+        <Button variant="contained" color="success" onClick={async () => {
+          try {
+            const phone = (invoice.member_phone || '').replace(/\D/g, '');
+            await handleDownloadPdf();
+            const text = encodeURIComponent(`Invoice #${invoice.invoice_id} for ${invoice.member_name} - Amount ${formatCurrency(invoice.payment_amount || invoice.invoice_amount, currency)}`);
+            const waUrl = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+            window.open(waUrl, '_blank');
+          } catch (e) {
+            console.error(e);
+          }
+        }}>Send via WhatsApp</Button>
       </Box>
     </Box>
   );
