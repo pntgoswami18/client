@@ -1,5 +1,34 @@
 # Gym Management Software - Frontend Dashboard
 
+React admin dashboard for managing members, classes, schedules, attendance, billing, and high‑level analytics.
+
+## High‑level Features
+
+- Analytics dashboard with summary cards and charts
+- Member management (add/edit/list)
+- Classes and schedules
+- Attendance tracking with date‑range filtering
+- Financials: membership plans, invoices, manual payments
+- Branding via accent colors (solid/gradient) with a gradient editor
+
+## Technology Stack
+
+- React 19, React Router
+- Material UI
+- Axios
+
+## Installation
+
+```bash
+cd client
+npm install
+npm start
+```
+
+Runs at `http://localhost:3000` and proxies API requests to the backend (`http://localhost:3001`).
+
+# Gym Management Software - Frontend Dashboard
+
 This is the React frontend for the Gym Management Software, providing a comprehensive admin dashboard for gym owners and staff to manage their operations.
 
 ## Features
@@ -66,7 +95,7 @@ Once running, you can navigate between different sections:
 - **Members (/members):** Manage gym members
 - **Classes (/classes):** Manage fitness classes
 - **Schedules (/schedules):** Schedule classes and manage capacity
-- **Attendance (/attendance):** Track member attendance. Session check-in rules are enforced (Morning 05:00–11:00, Evening 16:00–22:00) with max one check-in per calendar date.
+- **Attendance (/attendance):** Track member attendance. Session check-in rules are enforced (Morning 05:00–11:00, Evening 16:00–22:00) with max one check-in per calendar date. Filter by date range (default: current week).
 - **Financials (/financials):** Manage membership plans and billing. Manual payment modal supports selecting a member to fetch unpaid invoices and autofilling invoice/amount.
 
 ## Component Structure
@@ -85,6 +114,17 @@ src/
 ├── App.css                   # Application styling
 └── index.js                  # App entry point
 ```
+
+## Styling & Branding
+
+Accent colors (Primary and Secondary) are configurable in Settings as either Solid or Gradient. A built-in Gradient Editor supports Linear/Radial modes, angle, and draggable color stops. The app exposes CSS variables for accents:
+
+- `--accent-primary-color`
+- `--accent-secondary-color`
+- `--accent-primary-bg`
+- `--accent-secondary-bg`
+
+These are used across buttons (contained/outlined), headings (h4/h5 gradient text), section dividers, and invoice headings.
 
 ## API Integration
 

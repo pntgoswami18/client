@@ -72,6 +72,14 @@ const AttendanceTracker = () => {
         }
     };
 
+    useEffect(() => {
+        // Auto-refresh when dates change and a member is selected
+        if (selectedMemberId) {
+            fetchAttendanceForMember(selectedMemberId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startDate, endDate]);
+
     const simulateCheckIn = async (e) => {
         e.preventDefault();
         if (!simulateMemberId) {

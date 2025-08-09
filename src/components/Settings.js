@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Chip, TextField, Button, Box, Grid, Typography, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
+import GradientEditor from './GradientEditor';
 
 const Settings = () => {
     const [currency, setCurrency] = useState('INR');
@@ -267,27 +268,17 @@ const Settings = () => {
                             <option value="gradient">Gradient</option>
                         </TextField>
                         {primaryColorMode === 'gradient' && (
-                            <>
-                                <TextField
-                                    label="Primary Gradient Preset"
-                                    select
-                                    value={primaryGradient || `linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`}
-                                    onChange={(e)=>setPrimaryGradient(e.target.value)}
-                                    SelectProps={{ native: true }}
-                                    sx={{ minWidth: 280 }}
-                                >
-                                    <option value={`linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`}>Linear 90°</option>
-                                    <option value={`linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`}>Linear 135°</option>
-                                    <option value={`radial-gradient(circle, ${primaryColor}, ${secondaryColor})`}>Radial</option>
-                                </TextField>
-                                <TextField
-                                    label="Primary Gradient CSS"
-                                    placeholder="e.g., linear-gradient(90deg, #3f51b5, #f50057)"
+                            <Box sx={{ flex: 1, minWidth: 300 }}>
+                                <GradientEditor
                                     value={primaryGradient}
-                                    onChange={(e)=>setPrimaryGradient(e.target.value)}
-                                    sx={{ flex: 1, minWidth: 280 }}
+                                    onChange={setPrimaryGradient}
+                                    defaultStops={[
+                                        { color: primaryColor, pos: 0 },
+                                        { color: secondaryColor, pos: 50 },
+                                        { color: '#EDDD53', pos: 100 }
+                                    ]}
                                 />
-                            </>
+                            </Box>
                         )}
                     </Box>
                     <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -310,27 +301,17 @@ const Settings = () => {
                             <option value="gradient">Gradient</option>
                         </TextField>
                         {secondaryColorMode === 'gradient' && (
-                            <>
-                                <TextField
-                                    label="Secondary Gradient Preset"
-                                    select
-                                    value={secondaryGradient || `linear-gradient(90deg, ${secondaryColor}, ${primaryColor})`}
-                                    onChange={(e)=>setSecondaryGradient(e.target.value)}
-                                    SelectProps={{ native: true }}
-                                    sx={{ minWidth: 280 }}
-                                >
-                                    <option value={`linear-gradient(90deg, ${secondaryColor}, ${primaryColor})`}>Linear 90°</option>
-                                    <option value={`linear-gradient(135deg, ${secondaryColor}, ${primaryColor})`}>Linear 135°</option>
-                                    <option value={`radial-gradient(circle, ${secondaryColor}, ${primaryColor})`}>Radial</option>
-                                </TextField>
-                                <TextField
-                                    label="Secondary Gradient CSS"
-                                    placeholder="e.g., linear-gradient(90deg, #f50057, #3f51b5)"
+                            <Box sx={{ flex: 1, minWidth: 300 }}>
+                                <GradientEditor
                                     value={secondaryGradient}
-                                    onChange={(e)=>setSecondaryGradient(e.target.value)}
-                                    sx={{ flex: 1, minWidth: 280 }}
+                                    onChange={setSecondaryGradient}
+                                    defaultStops={[
+                                        { color: secondaryColor, pos: 0 },
+                                        { color: primaryColor, pos: 50 },
+                                        { color: '#EDDD53', pos: 100 }
+                                    ]}
                                 />
-                            </>
+                            </Box>
                         )}
                     </Box>
                 </div>
