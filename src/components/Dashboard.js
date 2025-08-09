@@ -13,11 +13,19 @@ const Dashboard = () => {
     const [currency, setCurrency] = useState('INR');
     const [loading, setLoading] = useState(true);
     const [hoveredCard, setHoveredCard] = useState(-1);
+    const [cardPrefs, setCardPrefs] = useState({
+        show_total_members: true,
+        show_total_revenue: true,
+        show_new_members_this_month: true,
+        show_unpaid_members_this_month: true,
+        show_active_schedules: true,
+    });
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchAllReports();
         fetchCurrency();
+        fetchCardPrefs();
     }, []);
 
     const fetchCurrency = async () => {
@@ -53,6 +61,19 @@ const Dashboard = () => {
         }
     };
 
+    const fetchCardPrefs = async () => {
+        try {
+            const res = await axios.get('/api/settings');
+            setCardPrefs({
+                show_total_members: String(res.data.show_card_total_members) !== 'false',
+                show_total_revenue: String(res.data.show_card_total_revenue) !== 'false',
+                show_new_members_this_month: String(res.data.show_card_new_members_this_month) !== 'false',
+                show_unpaid_members_this_month: String(res.data.show_card_unpaid_members_this_month) !== 'false',
+                show_active_schedules: String(res.data.show_card_active_schedules) !== 'false',
+            });
+        } catch (e) { /* ignore */ }
+    };
+
     if (loading) {
         return <div><h2>Dashboard</h2><p>Loading analytics...</p></div>;
     }
@@ -69,7 +90,7 @@ const Dashboard = () => {
             
             {/* Summary Stats Cards */}
             <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', overflowX: 'auto', paddingBottom: '8px' }}>
-                <div
+                {cardPrefs.show_total_members && <div
                     onClick={() => navigate('/members')}
                     onMouseEnter={() => setHoveredCard(0)}
                     onMouseLeave={() => setHoveredCard(-1)}
@@ -95,8 +116,8 @@ const Dashboard = () => {
                 >
                     <h3 style={{ margin: 0, color: '#2c5aa0' }}>Total Members</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalMembers)}</p>
-                </div>
-                <div
+                </div>}
+                {cardPrefs.show_total_revenue && <div
                     onClick={() => navigate('/financials?section=pending-payments')}
                     onMouseEnter={() => setHoveredCard(1)}
                     onMouseLeave={() => setHoveredCard(-1)}
@@ -122,8 +143,8 @@ const Dashboard = () => {
                 >
                     <h3 style={{ margin: 0, color: '#228b22' }}>Total Revenue</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalRevenue, true)}</p>
-                </div>
-                <div
+                </div>}
+                {cardPrefs.show_new_members_this_month && <div
                     onClick={() => navigate('/members?filter=new-this-month')}
                     onMouseEnter={() => setHoveredCard(2)}
                     onMouseLeave={() => setHoveredCard(-1)}
@@ -149,8 +170,8 @@ const Dashboard = () => {
                 >
                     <h3 style={{ margin: 0, color: '#daa520' }}>New Members This Month</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.newMembersThisMonth)}</p>
-                </div>
-                <div
+                </div>}
+                {cardPrefs.show_unpaid_members_this_month && <div
                     onClick={() => navigate('/members?filter=unpaid-this-month')}
                     onMouseEnter={() => setHoveredCard(3)}
                     onMouseLeave={() => setHoveredCard(-1)}
@@ -176,8 +197,8 @@ const Dashboard = () => {
                 >
                     <h3 style={{ margin: 0, color: '#b22222' }}>Unpaid Members This Month</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.unpaidMembersThisMonth)}</p>
-                </div>
-                <div
+                </div>}
+                {cardPrefs.show_active_schedules && <div
                     onClick={() => navigate('/schedules')}
                     onMouseEnter={() => setHoveredCard(4)}
                     onMouseLeave={() => setHoveredCard(-1)}
@@ -203,7 +224,7 @@ const Dashboard = () => {
                 >
                     <h3 style={{ margin: 0, color: '#dc143c' }}>Active Schedules</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.activeSchedules)}</p>
-                </div>
+                </div>}
             </div>
 
             {/* Popular Classes */}

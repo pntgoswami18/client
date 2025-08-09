@@ -48,6 +48,10 @@ function App() {
   const [gymLogo, setGymLogo] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#3f51b5');
   const [secondaryColor, setSecondaryColor] = useState('#f50057');
+  const [primaryMode, setPrimaryMode] = useState('solid');
+  const [secondaryMode, setSecondaryMode] = useState('solid');
+  const [primaryGradient, setPrimaryGradient] = useState('');
+  const [secondaryGradient, setSecondaryGradient] = useState('');
 
   useEffect(() => {
     fetchGymSettings();
@@ -60,6 +64,16 @@ function App() {
       setGymLogo(response.data.gym_logo);
       if (response.data.primary_color) { setPrimaryColor(response.data.primary_color); }
       if (response.data.secondary_color) { setSecondaryColor(response.data.secondary_color); }
+      if (response.data.primary_color_mode) { setPrimaryMode(response.data.primary_color_mode); }
+      if (response.data.secondary_color_mode) { setSecondaryMode(response.data.secondary_color_mode); }
+      if (response.data.primary_color_gradient) { setPrimaryGradient(response.data.primary_color_gradient); }
+      if (response.data.secondary_color_gradient) { setSecondaryGradient(response.data.secondary_color_gradient); }
+      // expose CSS variables for easy usage in components
+      const root = document.documentElement;
+      root.style.setProperty('--accent-primary-color', response.data.primary_color || primaryColor);
+      root.style.setProperty('--accent-secondary-color', response.data.secondary_color || secondaryColor);
+      root.style.setProperty('--accent-primary-bg', (response.data.primary_color_mode === 'gradient' ? (response.data.primary_color_gradient || '') : (response.data.primary_color || primaryColor)));
+      root.style.setProperty('--accent-secondary-bg', (response.data.secondary_color_mode === 'gradient' ? (response.data.secondary_color_gradient || '') : (response.data.secondary_color || secondaryColor)));
     } catch (error) {
       console.error("Error fetching gym settings", error);
     }
@@ -121,7 +135,11 @@ function App() {
                 <MenuIcon />
               </IconButton>
               {gymLogo && <img src={gymLogo} alt="logo" style={{height: '40px', marginRight: '15px'}}/>}
-              <Typography variant="h6" noWrap component="div">
+              <Typography variant="h6" noWrap component="div" sx={{
+                background: primaryMode === 'gradient' ? (primaryGradient || `linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`) : 'none',
+                WebkitBackgroundClip: primaryMode === 'gradient' ? 'text' : 'initial',
+                WebkitTextFillColor: primaryMode === 'gradient' ? 'transparent' : 'inherit'
+              }}>
                 {gymName || 'Gym Management'}
               </Typography>
             </Toolbar>

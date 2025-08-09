@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Chip, TextField, Button, Box, Grid, Typography } from '@mui/material';
+import { Chip, TextField, Button, Box, Grid, Typography, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
 
 const Settings = () => {
     const [currency, setCurrency] = useState('INR');
@@ -16,6 +16,11 @@ const Settings = () => {
     const [morningEnd, setMorningEnd] = useState('11:00');
     const [eveningStart, setEveningStart] = useState('16:00');
     const [eveningEnd, setEveningEnd] = useState('22:00');
+    const [showTotalMembers, setShowTotalMembers] = useState(true);
+    const [showTotalRevenue, setShowTotalRevenue] = useState(true);
+    const [showNewMembersThisMonth, setShowNewMembersThisMonth] = useState(true);
+    const [showUnpaidMembersThisMonth, setShowUnpaidMembersThisMonth] = useState(true);
+    const [showActiveSchedules, setShowActiveSchedules] = useState(true);
 
     useEffect(() => {
         fetchSettings();
@@ -24,7 +29,7 @@ const Settings = () => {
     const fetchSettings = async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end } = response.data;
+            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules } = response.data;
             if (currency) { setCurrency(currency); }
             if (membership_types) { setMembershipTypes(membership_types); }
             if (gym_name) { setGymName(gym_name); }
@@ -36,6 +41,11 @@ const Settings = () => {
             if (morning_session_end) { setMorningEnd(morning_session_end); }
             if (evening_session_start) { setEveningStart(evening_session_start); }
             if (evening_session_end) { setEveningEnd(evening_session_end); }
+            if (show_card_total_members !== undefined) { setShowTotalMembers(String(show_card_total_members) !== 'false'); }
+            if (show_card_total_revenue !== undefined) { setShowTotalRevenue(String(show_card_total_revenue) !== 'false'); }
+            if (show_card_new_members_this_month !== undefined) { setShowNewMembersThisMonth(String(show_card_new_members_this_month) !== 'false'); }
+            if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(String(show_card_unpaid_members_this_month) !== 'false'); }
+            if (show_card_active_schedules !== undefined) { setShowActiveSchedules(String(show_card_active_schedules) !== 'false'); }
         } catch (error) {
             console.error("Error fetching settings", error);
         }
@@ -67,7 +77,12 @@ const Settings = () => {
                 morning_session_start: morningStart,
                 morning_session_end: morningEnd,
                 evening_session_start: eveningStart,
-                evening_session_end: eveningEnd
+                evening_session_end: eveningEnd,
+                show_card_total_members: showTotalMembers,
+                show_card_total_revenue: showTotalRevenue,
+                show_card_new_members_this_month: showNewMembersThisMonth,
+                show_card_unpaid_members_this_month: showUnpaidMembersThisMonth,
+                show_card_active_schedules: showActiveSchedules
             };
 
             await axios.put('/api/settings', settingsToUpdate);
@@ -158,6 +173,17 @@ const Settings = () => {
                         />
                         <Button variant="contained" onClick={handleAddMembershipType}>Add</Button>
                     </Box>
+                </div>
+                <div style={{ marginTop: '30px' }}>
+                    <label>Dashboard Cards</label>
+                    <FormGroup sx={{ mt: 1 }}>
+                        <FormControlLabel control={<Checkbox checked={showTotalMembers} onChange={(e)=>setShowTotalMembers(e.target.checked)} />} label="Total Members" />
+                        <FormControlLabel control={<Checkbox checked={showTotalRevenue} onChange={(e)=>setShowTotalRevenue(e.target.checked)} />} label="Total Revenue" />
+                        <FormControlLabel control={<Checkbox checked={showNewMembersThisMonth} onChange={(e)=>setShowNewMembersThisMonth(e.target.checked)} />} label="New Members This Month" />
+                        <FormControlLabel control={<Checkbox checked={showUnpaidMembersThisMonth} onChange={(e)=>setShowUnpaidMembersThisMonth(e.target.checked)} />} label="Unpaid Members This Month" />
+                        <FormControlLabel control={<Checkbox checked={showActiveSchedules} onChange={(e)=>setShowActiveSchedules(e.target.checked)} />} label="Active Schedules" />
+                    </FormGroup>
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>Choose which summary cards show on the dashboard.</Typography>
                 </div>
                 <div style={{ marginTop: '30px' }}>
                     <label>Working Hours</label>
