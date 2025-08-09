@@ -76,12 +76,13 @@ function App() {
   const [primaryColor, setPrimaryColor] = useState('#3f51b5');
   const [secondaryColor, setSecondaryColor] = useState('#f50057');
   const [primaryMode, setPrimaryMode] = useState('solid');
-  const [secondaryMode, setSecondaryMode] = useState('solid');
+  const [secondaryMode] = useState('solid');
   const [primaryGradient, setPrimaryGradient] = useState('');
-  const [secondaryGradient, setSecondaryGradient] = useState('');
+  const [secondaryGradient] = useState('');
 
   useEffect(() => {
     fetchGymSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchGymSettings = async () => {

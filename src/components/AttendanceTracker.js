@@ -95,7 +95,7 @@ const AttendanceTracker = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom>Attendance</Typography>
+            <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1 }}>Attendance</Typography>
             
             {/* Simulate Check-in Section */}
             <Card sx={{ marginBottom: '2rem' }}>

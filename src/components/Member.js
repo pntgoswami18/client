@@ -225,7 +225,7 @@ const Member = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom>Members</Typography>
+            <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1 }}>Members</Typography>
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                 <FormControl size="small" sx={{ minWidth: 220 }}>
                     <InputLabel>Filter</InputLabel>

@@ -86,7 +86,11 @@ const Dashboard = () => {
 
     return (
         <div>
-            <h2>Dashboard - Analytics & Reports</h2>
+            <h2 style={{
+                background: 'var(--accent-secondary-bg)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+            }}>Dashboard - Analytics & Reports</h2>
             
             {/* Summary Stats Cards */}
             <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', overflowX: 'auto', paddingBottom: '8px' }}>

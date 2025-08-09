@@ -130,7 +130,7 @@ const InvoiceView = () => {
             <Typography variant="caption">Quotation / Tax Invoice</Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Typography variant="h6" sx={{ color: brand.primary }}>INVOICE</Typography>
+            <Typography variant="h6" sx={{ color: 'var(--accent-secondary-color)' }}>INVOICE</Typography>
             <Typography variant="body2">Invoice No.: {invoice.invoice_id}</Typography>
             <Typography variant="body2">Payment ID: {invoice.payment_id}</Typography>
             <Typography variant="body2">Date: {formatDate(invoice.payment_date)}</Typography>
