@@ -76,9 +76,7 @@ function App() {
   const [primaryColor, setPrimaryColor] = useState('#3f51b5');
   const [secondaryColor, setSecondaryColor] = useState('#f50057');
   const [primaryMode, setPrimaryMode] = useState('solid');
-  const [secondaryMode] = useState('solid');
   const [primaryGradient, setPrimaryGradient] = useState('');
-  const [secondaryGradient] = useState('');
 
   useEffect(() => {
     fetchGymSettings();
@@ -93,9 +91,7 @@ function App() {
       if (response.data.primary_color) { setPrimaryColor(response.data.primary_color); }
       if (response.data.secondary_color) { setSecondaryColor(response.data.secondary_color); }
       if (response.data.primary_color_mode) { setPrimaryMode(response.data.primary_color_mode); }
-      if (response.data.secondary_color_mode) { setSecondaryMode(response.data.secondary_color_mode); }
       if (response.data.primary_color_gradient) { setPrimaryGradient(response.data.primary_color_gradient); }
-      if (response.data.secondary_color_gradient) { setSecondaryGradient(response.data.secondary_color_gradient); }
       // expose CSS variables for easy usage in components
       const root = document.documentElement;
       root.style.setProperty('--accent-primary-color', response.data.primary_color || primaryColor);
