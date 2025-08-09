@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Box, Button, CircularProgress, Divider, Typography, useTheme } from '@mui/material';
 import { formatCurrency, formatDate } from '../utils/formatting';
@@ -27,6 +27,7 @@ const numberToWords = (amount) => {
 const InvoiceView = () => {
   const { id } = useParams(); // payment id
   const theme = useTheme();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
@@ -184,10 +185,12 @@ const InvoiceView = () => {
         </Box>
       </Box>
       {/* Actions row separated to avoid printing, plus WhatsApp share */}
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 1, '@media print': { display: 'none' } }}>
-        <Button onClick={handlePrint}>Print</Button>
-        <Button variant="outlined" onClick={handleDownloadPdf}>Download PDF</Button>
-        <Button variant="contained" color="success" onClick={async () => {
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', '@media print': { display: 'none' } }}>
+        <Button variant="outlined" onClick={() => navigate('/financials')}>Back to Financials</Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button onClick={handlePrint}>Print</Button>
+          <Button variant="outlined" onClick={handleDownloadPdf}>Download PDF</Button>
+          <Button variant="contained" color="success" onClick={async () => {
           try {
             const phone = (invoice.member_phone || '').replace(/\D/g, '');
             await handleDownloadPdf();
@@ -198,6 +201,7 @@ const InvoiceView = () => {
             console.error(e);
           }
         }}>Send via WhatsApp</Button>
+        </Box>
       </Box>
     </Box>
   );
