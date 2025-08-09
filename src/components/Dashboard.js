@@ -58,7 +58,7 @@ const Dashboard = () => {
     
     const displayValue = (value, isCurrency = false) => {
         const num = Number(value);
-        if (isNaN(num)) return isCurrency ? formatCurrency(0, currency) : 0;
+        if (isNaN(num)) { return isCurrency ? formatCurrency(0, currency) : 0; }
         return isCurrency ? formatCurrency(num, currency) : num;
     };
 
@@ -67,26 +67,26 @@ const Dashboard = () => {
             <h2>Dashboard - Analytics & Reports</h2>
             
             {/* Summary Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div onClick={() => navigate('/members')} style={{ padding: '20px', backgroundColor: '#f0f8ff', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
-                    <h3 style={{ margin: '0 0 10px 0', color: '#2c5aa0' }}>Total Members</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.totalMembers)}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <div onClick={() => navigate('/members')} style={{ padding: '20px', backgroundColor: '#f0f8ff', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '140px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: 0, color: '#2c5aa0' }}>Total Members</h3>
+                    <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalMembers)}</p>
                 </div>
-                <div onClick={() => navigate('/financials?section=pending-payments')} style={{ padding: '20px', backgroundColor: '#f0fff0', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
-                    <h3 style={{ margin: '0 0 10px 0', color: '#228b22' }}>Total Revenue</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.totalRevenue, true)}</p>
+                <div onClick={() => navigate('/financials?section=pending-payments')} style={{ padding: '20px', backgroundColor: '#f0fff0', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '140px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: 0, color: '#228b22' }}>Total Revenue</h3>
+                    <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalRevenue, true)}</p>
                 </div>
-                <div onClick={() => navigate('/members?filter=new-this-month')} style={{ padding: '20px', backgroundColor: '#fff8dc', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
-                    <h3 style={{ margin: '0 0 10px 0', color: '#daa520' }}>New Members This Month</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.newMembersThisMonth)}</p>
+                <div onClick={() => navigate('/members?filter=new-this-month')} style={{ padding: '20px', backgroundColor: '#fff8dc', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '140px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: 0, color: '#daa520' }}>New Members This Month</h3>
+                    <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.newMembersThisMonth)}</p>
                 </div>
-                <div onClick={() => navigate('/members?filter=unpaid-this-month')} style={{ padding: '20px', backgroundColor: '#fde2e1', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
-                    <h3 style={{ margin: '0 0 10px 0', color: '#b22222' }}>Unpaid Members This Month</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.unpaidMembersThisMonth)}</p>
+                <div onClick={() => navigate('/members?filter=unpaid-this-month')} style={{ padding: '20px', backgroundColor: '#fde2e1', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '140px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: 0, color: '#b22222' }}>Unpaid Members This Month</h3>
+                    <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.unpaidMembersThisMonth)}</p>
                 </div>
-                <div onClick={() => navigate('/schedules')} style={{ padding: '20px', backgroundColor: '#ffe4e1', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
-                    <h3 style={{ margin: '0 0 10px 0', color: '#dc143c' }}>Active Schedules</h3>
-                    <p style={{ fontSize: '2em', margin: '0', fontWeight: 'bold' }}>{displayValue(summaryStats.activeSchedules)}</p>
+                <div onClick={() => navigate('/schedules')} style={{ padding: '20px', backgroundColor: '#ffe4e1', borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '140px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                    <h3 style={{ margin: 0, color: '#dc143c' }}>Active Schedules</h3>
+                    <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.activeSchedules)}</p>
                 </div>
             </div>
 

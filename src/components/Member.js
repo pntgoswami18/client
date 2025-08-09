@@ -253,6 +253,8 @@ const Member = () => {
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             required
+                            inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }}
+                            helperText="10–15 digits, optional leading +"
                         />
                         <TextField
                             label="Email"
@@ -301,7 +303,7 @@ const Member = () => {
                 <DialogContent>
                     <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-                        <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                        <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }} helperText="10–15 digits, optional leading +" />
                         <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                         <FormControl fullWidth>
                             <InputLabel>Membership Type</InputLabel>

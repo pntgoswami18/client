@@ -110,7 +110,6 @@ const InvoiceView = () => {
       pdf.save(`invoice-${invoice.invoice_id || invoice.payment_id}.pdf`);
     } catch (e) {
       console.error(e);
-      handlePrint();
     }
   };
 
@@ -121,7 +120,6 @@ const InvoiceView = () => {
   const { invoice, settings } = data;
   const currency = settings?.currency || 'INR';
   const gymName = settings?.gym_name || 'Gym';
-  const memberPhone = settings?.member_phone || invoice?.member_phone; // fallback if included later
 
   return (
     <Box>
@@ -181,12 +179,8 @@ const InvoiceView = () => {
 
         <Divider sx={{ my: 3 }} />
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="caption">This is a computer-generated invoice.</Typography>
-          <Box sx={{ '@media print': { display: 'none' } }}>
-            <Button variant="outlined" onClick={handlePrint} sx={{ mr: 1 }}>Print</Button>
-            <Button variant="contained" onClick={handleDownloadPdf}>Download PDF</Button>
-          </Box>
         </Box>
       </Box>
       {/* Actions row separated to avoid printing, plus WhatsApp share */}
