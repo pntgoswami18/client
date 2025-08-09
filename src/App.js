@@ -92,12 +92,18 @@ function App() {
       if (response.data.secondary_color) { setSecondaryColor(response.data.secondary_color); }
       if (response.data.primary_color_mode) { setPrimaryMode(response.data.primary_color_mode); }
       if (response.data.primary_color_gradient) { setPrimaryGradient(response.data.primary_color_gradient); }
-      // expose CSS variables for easy usage in components
+      // expose CSS variables for easy usage in components with sensible fallbacks
       const root = document.documentElement;
+      const resolvedPrimaryBG = (response.data.primary_color_mode === 'gradient'
+        ? (response.data.primary_color_gradient || `linear-gradient(90deg, ${response.data.primary_color || primaryColor}, ${response.data.secondary_color || secondaryColor})`)
+        : (response.data.primary_color || primaryColor));
+      const resolvedSecondaryBG = (response.data.secondary_color_mode === 'gradient'
+        ? (response.data.secondary_color_gradient || `linear-gradient(90deg, ${response.data.secondary_color || secondaryColor}, ${response.data.primary_color || primaryColor})`)
+        : (response.data.secondary_color || secondaryColor));
       root.style.setProperty('--accent-primary-color', response.data.primary_color || primaryColor);
       root.style.setProperty('--accent-secondary-color', response.data.secondary_color || secondaryColor);
-      root.style.setProperty('--accent-primary-bg', (response.data.primary_color_mode === 'gradient' ? (response.data.primary_color_gradient || '') : (response.data.primary_color || primaryColor)));
-      root.style.setProperty('--accent-secondary-bg', (response.data.secondary_color_mode === 'gradient' ? (response.data.secondary_color_gradient || '') : (response.data.secondary_color || secondaryColor)));
+      root.style.setProperty('--accent-primary-bg', resolvedPrimaryBG);
+      root.style.setProperty('--accent-secondary-bg', resolvedSecondaryBG);
     } catch (error) {
       console.error("Error fetching gym settings", error);
     }

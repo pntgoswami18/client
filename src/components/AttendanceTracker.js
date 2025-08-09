@@ -6,6 +6,7 @@ import {
     InputLabel,
     Select,
     MenuItem,
+    TextField,
     Button,
     Box,
     Card,
@@ -26,6 +27,14 @@ const AttendanceTracker = () => {
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     const [simulateMemberId, setSimulateMemberId] = useState('');
     const [checkInError, setCheckInError] = useState('');
+    const [startDate, setStartDate] = useState(() => {
+        const now = new Date();
+        const day = now.getDay() || 7; // 1..7, Monday=1
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - (day - 1));
+        return monday.toISOString().slice(0,10);
+    });
+    const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0,10));
 
     useEffect(() => {
         fetchMembers();
@@ -42,7 +51,10 @@ const AttendanceTracker = () => {
 
     const fetchAttendanceForMember = async (memberId) => {
         try {
-            const response = await axios.get(`/api/attendance/${memberId}`);
+            const params = new URLSearchParams();
+            if (startDate) { params.append('start', startDate); }
+            if (endDate) { params.append('end', endDate); }
+            const response = await axios.get(`/api/attendance/${memberId}?${params.toString()}`);
             setAttendanceRecords(response.data);
         } catch (error) {
             console.error("Error fetching attendance", error);
@@ -125,7 +137,7 @@ const AttendanceTracker = () => {
 
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
-            <Box sx={{ marginBottom: '2rem', maxWidth: '400px' }}>
+            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 120px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
                 <FormControl fullWidth>
                     <InputLabel>Select a member to view attendance</InputLabel>
                     <Select value={selectedMemberId} onChange={handleMemberSelect}>
@@ -137,6 +149,9 @@ const AttendanceTracker = () => {
                         ))}
                     </Select>
                 </FormControl>
+                <TextField label="Start" type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                <TextField label="End" type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                <Button variant="outlined" onClick={()=>{ if (selectedMemberId) { fetchAttendanceForMember(selectedMemberId); } }}>Apply</Button>
             </Box>
 
             {selectedMemberId && (

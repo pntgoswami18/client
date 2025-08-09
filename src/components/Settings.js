@@ -247,7 +247,7 @@ const Settings = () => {
                 </div>
                 <div style={{ marginTop: '30px' }}>
                     <label>Accent Colors</label>
-                    <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                         <TextField
                             label="Primary Color"
                             type="color"
@@ -261,20 +261,36 @@ const Settings = () => {
                             value={primaryColorMode}
                             onChange={(e)=>setPrimaryColorMode(e.target.value)}
                             SelectProps={{ native: true }}
-                            sx={{ width: 180 }}
+                            sx={{ width: 220 }}
                         >
                             <option value="solid">Solid</option>
                             <option value="gradient">Gradient</option>
                         </TextField>
-                        <TextField
-                            label="Primary Gradient CSS"
-                            placeholder="e.g., linear-gradient(90deg, #3f51b5, #f50057)"
-                            value={primaryGradient}
-                            onChange={(e)=>setPrimaryGradient(e.target.value)}
-                            sx={{ flex: 1 }}
-                        />
+                        {primaryColorMode === 'gradient' && (
+                            <>
+                                <TextField
+                                    label="Primary Gradient Preset"
+                                    select
+                                    value={primaryGradient || `linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`}
+                                    onChange={(e)=>setPrimaryGradient(e.target.value)}
+                                    SelectProps={{ native: true }}
+                                    sx={{ minWidth: 280 }}
+                                >
+                                    <option value={`linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`}>Linear 90°</option>
+                                    <option value={`linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`}>Linear 135°</option>
+                                    <option value={`radial-gradient(circle, ${primaryColor}, ${secondaryColor})`}>Radial</option>
+                                </TextField>
+                                <TextField
+                                    label="Primary Gradient CSS"
+                                    placeholder="e.g., linear-gradient(90deg, #3f51b5, #f50057)"
+                                    value={primaryGradient}
+                                    onChange={(e)=>setPrimaryGradient(e.target.value)}
+                                    sx={{ flex: 1, minWidth: 280 }}
+                                />
+                            </>
+                        )}
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                         <TextField
                             label="Secondary Color"
                             type="color"
@@ -288,18 +304,34 @@ const Settings = () => {
                             value={secondaryColorMode}
                             onChange={(e)=>setSecondaryColorMode(e.target.value)}
                             SelectProps={{ native: true }}
-                            sx={{ width: 180 }}
+                            sx={{ width: 220 }}
                         >
                             <option value="solid">Solid</option>
                             <option value="gradient">Gradient</option>
                         </TextField>
-                        <TextField
-                            label="Secondary Gradient CSS"
-                            placeholder="e.g., linear-gradient(90deg, #f50057, #3f51b5)"
-                            value={secondaryGradient}
-                            onChange={(e)=>setSecondaryGradient(e.target.value)}
-                            sx={{ flex: 1 }}
-                        />
+                        {secondaryColorMode === 'gradient' && (
+                            <>
+                                <TextField
+                                    label="Secondary Gradient Preset"
+                                    select
+                                    value={secondaryGradient || `linear-gradient(90deg, ${secondaryColor}, ${primaryColor})`}
+                                    onChange={(e)=>setSecondaryGradient(e.target.value)}
+                                    SelectProps={{ native: true }}
+                                    sx={{ minWidth: 280 }}
+                                >
+                                    <option value={`linear-gradient(90deg, ${secondaryColor}, ${primaryColor})`}>Linear 90°</option>
+                                    <option value={`linear-gradient(135deg, ${secondaryColor}, ${primaryColor})`}>Linear 135°</option>
+                                    <option value={`radial-gradient(circle, ${secondaryColor}, ${primaryColor})`}>Radial</option>
+                                </TextField>
+                                <TextField
+                                    label="Secondary Gradient CSS"
+                                    placeholder="e.g., linear-gradient(90deg, #f50057, #3f51b5)"
+                                    value={secondaryGradient}
+                                    onChange={(e)=>setSecondaryGradient(e.target.value)}
+                                    sx={{ flex: 1, minWidth: 280 }}
+                                />
+                            </>
+                        )}
                     </Box>
                 </div>
 
