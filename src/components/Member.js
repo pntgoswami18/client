@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import {
@@ -24,6 +24,7 @@ const Member = () => {
     const [members, setMembers] = useState([]);
     const [unpaidMembersThisMonth, setUnpaidMembersThisMonth] = useState([]);
     const location = useLocation();
+    const navigate = useNavigate();
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
     const [plans, setPlans] = useState([]);
@@ -228,7 +229,11 @@ const Member = () => {
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                 <FormControl size="small" sx={{ minWidth: 220 }}>
                     <InputLabel>Filter</InputLabel>
-                    <Select label="Filter" value={filter} onChange={(e)=>setFilter(e.target.value)}>
+                    <Select label="Filter" value={filter} onChange={(e)=>{
+                        const val = e.target.value;
+                        setFilter(val);
+                        if (val === 'all') { navigate('/members'); } else { navigate(`/members?filter=${val}`); }
+                    }}>
                         <MenuItem value="all">All Members</MenuItem>
                         <MenuItem value="new-this-month">Joined This Month</MenuItem>
                         <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>

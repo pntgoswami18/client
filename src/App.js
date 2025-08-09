@@ -29,11 +29,38 @@ const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
     shape: { borderRadius: 10 },
     typography: {
       fontFamily: "-apple-system, 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif",
-      h4: { fontWeight: 700 },
-      h5: { fontWeight: 700 },
+      h4: {
+        fontWeight: 700,
+        background: 'var(--accent-secondary-bg)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+      },
+      h5: {
+        fontWeight: 700,
+        background: 'var(--accent-secondary-bg)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+      },
     },
     components: {
-      MuiButton: { defaultProps: { variant: 'contained' } },
+      MuiButton: {
+        defaultProps: { variant: 'contained' },
+        styleOverrides: {
+          root: {
+            textTransform: 'none',
+          },
+          contained: {
+            background: 'var(--accent-secondary-bg)',
+            color: '#fff',
+            '&:hover': { filter: 'brightness(0.95)' },
+          },
+          outlined: {
+            borderColor: 'var(--accent-secondary-color)',
+            color: 'var(--accent-secondary-color)',
+            '&:hover': { borderColor: 'var(--accent-secondary-color)', background: 'rgba(0,0,0,0.02)' },
+          },
+        },
+      },
       MuiTable: { defaultProps: { size: 'small' } },
       MuiTableRow: { styleOverrides: { root: { transition: 'background 0.2s' } } },
       MuiPaper: { styleOverrides: { root: { borderRadius: 12 } } },

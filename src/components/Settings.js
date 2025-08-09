@@ -11,6 +11,10 @@ const Settings = () => {
     const [logoFile, setLogoFile] = useState(null);
     const [primaryColor, setPrimaryColor] = useState('#3f51b5');
     const [secondaryColor, setSecondaryColor] = useState('#f50057');
+    const [primaryColorMode, setPrimaryColorMode] = useState('solid');
+    const [secondaryColorMode, setSecondaryColorMode] = useState('solid');
+    const [primaryGradient, setPrimaryGradient] = useState('');
+    const [secondaryGradient, setSecondaryGradient] = useState('');
     const [paymentReminderDays, setPaymentReminderDays] = useState('7');
     const [morningStart, setMorningStart] = useState('05:00');
     const [morningEnd, setMorningEnd] = useState('11:00');
@@ -29,13 +33,17 @@ const Settings = () => {
     const fetchSettings = async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules } = response.data;
+            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules } = response.data;
             if (currency) { setCurrency(currency); }
             if (membership_types) { setMembershipTypes(membership_types); }
             if (gym_name) { setGymName(gym_name); }
             if (gym_logo) { setGymLogo(gym_logo); }
             if (primary_color) { setPrimaryColor(primary_color); }
             if (secondary_color) { setSecondaryColor(secondary_color); }
+            if (primary_color_mode) { setPrimaryColorMode(primary_color_mode); }
+            if (secondary_color_mode) { setSecondaryColorMode(secondary_color_mode); }
+            if (primary_color_gradient !== undefined) { setPrimaryGradient(primary_color_gradient); }
+            if (secondary_color_gradient !== undefined) { setSecondaryGradient(secondary_color_gradient); }
             if (payment_reminder_days) { setPaymentReminderDays(String(payment_reminder_days)); }
             if (morning_session_start) { setMorningStart(morning_session_start); }
             if (morning_session_end) { setMorningEnd(morning_session_end); }
@@ -73,6 +81,10 @@ const Settings = () => {
                 gym_logo: logoUrl,
                 primary_color: primaryColor,
                 secondary_color: secondaryColor,
+                primary_color_mode: primaryColorMode,
+                secondary_color_mode: secondaryColorMode,
+                primary_color_gradient: primaryGradient,
+                secondary_color_gradient: secondaryGradient,
                 payment_reminder_days: paymentReminderDays,
                 morning_session_start: morningStart,
                 morning_session_end: morningEnd,
@@ -244,11 +256,49 @@ const Settings = () => {
                             sx={{ width: 120 }}
                         />
                         <TextField
+                            label="Primary Mode (solid/gradient)"
+                            select
+                            value={primaryColorMode}
+                            onChange={(e)=>setPrimaryColorMode(e.target.value)}
+                            SelectProps={{ native: true }}
+                            sx={{ width: 180 }}
+                        >
+                            <option value="solid">Solid</option>
+                            <option value="gradient">Gradient</option>
+                        </TextField>
+                        <TextField
+                            label="Primary Gradient CSS"
+                            placeholder="e.g., linear-gradient(90deg, #3f51b5, #f50057)"
+                            value={primaryGradient}
+                            onChange={(e)=>setPrimaryGradient(e.target.value)}
+                            sx={{ flex: 1 }}
+                        />
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center' }}>
+                        <TextField
                             label="Secondary Color"
                             type="color"
                             value={secondaryColor}
                             onChange={(e) => setSecondaryColor(e.target.value)}
                             sx={{ width: 120 }}
+                        />
+                        <TextField
+                            label="Secondary Mode (solid/gradient)"
+                            select
+                            value={secondaryColorMode}
+                            onChange={(e)=>setSecondaryColorMode(e.target.value)}
+                            SelectProps={{ native: true }}
+                            sx={{ width: 180 }}
+                        >
+                            <option value="solid">Solid</option>
+                            <option value="gradient">Gradient</option>
+                        </TextField>
+                        <TextField
+                            label="Secondary Gradient CSS"
+                            placeholder="e.g., linear-gradient(90deg, #f50057, #3f51b5)"
+                            value={secondaryGradient}
+                            onChange={(e)=>setSecondaryGradient(e.target.value)}
+                            sx={{ flex: 1 }}
                         />
                     </Box>
                 </div>

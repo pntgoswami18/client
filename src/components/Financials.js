@@ -176,7 +176,7 @@ const Financials = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom>Financials</Typography>
+            <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1 }}>Financials</Typography>
             
             {/* Membership Plans Section */}
             <Box sx={{ marginBottom: '3rem' }}>
@@ -243,7 +243,7 @@ const Financials = () => {
                 </Card>
 
                 {/* Existing Plans Table */}
-                <Typography variant="h6" gutterBottom>Existing Plans</Typography>
+                <Typography variant="h6" gutterBottom sx={{ color: 'var(--accent-secondary-color)' }}>Existing Plans</Typography>
                     {plans.length > 0 ? (
                     <TableContainer component={Paper} sx={{ overflow: 'hidden' }}>
                         <Table>
