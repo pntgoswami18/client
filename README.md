@@ -40,7 +40,7 @@ The frontend dashboard includes:
 - **Class Management:** Create and manage fitness classes with instructor and duration details
 - **Schedule Management:** Schedule classes with datetime pickers and capacity management
 - **Attendance Tracking:** View member attendance history and simulate biometric check-ins
-- **Financial Management:** Create membership plans and view Stripe payment integration
+- **Financial Management:** Create membership plans, invoices, and record manual payments
 
 ## Technology Stack
 

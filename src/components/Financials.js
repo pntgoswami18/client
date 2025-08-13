@@ -304,16 +304,9 @@ const Financials = () => {
 
             {/* Payment Processing Section */}
             <Box sx={{ marginBottom: '3rem' }}>
-                <Typography variant="h5" gutterBottom>Payment Processing</Typography>
+                <Typography variant="h5" gutterBottom>Payments</Typography>
                 <Alert severity="info">
-                    <Typography variant="subtitle1" gutterBottom><strong>Payment Integration:</strong> This system is integrated with Stripe for secure payment processing.</Typography>
-                    <Typography variant="body2" gutterBottom><strong>Note:</strong> To process actual payments, you'll need to:</Typography>
-                    <ul>
-                        <li>Set up your Stripe account and add the secret key to your .env file</li>
-                        <li>Create invoices for members through the backend API</li>
-                        <li>Use the /api/payments endpoint to process payments</li>
-                    </ul>
-                    <Typography variant="body2">For testing, you can use Stripe's test card numbers.</Typography>
+                    <Typography variant="subtitle1" gutterBottom><strong>Note:</strong> Card payments are disabled in this build. Record payments manually.</Typography>
                 </Alert>
                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
                     <Button variant="outlined" onClick={() => setOpenManualPayment(true)}>Record Manual Payment</Button>
