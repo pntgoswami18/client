@@ -19,6 +19,8 @@ import {
     DialogContent,
     DialogActions
 } from '@mui/material';
+import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
+import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -74,7 +76,7 @@ const Member = () => {
     const fetchMembers = async () => {
         try {
             const response = await axios.get('/api/members');
-            setMembers(response.data);
+            setMembers(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching members", error);
         }
@@ -83,8 +85,9 @@ const Member = () => {
     const fetchPlans = async () => {
         try {
             const response = await axios.get('/api/plans');
-            setPlans(response.data);
-            if (response.data.length > 0) { setMembershipPlanId(response.data[0].id); }
+            const data = Array.isArray(response.data) ? response.data : [];
+            setPlans(data);
+            if (data.length > 0) { setMembershipPlanId(data[0].id); }
         } catch (error) {
             console.error("Error fetching plans", error);
         }
@@ -93,7 +96,7 @@ const Member = () => {
     const fetchMembershipTypes = async () => {
         try {
             const response = await axios.get('/api/settings');
-            const types = response.data.membership_types || [];
+            const types = Array.isArray(response.data.membership_types) ? response.data.membership_types : [];
             setMembershipTypes(types);
             if (types.length > 0) { setMembershipType(types[0]); }
         } catch (error) {
@@ -353,21 +356,38 @@ const Member = () => {
             </Dialog>
             
             <Typography variant="h5" gutterBottom>Current Members</Typography>
-            <List>
-                {filteredMembers.map(member => (
-                    <ListItem key={member.id} divider secondaryAction={
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
-                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
+            {members.length === 0 ? (
+                <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                    <GroupAddOutlinedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                    <Typography gutterBottom>No members found.</Typography>
+                    <Button variant="contained" onClick={() => setOpenAdd(true)}>Add your first member</Button>
+                </Box>
+            ) : (
+                <>
+                    {filteredMembers.length === 0 ? (
+                        <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                            <FilterAltOffOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                            <Typography>No members match the selected filter.</Typography>
                         </Box>
-                    }>
-                        <ListItemText
-                            primary={member.name}
-                            secondary={`${member.email} - ${member.membership_type}`}
-                        />
-                    </ListItem>
-                ))}
-            </List>
+                    ) : (
+                        <List>
+                            {filteredMembers.map(member => (
+                                <ListItem key={member.id} divider secondaryAction={
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
+                                        <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
+                                    </Box>
+                                }>
+                                    <ListItemText
+                                        primary={member.name}
+                                        secondary={`${member.email} - ${member.membership_type}`}
+                                    />
+                                </ListItem>
+                            ))}
+                        </List>
+                    )}
+                </>
+            )}
 
             <Dialog open={openBiometric} onClose={() => setOpenBiometric(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Link Biometric to Member</DialogTitle>

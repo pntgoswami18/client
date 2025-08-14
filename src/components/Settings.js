@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Chip, TextField, Button, Box, Grid, Typography, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
 import GradientEditor from './GradientEditor';
@@ -133,13 +133,38 @@ const Settings = () => {
                         margin="normal"
                     />
 
-                    <label htmlFor="gym-logo">Gym Logo</label>
-                    {gymLogo && <img src={gymLogo} alt="logo" style={{height: '80px', marginBottom: '10px', display: 'block'}}/>}
-                    <input
-                        id="gym-logo"
-                        type="file"
-                        onChange={(e) => setLogoFile(e.target.files[0])}
-                    />
+                    {/* Logo uploader with replace/remove actions */}
+                    <label htmlFor="gym-logo" style={{ display: 'block', marginTop: 8 }}>Gym Logo</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        {gymLogo ? (
+                            <img src={gymLogo} alt="logo" style={{ height: '64px', borderRadius: 6, border: '1px solid #eee' }} />
+                        ) : (
+                            <div style={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888' }}>No Logo</div>
+                        )}
+                        <input
+                            id="gym-logo"
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                                const file = e.target.files && e.target.files[0];
+                                if (file) {
+                                    setLogoFile(file);
+                                    try { setGymLogo(URL.createObjectURL(file)); } catch (_) {}
+                                }
+                            }}
+                        />
+                        <Button variant="outlined" onClick={(e) => {
+                            e.preventDefault();
+                            const input = document.getElementById('gym-logo');
+                            if (input) { input.click(); }
+                        }}>Replace Logo</Button>
+                        <Button variant="text" color="error" onClick={(e) => {
+                            e.preventDefault();
+                            setGymLogo('');
+                            setLogoFile(null);
+                        }}>Remove</Button>
+                    </div>
 
                     <TextField
                         id="currency"

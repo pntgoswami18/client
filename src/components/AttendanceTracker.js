@@ -20,6 +20,7 @@ import {
     Paper,
     Alert
 } from '@mui/material';
+import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 
 const AttendanceTracker = () => {
     const [members, setMembers] = useState([]);
@@ -43,7 +44,7 @@ const AttendanceTracker = () => {
     const fetchMembers = async () => {
         try {
             const response = await axios.get('/api/members');
-            setMembers(response.data);
+            setMembers(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching members", error);
         }
@@ -55,7 +56,7 @@ const AttendanceTracker = () => {
             if (startDate) { params.append('start', startDate); }
             if (endDate) { params.append('end', endDate); }
             const response = await axios.get(`/api/attendance/${memberId}?${params.toString()}`);
-            setAttendanceRecords(response.data);
+            setAttendanceRecords(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching attendance", error);
             setAttendanceRecords([]);
@@ -150,7 +151,9 @@ const AttendanceTracker = () => {
                     <InputLabel>Select a member to view attendance</InputLabel>
                     <Select value={selectedMemberId} onChange={handleMemberSelect}>
                         <MenuItem value="">Select a member to view attendance</MenuItem>
-                        {members.map(member => (
+                        {members.length === 0 ? (
+                            <MenuItem disabled>No members available</MenuItem>
+                        ) : members.map(member => (
                             <MenuItem key={member.id} value={member.id}>
                                 {member.name} - {member.email}
                             </MenuItem>
@@ -162,6 +165,12 @@ const AttendanceTracker = () => {
                 <Button variant="outlined" onClick={()=>{ if (selectedMemberId) { fetchAttendanceForMember(selectedMemberId); } }}>Apply</Button>
             </Box>
 
+            {!selectedMemberId && members.length === 0 && (
+                <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                    <PersonOffOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                    <Typography>No members found. Add members first to track attendance.</Typography>
+                </Box>
+            )}
             {selectedMemberId && (
                 <Box>
                     <Typography variant="h6" gutterBottom>

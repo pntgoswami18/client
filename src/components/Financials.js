@@ -28,6 +28,9 @@ import {
     MenuItem,
     Autocomplete
 } from '@mui/material';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import HistoryToggleOffOutlinedIcon from '@mui/icons-material/HistoryToggleOffOutlined';
+import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
 
 const Financials = () => {
     const [plans, setPlans] = useState([]);
@@ -82,7 +85,15 @@ const Financials = () => {
     const fetchFinancialSummary = async () => {
         try {
             const response = await axios.get('/api/reports/financial-summary');
-            setFinancialSummary(response.data);
+            const def = { outstandingInvoices: [], paymentHistory: [], memberPaymentStatus: [] };
+            const d = response?.data || {};
+            setFinancialSummary({
+                ...def,
+                ...d,
+                outstandingInvoices: Array.isArray(d.outstandingInvoices) ? d.outstandingInvoices : [],
+                paymentHistory: Array.isArray(d.paymentHistory) ? d.paymentHistory : [],
+                memberPaymentStatus: Array.isArray(d.memberPaymentStatus) ? d.memberPaymentStatus : [],
+            });
         } catch (error) {
             console.error("Error fetching financial summary", error);
         }
@@ -100,7 +111,7 @@ const Financials = () => {
     const fetchPlans = async () => {
         try {
             const response = await axios.get('/api/plans');
-            setPlans(response.data);
+            setPlans(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching plans", error);
         }
@@ -109,7 +120,7 @@ const Financials = () => {
     const fetchMembers = async () => {
         try {
             const res = await axios.get('/api/members');
-            setMembers(res.data);
+            setMembers(Array.isArray(res.data) ? res.data : []);
         } catch (e) {
             console.error('Error fetching members', e);
         }
@@ -333,7 +344,7 @@ const Financials = () => {
                                 if (value && value.id) {
                                     try {
                                         const res = await axios.get(`/api/payments/unpaid`, { params: { member_id: value.id } });
-                                        const list = res.data || [];
+                                        const list = Array.isArray(res.data) ? res.data : [];
                                         setUnpaidInvoices(list);
                                         if (list.length > 0) {
                                             setManualInvoiceId(String(list[0].id));
@@ -490,7 +501,10 @@ const Financials = () => {
                         </Table>
                     </TableContainer>
                 ) : (
-                    <Typography>No outstanding invoices.</Typography>
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
+                        <ReceiptLongOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+                        <Typography>No outstanding invoices.</Typography>
+                    </Box>
                 )}
             </Box>
 
@@ -526,7 +540,10 @@ const Financials = () => {
                         </Table>
                     </TableContainer>
                 ) : (
-                    <Typography>No payment history available.</Typography>
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
+                        <HistoryToggleOffOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+                        <Typography>No payment history available.</Typography>
+                    </Box>
                 )}
             </Box>
 
@@ -557,7 +574,10 @@ const Financials = () => {
                         </Table>
                     </TableContainer>
                 ) : (
-                    <Typography>No member payment status available.</Typography>
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
+                        <PersonSearchOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+                        <Typography>No member payment status available.</Typography>
+                    </Box>
                 )}
             </Box>
         </div>

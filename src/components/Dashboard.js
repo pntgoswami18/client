@@ -50,10 +50,10 @@ const Dashboard = () => {
             ]);
 
             setSummaryStats(summary.data || {});
-            setMemberGrowth(growth.data || []);
-            setAttendanceStats(attendance.data || []);
-            setPopularClasses(classes.data || []);
-            setRevenueStats(revenue.data || []);
+            setMemberGrowth(Array.isArray(growth.data) ? growth.data : []);
+            setAttendanceStats(Array.isArray(attendance.data) ? attendance.data : []);
+            setPopularClasses(Array.isArray(classes.data) ? classes.data : []);
+            setRevenueStats(Array.isArray(revenue.data) ? revenue.data : []);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching reports:', error);
