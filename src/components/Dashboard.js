@@ -8,8 +8,10 @@ const Dashboard = () => {
     const [summaryStats, setSummaryStats] = useState({});
     const [memberGrowth, setMemberGrowth] = useState([]);
     const [attendanceStats, setAttendanceStats] = useState([]);
-    const [popularClasses, setPopularClasses] = useState([]);
+    
     const [revenueStats, setRevenueStats] = useState([]);
+    const [birthdaysToday, setBirthdaysToday] = useState([]);
+    const [showBirthdays, setShowBirthdays] = useState(false);
     const [currency, setCurrency] = useState('INR');
     const [loading, setLoading] = useState(true);
     const [hoveredCard, setHoveredCard] = useState(-1);
@@ -41,19 +43,21 @@ const Dashboard = () => {
 
     const fetchAllReports = async () => {
         try {
-            const [summary, growth, attendance, classes, revenue] = await Promise.all([
+            const [summary, growth, attendance, revenue, birthdays] = await Promise.all([
                 axios.get('/api/reports/summary'),
                 axios.get('/api/reports/member-growth'),
                 axios.get('/api/reports/attendance-stats'),
-                axios.get('/api/reports/popular-classes'),
-                axios.get('/api/reports/revenue-stats')
+                axios.get('/api/reports/revenue-stats'),
+                axios.get('/api/reports/birthdays-today')
             ]);
 
             setSummaryStats(summary.data || {});
             setMemberGrowth(Array.isArray(growth.data) ? growth.data : []);
             setAttendanceStats(Array.isArray(attendance.data) ? attendance.data : []);
-            setPopularClasses(Array.isArray(classes.data) ? classes.data : []);
             setRevenueStats(Array.isArray(revenue.data) ? revenue.data : []);
+            const bdays = Array.isArray(birthdays.data) ? birthdays.data : [];
+            setBirthdaysToday(bdays);
+            setShowBirthdays(bdays.length > 0);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching reports:', error);
@@ -241,32 +245,40 @@ const Dashboard = () => {
                 </div>}
             </div>
 
-            {/* Popular Classes */}
-            <div style={{ marginBottom: '30px' }}>
-                <h3>Most Popular Classes</h3>
-                {popularClasses.length > 0 ? (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Class Name</th>
-                                <th>Instructor</th>
-                                <th>Total Bookings</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {popularClasses.map((cls, index) => (
-                                <tr key={index}>
-                                    <td>{cls.name}</td>
-                                    <td>{cls.instructor}</td>
-                                    <td>{cls.booking_count}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                ) : (
-                    <p>No booking data available yet.</p>
-                )}
-            </div>
+            
+
+            {/* Birthday Notification Popup */}
+            {showBirthdays && birthdaysToday.length > 0 && (
+                <div style={{ position: 'fixed', top: 80, right: 24, zIndex: 1300, maxWidth: 360 }}>
+                    <div style={{
+                        background: '#111827',
+                        color: '#fff',
+                        borderRadius: 12,
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '12px 14px',
+                            backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.08), rgba(255,255,255,0))'
+                        }}>
+                            <span>🎂 Birthdays Today</span>
+                            <button onClick={() => setShowBirthdays(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+                        </div>
+                        <div style={{ maxHeight: 260, overflowY: 'auto', padding: '10px 14px' }}>
+                            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                                {birthdaysToday.map((b) => (
+                                    <li key={b.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                        <div style={{ fontWeight: 600 }}>{b.name}</div>
+                                        {b.phone && <div style={{ opacity: 0.8, fontSize: 12 }}>{b.phone}</div>}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Member Growth Trend */}
             <div style={{ marginBottom: '30px' }}>
