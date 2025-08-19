@@ -20,20 +20,15 @@ import {
     Paper,
     Alert
 } from '@mui/material';
+import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 
 const AttendanceTracker = () => {
     const [members, setMembers] = useState([]);
-    const [selectedMemberId, setSelectedMemberId] = useState('');
+    const [selectedMemberId, setSelectedMemberId] = useState('all');
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     const [simulateMemberId, setSimulateMemberId] = useState('');
     const [checkInError, setCheckInError] = useState('');
-    const [startDate, setStartDate] = useState(() => {
-        const now = new Date();
-        const day = now.getDay() || 7; // 1..7, Monday=1
-        const monday = new Date(now);
-        monday.setDate(now.getDate() - (day - 1));
-        return monday.toISOString().slice(0,10);
-    });
+    const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0,10));
     const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0,10));
 
     useEffect(() => {
@@ -43,7 +38,7 @@ const AttendanceTracker = () => {
     const fetchMembers = async () => {
         try {
             const response = await axios.get('/api/members');
-            setMembers(response.data);
+            setMembers(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching members", error);
         }
@@ -55,9 +50,22 @@ const AttendanceTracker = () => {
             if (startDate) { params.append('start', startDate); }
             if (endDate) { params.append('end', endDate); }
             const response = await axios.get(`/api/attendance/${memberId}?${params.toString()}`);
-            setAttendanceRecords(response.data);
+            setAttendanceRecords(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching attendance", error);
+            setAttendanceRecords([]);
+        }
+    };
+
+    const fetchAttendanceAll = async () => {
+        try {
+            const params = new URLSearchParams();
+            if (startDate) { params.append('start', startDate); }
+            if (endDate) { params.append('end', endDate); }
+            const response = await axios.get(`/api/attendance?${params.toString()}`);
+            setAttendanceRecords(Array.isArray(response.data) ? response.data : []);
+        } catch (error) {
+            console.error("Error fetching all attendance", error);
             setAttendanceRecords([]);
         }
     };
@@ -65,7 +73,9 @@ const AttendanceTracker = () => {
     const handleMemberSelect = (e) => {
         const memberId = e.target.value;
         setSelectedMemberId(memberId);
-        if (memberId) {
+        if (memberId === 'all') {
+            fetchAttendanceAll();
+        } else if (memberId) {
             fetchAttendanceForMember(memberId);
         } else {
             setAttendanceRecords([]);
@@ -73,12 +83,16 @@ const AttendanceTracker = () => {
     };
 
     useEffect(() => {
-        // Auto-refresh when dates change and a member is selected
-        if (selectedMemberId) {
+        // Auto-refresh when selection or dates change
+        if (selectedMemberId === 'all') {
+            fetchAttendanceAll();
+        } else if (selectedMemberId) {
             fetchAttendanceForMember(selectedMemberId);
+        } else {
+            setAttendanceRecords([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [startDate, endDate]);
+    }, [selectedMemberId, startDate, endDate]);
 
     const simulateCheckIn = async (e) => {
         e.preventDefault();
@@ -88,12 +102,12 @@ const AttendanceTracker = () => {
 
         try {
             setCheckInError('');
-            await axios.post('/api/attendance/check-in', { memberId: parseInt(simulateMemberId) });
+            await axios.post('/api/attendance/check-in', { memberId: Number(simulateMemberId) });
             alert('Check-in successful!');
             
             // If the simulated member is currently selected, refresh their attendance
-            if (selectedMemberId === simulateMemberId) {
-                fetchAttendanceForMember(simulateMemberId);
+            if (String(selectedMemberId) === String(simulateMemberId)) {
+                fetchAttendanceForMember(Number(simulateMemberId));
             }
             setSimulateMemberId('');
         } catch (error) {
@@ -145,12 +159,14 @@ const AttendanceTracker = () => {
 
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
-            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 120px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
+            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
                 <FormControl fullWidth>
-                    <InputLabel>Select a member to view attendance</InputLabel>
+                    <InputLabel>Select member or All users</InputLabel>
                     <Select value={selectedMemberId} onChange={handleMemberSelect}>
-                        <MenuItem value="">Select a member to view attendance</MenuItem>
-                        {members.map(member => (
+                        <MenuItem value={'all'}>All users</MenuItem>
+                        {members.length === 0 ? (
+                            <MenuItem disabled>No members available</MenuItem>
+                        ) : members.map(member => (
                             <MenuItem key={member.id} value={member.id}>
                                 {member.name} - {member.email}
                             </MenuItem>
@@ -159,25 +175,38 @@ const AttendanceTracker = () => {
                 </FormControl>
                 <TextField label="Start" type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
                 <TextField label="End" type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />
-                <Button variant="outlined" onClick={()=>{ if (selectedMemberId) { fetchAttendanceForMember(selectedMemberId); } }}>Apply</Button>
             </Box>
 
+            {!selectedMemberId && members.length === 0 && (
+                <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                    <PersonOffOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                    <Typography>No members found. Add members first to track attendance.</Typography>
+                </Box>
+            )}
             {selectedMemberId && (
                 <Box>
                     <Typography variant="h6" gutterBottom>
-                        Attendance for {getMemberName(parseInt(selectedMemberId))}
+                        {selectedMemberId === 'all' ? 'Attendance for all users' : `Attendance for ${getMemberName(Number(selectedMemberId))}`}
                     </Typography>
                     {attendanceRecords.length > 0 ? (
                         <TableContainer component={Paper}>
                             <Table>
                                 <TableHead>
-                                <TableRow>
+                                <TableRow sx={{ 
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
+                                    {selectedMemberId === 'all' && <TableCell>Member</TableCell>}
                                     <TableCell>Check-in Time</TableCell>
                                 </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {attendanceRecords.map(record => (
                                         <TableRow key={record.id}>
+                                            {selectedMemberId === 'all' && <TableCell>{record.member_name || getMemberName(record.member_id)}</TableCell>}
                                             <TableCell>{formatDateTime(record.check_in_time)}</TableCell>
                                         </TableRow>
                                     ))}
@@ -185,7 +214,9 @@ const AttendanceTracker = () => {
                             </Table>
                         </TableContainer>
                     ) : (
-                        <Typography>No attendance records found for this member.</Typography>
+                        <Typography>
+                            {selectedMemberId === 'all' ? 'No attendance records found for the selected period.' : 'No attendance records found for this member.'}
+                        </Typography>
                     )}
                 </Box>
             )}

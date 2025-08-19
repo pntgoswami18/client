@@ -13,12 +13,18 @@ import {
     List,
     ListItem,
     ListItemText,
+    ListItemAvatar,
+    Avatar,
     Typography,
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    Alert
 } from '@mui/material';
+import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -28,15 +34,19 @@ const Member = () => {
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
     const [plans, setPlans] = useState([]);
-    const [membershipTypes, setMembershipTypes] = useState([]);
     const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
+    
     const [phone, setPhone] = useState('');
-    const [membershipType, setMembershipType] = useState('');
+    const [address, setAddress] = useState('');
+    const [birthday, setBirthday] = useState('');
+    const [photoFile, setPhotoFile] = useState(null);
+    const [photoUrl, setPhotoUrl] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
     const [currency, setCurrency] = useState('INR');
     const [openAdd, setOpenAdd] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
+    const [addError, setAddError] = useState('');
+    const [editError, setEditError] = useState('');
     const [openBiometric, setOpenBiometric] = useState(false);
     const [bioDeviceUserId, setBioDeviceUserId] = useState('');
     const [bioTemplate, setBioTemplate] = useState('');
@@ -50,7 +60,6 @@ const Member = () => {
     useEffect(() => {
         fetchMembers();
         fetchPlans();
-        fetchMembershipTypes();
         fetchCurrency();
     }, []);
 
@@ -74,7 +83,7 @@ const Member = () => {
     const fetchMembers = async () => {
         try {
             const response = await axios.get('/api/members');
-            setMembers(response.data);
+            setMembers(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching members", error);
         }
@@ -83,21 +92,11 @@ const Member = () => {
     const fetchPlans = async () => {
         try {
             const response = await axios.get('/api/plans');
-            setPlans(response.data);
-            if (response.data.length > 0) { setMembershipPlanId(response.data[0].id); }
+            const data = Array.isArray(response.data) ? response.data : [];
+            setPlans(data);
+            if (data.length > 0) { setMembershipPlanId(data[0].id); }
         } catch (error) {
             console.error("Error fetching plans", error);
-        }
-    };
-
-    const fetchMembershipTypes = async () => {
-        try {
-            const response = await axios.get('/api/settings');
-            const types = response.data.membership_types || [];
-            setMembershipTypes(types);
-            if (types.length > 0) { setMembershipType(types[0]); }
-        } catch (error) {
-            console.error("Error fetching membership types", error);
         }
     };
 
@@ -114,19 +113,30 @@ const Member = () => {
     const addMember = async (e) => {
         e.preventDefault();
         try {
+            setAddError('');
             const newMember = { 
                 name, 
-                email, 
                 phone,
-                membership_type: membershipType,
-                membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null
+                membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null,
+                address: address || null,
+                birthday: birthday || null,
+                photo_url: photoUrl || null
             };
             const res = await axios.post('/api/members', newMember);
+            if (res?.data?.id && photoFile) {
+                const form = new FormData();
+                form.append('photo', photoFile);
+                form.append('prefix', `member-${res.data.id}`);
+                const up = await axios.post(`/api/members/${res.data.id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+                setPhotoUrl(up?.data?.photo_url || '');
+            }
             fetchMembers();
             setName('');
-            setEmail('');
             setPhone('');
-            if (membershipTypes.length > 0) { setMembershipType(membershipTypes[0]); }
+            setAddress('');
+            setBirthday('');
+            setPhotoFile(null);
+            setPhotoUrl('');
             if (plans.length > 0) { setMembershipPlanId(plans[0].id); }
             setOpenAdd(false);
             if (res && res.data && res.data.id) {
@@ -138,7 +148,8 @@ const Member = () => {
                 setOpenInvoice(true);
             }
         } catch (error) {
-            console.error("Error adding member", error);
+            const msg = error?.response?.data?.message || 'Failed to add member. Please check the details and try again.';
+            setAddError(msg);
         }
     };
 
@@ -148,26 +159,38 @@ const Member = () => {
             return;
         }
         try {
+            setEditError('');
             const body = {
                 name,
-                email,
                 phone,
-                membership_type: membershipType
+                address: address || null,
+                birthday: birthday || null,
+                photo_url: photoUrl || null
             };
             await axios.put(`/api/members/${editingMember.id}`, body);
+            if (photoFile) {
+                const form = new FormData();
+                form.append('photo', photoFile);
+                form.append('prefix', `member-${editingMember.id}`);
+                const up = await axios.post(`/api/members/${editingMember.id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+                setPhotoUrl(up?.data?.photo_url || '');
+            }
             fetchMembers();
             setOpenEdit(false);
             setEditingMember(null);
         } catch (error) {
-            console.error('Error updating member', error);
+            const msg = error?.response?.data?.message || 'Failed to update member. Please check the details and try again.';
+            setEditError(msg);
         }
     };
 
     const openEditDialog = (member) => {
         setEditingMember(member);
         setName(member.name);
-        setEmail(member.email);
-        setMembershipType(member.membership_type || '');
+        setPhone(member.phone ? String(member.phone) : '');
+        setAddress(member.address || '');
+        setBirthday(member.birthday || '');
+        setPhotoUrl(member.photo_url || '');
         setOpenEdit(true);
     };
 
@@ -240,12 +263,19 @@ const Member = () => {
                     </Select>
                 </FormControl>
                 <Box sx={{ flex: 1 }} />
-                <Button onClick={() => setOpenAdd(true)}>Add Member</Button>
+                <Button onClick={() => {
+                    setEditingMember(null);
+                    setName('');
+                    setPhone('');
+                    setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setOpenAdd(true);
+                }}>Add Member</Button>
             </Box>
 
             <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Add Member</DialogTitle>
                 <DialogContent>
+                    {addError && <Alert severity="error" sx={{ mb: 2 }}>{addError}</Alert>}
                     <Box component="form" onSubmit={addMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField
                             label="Name"
@@ -261,26 +291,21 @@ const Member = () => {
                             inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }}
                             helperText="10–15 digits, optional leading +"
                         />
-                        <TextField
-                            label="Email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                        <FormControl fullWidth required disabled={membershipTypes.length === 0}>
-                            <InputLabel>Membership Type</InputLabel>
-                            <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
-                                {membershipTypes.length > 0 ? (
-                                    membershipTypes.map(type => (
-                                        <MenuItem key={type} value={type}>
-                                            {type}
-                                        </MenuItem>
-                                    ))
-                                ) : (
-                                    <MenuItem disabled>Please create a membership type first</MenuItem>
-                                )}
-                            </Select>
-                        </FormControl>
+                        <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
+                        <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            {photoUrl ? (
+                                <img src={photoUrl} alt="member" style={{ height: 64, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
+                            ) : (
+                                <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
+                            )}
+                            <Button variant="outlined" component="label">
+                                Upload Photo
+                                <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
+                            </Button>
+                            {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                        </Box>
+                        
                         <FormControl fullWidth required disabled={plans.length === 0}>
                             <InputLabel>Membership Plan</InputLabel>
                             <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
@@ -297,7 +322,7 @@ const Member = () => {
                         </FormControl>
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
-                            <Button type="submit" variant="contained" disabled={plans.length === 0 || membershipTypes.length === 0}>Add Member</Button>
+                            <Button type="submit" variant="contained" disabled={plans.length === 0}>Add Member</Button>
                         </DialogActions>
                     </Box>
                 </DialogContent>
@@ -306,18 +331,25 @@ const Member = () => {
             <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Member</DialogTitle>
                 <DialogContent>
+                    {editError && <Alert severity="error" sx={{ mb: 2 }}>{editError}</Alert>}
                     <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
                         <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }} helperText="10–15 digits, optional leading +" />
-                        <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                        <FormControl fullWidth>
-                            <InputLabel>Membership Type</InputLabel>
-                            <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
-                                {membershipTypes.map(type => (
-                                    <MenuItem key={type} value={type}>{type}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
+                        <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            {photoUrl ? (
+                                <img src={photoUrl} alt="member" style={{ height: 64, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
+                            ) : (
+                                <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
+                            )}
+                            <Button variant="outlined" component="label">
+                                Upload Photo
+                                <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
+                            </Button>
+                            {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                        </Box>
+                        
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
                             <Button type="submit" variant="contained">Save</Button>
@@ -353,21 +385,71 @@ const Member = () => {
             </Dialog>
             
             <Typography variant="h5" gutterBottom>Current Members</Typography>
-            <List>
-                {filteredMembers.map(member => (
-                    <ListItem key={member.id} divider secondaryAction={
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
-                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
+            {members.length === 0 ? (
+                <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                    <GroupAddOutlinedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                    <Typography gutterBottom>No members found.</Typography>
+                    <Button variant="contained" onClick={() => setOpenAdd(true)}>Add your first member</Button>
+                </Box>
+            ) : (
+                <>
+                    {filteredMembers.length === 0 ? (
+                        <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                            <FilterAltOffOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                            <Typography>No members match the selected filter.</Typography>
                         </Box>
-                    }>
-                        <ListItemText
-                            primary={member.name}
-                            secondary={`${member.email} - ${member.membership_type}`}
-                        />
-                    </ListItem>
-                ))}
-            </List>
+                    ) : (
+                        <List>
+                            {filteredMembers.map(member => {
+                                const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === new Date().toISOString().slice(5,10);
+                                const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
+                                const toggleActive = async () => {
+                                    try {
+                                        const newVal = String(member.is_active) === '0' ? 1 : 0;
+                                        await axios.put(`/api/members/${member.id}/status`, { is_active: newVal });
+                                        fetchMembers();
+                                    } catch (e) {
+                                        console.error('Failed to update status', e);
+                                    }
+                                };
+                                return (
+                                    <ListItem key={member.id} divider secondaryAction={
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            {whatsappHref && (
+                                                <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
+                                                    Wish on WhatsApp
+                                                </Button>
+                                            )}
+                                            <Button size="small" color={String(member.is_active) === '0' ? 'success' : 'warning'} onClick={toggleActive}>
+                                                {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
+                                            </Button>
+                                            <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
+                                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
+                                        </Box>
+                                    }>
+                                        <ListItemAvatar>
+                                            <Avatar 
+                                                src={member.photo_url || undefined}
+                                                sx={{ 
+                                                    width: 48, 
+                                                    height: 48,
+                                                    bgcolor: String(member.is_active) === '0' ? 'grey.400' : 'primary.main'
+                                                }}
+                                            >
+                                                {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
+                                            </Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText
+                                            primary={<span>{member.name} {isBirthdayToday ? '🎂' : ''} {String(member.is_active) === '0' ? '(Deactivated)' : ''}</span>}
+                                            secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
+                                        />
+                                    </ListItem>
+                                );
+                            })}
+                        </List>
+                    )}
+                </>
+            )}
 
             <Dialog open={openBiometric} onClose={() => setOpenBiometric(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Link Biometric to Member</DialogTitle>

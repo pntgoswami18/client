@@ -23,6 +23,7 @@ import {
     DialogActions
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 
 const ScheduleManager = () => {
     const [schedules, setSchedules] = useState([]);
@@ -43,7 +44,7 @@ const ScheduleManager = () => {
     const fetchSchedules = async () => {
         try {
             const response = await axios.get('/api/schedules');
-            setSchedules(response.data);
+            setSchedules(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching schedules", error);
         }
@@ -52,7 +53,7 @@ const ScheduleManager = () => {
     const fetchClasses = async () => {
         try {
             const response = await axios.get('/api/classes');
-            setClasses(response.data);
+            setClasses(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching classes", error);
         }
@@ -71,6 +72,7 @@ const ScheduleManager = () => {
             await axios.post('/api/schedules', scheduleData);
             fetchSchedules();
             resetForm();
+            setOpenAdd(false);
         } catch (error) {
             console.error("Error creating schedule", error);
         }
@@ -181,12 +183,26 @@ const ScheduleManager = () => {
 
             <Typography variant="h5" gutterBottom>Scheduled Classes</Typography>
             {schedules.length === 0 ? (
-                <Typography>No schedules found. Create one above.</Typography>
+                <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                    <EventBusyOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                    <Typography gutterBottom>No schedules found.</Typography>
+                    {classes.length === 0 ? (
+                        <Typography variant="body2">Create a class first to add schedules.</Typography>
+                    ) : (
+                        <Button variant="contained" onClick={() => setOpenAdd(true)}>Create your first schedule</Button>
+                    )}
+                </Box>
             ) : (
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
-                            <TableRow>
+                            <TableRow sx={{ 
+                                background: 'var(--accent-secondary-bg)',
+                                '& .MuiTableCell-root': {
+                                    color: '#fff',
+                                    fontWeight: 700
+                                }
+                            }}>
                                 <TableCell>Class Name</TableCell>
                                 <TableCell>Instructor</TableCell>
                                 <TableCell>Start Time</TableCell>

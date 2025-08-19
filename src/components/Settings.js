@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Chip, TextField, Button, Box, Grid, Typography, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
+import { TextField, Button, Box, Grid, Typography, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
 import GradientEditor from './GradientEditor';
 
 const Settings = () => {
     const [currency, setCurrency] = useState('INR');
-    const [membershipTypes, setMembershipTypes] = useState([]);
-    const [newMembershipType, setNewMembershipType] = useState('');
     const [gymName, setGymName] = useState('');
     const [gymLogo, setGymLogo] = useState('');
     const [logoFile, setLogoFile] = useState(null);
@@ -34,9 +32,8 @@ const Settings = () => {
     const fetchSettings = async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, membership_types, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules } = response.data;
+            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules } = response.data;
             if (currency) { setCurrency(currency); }
-            if (membership_types) { setMembershipTypes(membership_types); }
             if (gym_name) { setGymName(gym_name); }
             if (gym_logo) { setGymLogo(gym_logo); }
             if (primary_color) { setPrimaryColor(primary_color); }
@@ -77,7 +74,6 @@ const Settings = () => {
             
             const settingsToUpdate = {
                 currency,
-                membership_types: membershipTypes,
                 gym_name: gymName,
                 gym_logo: logoUrl,
                 primary_color: primaryColor,
@@ -108,17 +104,6 @@ const Settings = () => {
         }
     };
 
-    const handleAddMembershipType = () => {
-        if (newMembershipType && !membershipTypes.includes(newMembershipType)) {
-            setMembershipTypes([...membershipTypes, newMembershipType]);
-            setNewMembershipType('');
-        }
-    };
-
-    const handleDeleteMembershipType = (typeToDelete) => {
-        setMembershipTypes(membershipTypes.filter(type => type !== typeToDelete));
-    };
-
     return (
         <div>
             <h2>Settings</h2>
@@ -133,13 +118,38 @@ const Settings = () => {
                         margin="normal"
                     />
 
-                    <label htmlFor="gym-logo">Gym Logo</label>
-                    {gymLogo && <img src={gymLogo} alt="logo" style={{height: '80px', marginBottom: '10px', display: 'block'}}/>}
-                    <input
-                        id="gym-logo"
-                        type="file"
-                        onChange={(e) => setLogoFile(e.target.files[0])}
-                    />
+                    {/* Logo uploader with replace/remove actions */}
+                    <label htmlFor="gym-logo" style={{ display: 'block', marginTop: 8 }}>Gym Logo</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        {gymLogo ? (
+                            <img src={gymLogo} alt="logo" style={{ height: '64px', borderRadius: 6, border: '1px solid #eee' }} />
+                        ) : (
+                            <div style={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#888' }}>No Logo</div>
+                        )}
+                        <input
+                            id="gym-logo"
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                                const file = e.target.files && e.target.files[0];
+                                if (file) {
+                                    setLogoFile(file);
+                                    try { setGymLogo(URL.createObjectURL(file)); } catch (_) {}
+                                }
+                            }}
+                        />
+                        <Button variant="outlined" onClick={(e) => {
+                            e.preventDefault();
+                            const input = document.getElementById('gym-logo');
+                            if (input) { input.click(); }
+                        }}>Replace Logo</Button>
+                        <Button variant="text" color="error" onClick={(e) => {
+                            e.preventDefault();
+                            setGymLogo('');
+                            setLogoFile(null);
+                        }}>Remove</Button>
+                    </div>
 
                     <TextField
                         id="currency"
@@ -160,33 +170,6 @@ const Settings = () => {
                     </TextField>
                 </form>
 
-                <div style={{ marginTop: '30px' }}>
-                    <label>Membership Types</label>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, my: 2 }}>
-                        {membershipTypes.map((type) => (
-                            <Chip
-                                key={type}
-                                label={type}
-                                onDelete={() => handleDeleteMembershipType(type)}
-                            />
-                        ))}
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <TextField
-                            label="New Membership Type"
-                            value={newMembershipType}
-                            onChange={(e) => setNewMembershipType(e.target.value)}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddMembershipType();
-                                }
-                            }}
-                            size="small"
-                        />
-                        <Button variant="contained" onClick={handleAddMembershipType}>Add</Button>
-                    </Box>
-                </div>
                 <div style={{ marginTop: '30px' }}>
                     <label>Dashboard Cards</label>
                     <FormGroup sx={{ mt: 1 }}>

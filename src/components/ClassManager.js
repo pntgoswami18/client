@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import LibraryBooksOutlinedIcon from '@mui/icons-material/LibraryBooksOutlined';
 
 const ClassManager = () => {
     const [classes, setClasses] = useState([]);
@@ -38,7 +39,7 @@ const ClassManager = () => {
     const fetchClasses = async () => {
         try {
             const response = await axios.get('/api/classes');
-            setClasses(response.data);
+            setClasses(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching classes", error);
         }
@@ -128,33 +129,47 @@ const ClassManager = () => {
                 </DialogContent>
             </Dialog>
 
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Description</TableCell>
-                            <TableCell>Instructor</TableCell>
-                            <TableCell>Duration (min)</TableCell>
-                            <TableCell>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {classes.map(cls => (
-                            <TableRow key={cls.id}>
-                                <TableCell>{cls.name}</TableCell>
-                                <TableCell>{cls.description}</TableCell>
-                                <TableCell>{cls.instructor}</TableCell>
-                                <TableCell>{cls.duration_minutes}</TableCell>
-                                <TableCell>
-                                    <IconButton onClick={() => handleEdit(cls)}><EditIcon /></IconButton>
-                                    <IconButton onClick={() => handleDelete(cls.id)}><DeleteIcon /></IconButton>
-                                </TableCell>
+            {classes.length === 0 ? (
+                <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
+                    <LibraryBooksOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                    <Typography gutterBottom>No classes found.</Typography>
+                    <Button variant="contained" onClick={() => setOpenAdd(true)}>Create your first class</Button>
+                </Box>
+            ) : (
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow sx={{ 
+                                background: 'var(--accent-secondary-bg)',
+                                '& .MuiTableCell-root': {
+                                    color: '#fff',
+                                    fontWeight: 700
+                                }
+                            }}>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Description</TableCell>
+                                <TableCell>Instructor</TableCell>
+                                <TableCell>Duration (min)</TableCell>
+                                <TableCell>Actions</TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                        </TableHead>
+                        <TableBody>
+                            {classes.map(cls => (
+                                <TableRow key={cls.id}>
+                                    <TableCell>{cls.name}</TableCell>
+                                    <TableCell>{cls.description}</TableCell>
+                                    <TableCell>{cls.instructor}</TableCell>
+                                    <TableCell>{cls.duration_minutes}</TableCell>
+                                    <TableCell>
+                                        <IconButton onClick={() => handleEdit(cls)}><EditIcon /></IconButton>
+                                        <IconButton onClick={() => handleDelete(cls.id)}><DeleteIcon /></IconButton>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            )}
         </div>
     );
 };

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Box, Button, CircularProgress, Divider, Typography, useTheme } from '@mui/material';
+import { Box, Button, CircularProgress, Divider, Typography, useTheme, IconButton } from '@mui/material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { formatCurrency, formatDate } from '../utils/formatting';
 
 const numberToWords = (amount) => {
@@ -124,6 +125,12 @@ const InvoiceView = () => {
 
   return (
     <Box>
+      {/* Top-left back chevron (not printed) */}
+      <Box sx={{ position: 'sticky', top: 0, zIndex: 1, mb: 1, '@media print': { display: 'none' } }}>
+        <IconButton aria-label="Back to Financials" onClick={() => navigate('/financials')}>
+          <ChevronLeftIcon />
+        </IconButton>
+      </Box>
       <Box id="invoice-root" sx={{ maxWidth: 900, mx: 'auto', background: 'white', p: 4, borderRadius: 2, boxShadow: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
@@ -185,8 +192,7 @@ const InvoiceView = () => {
         </Box>
       </Box>
       {/* Actions row separated to avoid printing, plus WhatsApp share */}
-      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', '@media print': { display: 'none' } }}>
-        <Button variant="outlined" onClick={() => navigate('/financials')}>Back to Financials</Button>
+      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', '@media print': { display: 'none' } }}>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={handlePrint}>Print</Button>
           <Button variant="outlined" onClick={handleDownloadPdf}>Download PDF</Button>
