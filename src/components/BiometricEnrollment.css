@@ -1,0 +1,403 @@
+.biometric-enrollment {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 30px;
+}
+
+.header h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 28px;
+}
+
+/* Status Cards */
+.status-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.status-card {
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.status-card.online {
+  border-color: #28a745;
+  background-color: #f8fff9;
+}
+
+.status-card.offline {
+  border-color: #dc3545;
+  background-color: #fff8f8;
+}
+
+.status-card.active {
+  border-color: #ffc107;
+  background-color: #fffcf5;
+}
+
+.status-card.inactive {
+  border-color: #6c757d;
+  background-color: #f8f9fa;
+}
+
+.status-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #666;
+}
+
+.status-card p {
+  margin: 0 0 5px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.status-card small {
+  color: #666;
+  font-size: 12px;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #545b62;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #e0a800;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+/* Alerts */
+.alert {
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.alert-error {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+/* Enrollment Active Section */
+.enrollment-active {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border: 2px solid #ffc107;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(255, 193, 7, 0.6); }
+}
+
+.enrollment-active h3 {
+  margin: 0 0 15px 0;
+  color: #856404;
+}
+
+.enrollment-details {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.enrollment-details p {
+  margin: 5px 0;
+  color: #333;
+}
+
+.enrollment-instructions {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 15px;
+  border-radius: 5px;
+}
+
+.enrollment-instructions h4 {
+  margin: 0 0 10px 0;
+  color: #856404;
+}
+
+.enrollment-instructions ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.enrollment-instructions li {
+  margin: 5px 0;
+  color: #333;
+}
+
+/* Members Section */
+.members-section {
+  margin-bottom: 30px;
+}
+
+.members-section h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+.no-members {
+  text-align: center;
+  padding: 40px;
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  color: #666;
+}
+
+.members-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.member-card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+  background: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.member-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+.member-info h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.member-info p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.member-info small {
+  color: #999;
+  font-size: 12px;
+}
+
+.member-actions {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+/* Events Section */
+.events-section h3 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+.events-list {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  overflow: hidden;
+}
+
+.event-item {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.3s ease;
+}
+
+.event-item:last-child {
+  border-bottom: none;
+}
+
+.event-item:hover {
+  background-color: #f8f9fa;
+}
+
+.event-item.success {
+  border-left: 4px solid #28a745;
+}
+
+.event-item.error {
+  border-left: 4px solid #dc3545;
+}
+
+.event-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.event-type {
+  font-weight: 600;
+  color: #333;
+  background: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.event-member {
+  color: #007bff;
+  font-weight: 500;
+}
+
+.event-time {
+  color: #666;
+  font-size: 12px;
+}
+
+.event-details {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #666;
+}
+
+.event-details .error {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .biometric-enrollment {
+    padding: 15px;
+  }
+  
+  .status-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .members-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .event-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .event-details {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+/* Loading Animation */
+.btn:disabled {
+  position: relative;
+}
+
+.btn:disabled::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: button-loading-spinner 1s ease infinite;
+  top: 0;
+  bottom: 0;
+  right: 10px;
+}
+
+@keyframes button-loading-spinner {
+  from { transform: rotate(0turn); }
+  to { transform: rotate(1turn); }
+}

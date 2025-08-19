@@ -7,7 +7,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import ClassIcon from '@mui/icons-material/Class';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
-import SecurityIcon from '@mui/icons-material/Security';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PaidIcon from '@mui/icons-material/Paid';
 import { Settings as SettingsIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -122,8 +122,8 @@ function App() {
       { label: 'Members', to: '/members', icon: <PeopleIcon /> },
       { label: 'Classes', to: '/classes', icon: <ClassIcon /> },
       { label: 'Schedules', to: '/schedules', icon: <ScheduleIcon /> },
-      { label: 'Attendance', to: '/attendance', icon: <FingerprintIcon /> },
-      { label: 'Biometric', to: '/biometric', icon: <SecurityIcon /> },
+      { label: 'Attendance', to: '/attendance', icon: <CheckCircleIcon /> },
+      { label: 'Biometric', to: '/biometric', icon: <FingerprintIcon /> },
       { label: 'Financials', to: '/financials', icon: <PaidIcon /> },
       { label: 'Settings', to: '/settings', icon: <SettingsIcon /> },
     ];
