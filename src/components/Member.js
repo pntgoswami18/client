@@ -30,11 +30,9 @@ const Member = () => {
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
     const [plans, setPlans] = useState([]);
-    const [membershipTypes, setMembershipTypes] = useState([]);
     const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
+    
     const [phone, setPhone] = useState('');
-    const [membershipType, setMembershipType] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
     const [currency, setCurrency] = useState('INR');
     const [openAdd, setOpenAdd] = useState(false);
@@ -52,7 +50,6 @@ const Member = () => {
     useEffect(() => {
         fetchMembers();
         fetchPlans();
-        fetchMembershipTypes();
         fetchCurrency();
     }, []);
 
@@ -93,17 +90,6 @@ const Member = () => {
         }
     };
 
-    const fetchMembershipTypes = async () => {
-        try {
-            const response = await axios.get('/api/settings');
-            const types = Array.isArray(response.data.membership_types) ? response.data.membership_types : [];
-            setMembershipTypes(types);
-            if (types.length > 0) { setMembershipType(types[0]); }
-        } catch (error) {
-            console.error("Error fetching membership types", error);
-        }
-    };
-
     const fetchCurrency = async () => {
         try {
             const response = await axios.get('/api/settings');
@@ -119,17 +105,13 @@ const Member = () => {
         try {
             const newMember = { 
                 name, 
-                email, 
                 phone,
-                membership_type: membershipType,
                 membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null
             };
             const res = await axios.post('/api/members', newMember);
             fetchMembers();
             setName('');
-            setEmail('');
             setPhone('');
-            if (membershipTypes.length > 0) { setMembershipType(membershipTypes[0]); }
             if (plans.length > 0) { setMembershipPlanId(plans[0].id); }
             setOpenAdd(false);
             if (res && res.data && res.data.id) {
@@ -153,9 +135,7 @@ const Member = () => {
         try {
             const body = {
                 name,
-                email,
-                phone,
-                membership_type: membershipType
+                phone
             };
             await axios.put(`/api/members/${editingMember.id}`, body);
             fetchMembers();
@@ -169,8 +149,7 @@ const Member = () => {
     const openEditDialog = (member) => {
         setEditingMember(member);
         setName(member.name);
-        setEmail(member.email);
-        setMembershipType(member.membership_type || '');
+        setPhone(member.phone ? String(member.phone) : '');
         setOpenEdit(true);
     };
 
@@ -243,7 +222,13 @@ const Member = () => {
                     </Select>
                 </FormControl>
                 <Box sx={{ flex: 1 }} />
-                <Button onClick={() => setOpenAdd(true)}>Add Member</Button>
+                <Button onClick={() => {
+                    setEditingMember(null);
+                    setName('');
+                    setPhone('');
+                    setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setOpenAdd(true);
+                }}>Add Member</Button>
             </Box>
 
             <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
@@ -264,26 +249,7 @@ const Member = () => {
                             inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }}
                             helperText="10–15 digits, optional leading +"
                         />
-                        <TextField
-                            label="Email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                        <FormControl fullWidth required disabled={membershipTypes.length === 0}>
-                            <InputLabel>Membership Type</InputLabel>
-                            <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
-                                {membershipTypes.length > 0 ? (
-                                    membershipTypes.map(type => (
-                                        <MenuItem key={type} value={type}>
-                                            {type}
-                                        </MenuItem>
-                                    ))
-                                ) : (
-                                    <MenuItem disabled>Please create a membership type first</MenuItem>
-                                )}
-                            </Select>
-                        </FormControl>
+                        
                         <FormControl fullWidth required disabled={plans.length === 0}>
                             <InputLabel>Membership Plan</InputLabel>
                             <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
@@ -300,7 +266,7 @@ const Member = () => {
                         </FormControl>
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
-                            <Button type="submit" variant="contained" disabled={plans.length === 0 || membershipTypes.length === 0}>Add Member</Button>
+                            <Button type="submit" variant="contained" disabled={plans.length === 0}>Add Member</Button>
                         </DialogActions>
                     </Box>
                 </DialogContent>
@@ -312,15 +278,7 @@ const Member = () => {
                     <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
                         <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }} helperText="10–15 digits, optional leading +" />
-                        <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                        <FormControl fullWidth>
-                            <InputLabel>Membership Type</InputLabel>
-                            <Select value={membershipType} onChange={(e) => setMembershipType(e.target.value)}>
-                                {membershipTypes.map(type => (
-                                    <MenuItem key={type} value={type}>{type}</MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
                             <Button type="submit" variant="contained">Save</Button>
@@ -378,10 +336,7 @@ const Member = () => {
                                         <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
                                     </Box>
                                 }>
-                                    <ListItemText
-                                        primary={member.name}
-                                        secondary={`${member.email} - ${member.membership_type}`}
-                                    />
+                                    <ListItemText primary={member.name} />
                                 </ListItem>
                             ))}
                         </List>

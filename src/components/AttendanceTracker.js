@@ -89,12 +89,12 @@ const AttendanceTracker = () => {
 
         try {
             setCheckInError('');
-            await axios.post('/api/attendance/check-in', { memberId: parseInt(simulateMemberId) });
+            await axios.post('/api/attendance/check-in', { memberId: Number(simulateMemberId) });
             alert('Check-in successful!');
             
             // If the simulated member is currently selected, refresh their attendance
-            if (selectedMemberId === simulateMemberId) {
-                fetchAttendanceForMember(simulateMemberId);
+            if (String(selectedMemberId) === String(simulateMemberId)) {
+                fetchAttendanceForMember(Number(simulateMemberId));
             }
             setSimulateMemberId('');
         } catch (error) {

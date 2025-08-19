@@ -93,32 +93,34 @@ const Dashboard = () => {
             }}>Dashboard - Analytics & Reports</h2>
             
             {/* Summary Stats Cards */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', overflowX: 'auto', paddingBottom: '8px' }}>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', paddingBottom: '8px', flexWrap: 'nowrap', alignItems: 'stretch', overflowX: 'hidden' }}>
                 {cardPrefs.show_total_members && <div
                     onClick={() => navigate('/members')}
                     onMouseEnter={() => setHoveredCard(0)}
                     onMouseLeave={() => setHoveredCard(-1)}
                     style={{
                         padding: '20px',
-                        backgroundColor: '#f0f8ff',
+                        backgroundColor: '#1e3a8a',
+                        color: '#fff',
                         borderRadius: '12px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         minHeight: '140px',
-                        width: '260px',
-                        flex: '0 0 260px',
-                        boxShadow: hoveredCard === 0 ? '0 12px 32px rgba(0,0,0,0.12)' : '0 8px 24px rgba(0,0,0,0.08)',
-                        border: '1px solid rgba(0,0,0,0.05)',
+                        width: 'auto',
+                        flex: '1 1 0',
+                        minWidth: 0,
+                        boxShadow: hoveredCard === 0 ? '0 16px 40px rgba(0,0,0,0.35)' : '0 8px 32px rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         transform: hoveredCard === 0 ? 'translateY(-2px)' : 'translateY(0)',
-                        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%)',
+                        backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.24), rgba(255,255,255,0) 60%), linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%)',
                         backgroundSize: '250% 250%',
                         backgroundPosition: hoveredCard === 0 ? 'right center' : 'left center',
                         transition: 'box-shadow .3s ease, transform .3s ease, background-position .7s ease'
                     }}
                 >
-                    <h3 style={{ margin: 0, color: '#2c5aa0' }}>Total Members</h3>
+                    <h3 style={{ margin: 0, color: '#fff' }}>Total Members</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalMembers)}</p>
                 </div>}
                 {cardPrefs.show_total_revenue && <div
@@ -127,25 +129,27 @@ const Dashboard = () => {
                     onMouseLeave={() => setHoveredCard(-1)}
                     style={{
                         padding: '20px',
-                        backgroundColor: '#f0fff0',
+                        backgroundColor: '#166534',
+                        color: '#fff',
                         borderRadius: '12px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         minHeight: '140px',
-                        width: '260px',
-                        flex: '0 0 260px',
-                        boxShadow: hoveredCard === 1 ? '0 12px 32px rgba(0,0,0,0.12)' : '0 8px 24px rgba(0,0,0,0.08)',
-                        border: '1px solid rgba(0,0,0,0.05)',
+                        width: 'auto',
+                        flex: '1 1 0',
+                        minWidth: 0,
+                        boxShadow: hoveredCard === 1 ? '0 16px 40px rgba(0,0,0,0.35)' : '0 8px 32px rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         transform: hoveredCard === 1 ? 'translateY(-2px)' : 'translateY(0)',
-                        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%)',
+                        backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.24), rgba(255,255,255,0) 60%), linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%)',
                         backgroundSize: '250% 250%',
                         backgroundPosition: hoveredCard === 1 ? 'right center' : 'left center',
                         transition: 'box-shadow .3s ease, transform .3s ease, background-position .7s ease'
                     }}
                 >
-                    <h3 style={{ margin: 0, color: '#228b22' }}>Total Revenue</h3>
+                    <h3 style={{ margin: 0, color: '#fff' }}>Total Revenue</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalRevenue, true)}</p>
                 </div>}
                 {cardPrefs.show_new_members_this_month && <div
@@ -154,25 +158,27 @@ const Dashboard = () => {
                     onMouseLeave={() => setHoveredCard(-1)}
                     style={{
                         padding: '20px',
-                        backgroundColor: '#fff8dc',
+                        backgroundColor: '#78350f',
+                        color: '#fff',
                         borderRadius: '12px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         minHeight: '140px',
-                        width: '260px',
-                        flex: '0 0 260px',
-                        boxShadow: hoveredCard === 2 ? '0 12px 32px rgba(0,0,0,0.12)' : '0 8px 24px rgba(0,0,0,0.08)',
-                        border: '1px solid rgba(0,0,0,0.05)',
+                        width: 'auto',
+                        flex: '1 1 0',
+                        minWidth: 0,
+                        boxShadow: hoveredCard === 2 ? '0 16px 40px rgba(0,0,0,0.35)' : '0 8px 32px rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         transform: hoveredCard === 2 ? 'translateY(-2px)' : 'translateY(0)',
-                        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%)',
+                        backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.24), rgba(255,255,255,0) 60%), linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%)',
                         backgroundSize: '250% 250%',
                         backgroundPosition: hoveredCard === 2 ? 'right center' : 'left center',
                         transition: 'box-shadow .3s ease, transform .3s ease, background-position .7s ease'
                     }}
                 >
-                    <h3 style={{ margin: 0, color: '#daa520' }}>New Members This Month</h3>
+                    <h3 style={{ margin: 0, color: '#fff' }}>New Members This Month</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.newMembersThisMonth)}</p>
                 </div>}
                 {cardPrefs.show_unpaid_members_this_month && <div
@@ -181,25 +187,27 @@ const Dashboard = () => {
                     onMouseLeave={() => setHoveredCard(-1)}
                     style={{
                         padding: '20px',
-                        backgroundColor: '#fde2e1',
+                        backgroundColor: '#7f1d1d',
+                        color: '#fff',
                         borderRadius: '12px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         minHeight: '140px',
-                        width: '260px',
-                        flex: '0 0 260px',
-                        boxShadow: hoveredCard === 3 ? '0 12px 32px rgba(0,0,0,0.12)' : '0 8px 24px rgba(0,0,0,0.08)',
-                        border: '1px solid rgba(0,0,0,0.05)',
+                        width: 'auto',
+                        flex: '1 1 0',
+                        minWidth: 0,
+                        boxShadow: hoveredCard === 3 ? '0 16px 40px rgba(0,0,0,0.35)' : '0 8px 32px rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         transform: hoveredCard === 3 ? 'translateY(-2px)' : 'translateY(0)',
-                        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%)',
+                        backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.24), rgba(255,255,255,0) 60%), linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%)',
                         backgroundSize: '250% 250%',
                         backgroundPosition: hoveredCard === 3 ? 'right center' : 'left center',
                         transition: 'box-shadow .3s ease, transform .3s ease, background-position .7s ease'
                     }}
                 >
-                    <h3 style={{ margin: 0, color: '#b22222' }}>Unpaid Members This Month</h3>
+                    <h3 style={{ margin: 0, color: '#fff' }}>Unpaid Members This Month</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.unpaidMembersThisMonth)}</p>
                 </div>}
                 {cardPrefs.show_active_schedules && <div
@@ -208,25 +216,27 @@ const Dashboard = () => {
                     onMouseLeave={() => setHoveredCard(-1)}
                     style={{
                         padding: '20px',
-                        backgroundColor: '#ffe4e1',
+                        backgroundColor: '#7c1d24',
+                        color: '#fff',
                         borderRadius: '12px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
                         minHeight: '140px',
-                        width: '260px',
-                        flex: '0 0 260px',
-                        boxShadow: hoveredCard === 4 ? '0 12px 32px rgba(0,0,0,0.12)' : '0 8px 24px rgba(0,0,0,0.08)',
-                        border: '1px solid rgba(0,0,0,0.05)',
+                        width: 'auto',
+                        flex: '1 1 0',
+                        minWidth: 0,
+                        boxShadow: hoveredCard === 4 ? '0 16px 40px rgba(0,0,0,0.35)' : '0 8px 32px rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(255,255,255,0.1)',
                         transform: hoveredCard === 4 ? 'translateY(-2px)' : 'translateY(0)',
-                        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%)',
+                        backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.24), rgba(255,255,255,0) 60%), linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0) 100%)',
                         backgroundSize: '250% 250%',
                         backgroundPosition: hoveredCard === 4 ? 'right center' : 'left center',
                         transition: 'box-shadow .3s ease, transform .3s ease, background-position .7s ease'
                     }}
                 >
-                    <h3 style={{ margin: 0, color: '#dc143c' }}>Active Schedules</h3>
+                    <h3 style={{ margin: 0, color: '#fff' }}>Active Schedules</h3>
                     <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.activeSchedules)}</p>
                 </div>}
             </div>
