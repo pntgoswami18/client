@@ -168,7 +168,7 @@ const AttendanceTracker = () => {
                             <MenuItem disabled>No members available</MenuItem>
                         ) : members.map(member => (
                             <MenuItem key={member.id} value={member.id}>
-                                {member.name} - {member.email}
+                                {member.name}
                             </MenuItem>
                         ))}
                     </Select>

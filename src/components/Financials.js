@@ -329,7 +329,10 @@ const Financials = () => {
                     <Button variant="outlined" onClick={() => setOpenManualPayment(true)}>Record Manual Payment</Button>
                     <Button variant="outlined" onClick={() => {
                         setOpenCreateInvoice(true);
-                        setInvDueDate(new Date().toISOString().slice(0,10));
+                        // Calculate default due date 30 days from now
+                        const defaultDueDate = new Date();
+                        defaultDueDate.setDate(defaultDueDate.getDate() + 30);
+                        setInvDueDate(defaultDueDate.toISOString().slice(0,10));
                     }}>Create Invoice</Button>
                 </Box>
             </Box>
@@ -416,7 +419,8 @@ const Financials = () => {
                             const payload = {
                                 amount: amountNum,
                                 method: manualMethod,
-                                transaction_id: manualTxnId || undefined
+                                transaction_id: manualTxnId || undefined,
+                                member_id: manualMember?.id || undefined
                             };
                             if (manualInvoiceId) { payload.invoice_id = parseInt(manualInvoiceId,10); }
                             await axios.post('/api/payments/manual', payload);
@@ -462,9 +466,18 @@ const Financials = () => {
                     <Button onClick={()=>setOpenCreateInvoice(false)}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
+                            // If no plan selected, try to get member's current plan
+                            let finalPlanId = invPlanId ? parseInt(invPlanId,10) : null;
+                            if (!finalPlanId && invMemberId) {
+                                const selectedMember = members.find(m => String(m.id) === String(invMemberId));
+                                if (selectedMember && selectedMember.membership_plan_id) {
+                                    finalPlanId = selectedMember.membership_plan_id;
+                                }
+                            }
+                            
                             await axios.post('/api/payments/invoice', {
                                 member_id: parseInt(invMemberId,10),
-                                plan_id: invPlanId ? parseInt(invPlanId,10) : null,
+                                plan_id: finalPlanId,
                                 amount: parseFloat(invAmount),
                                 due_date: invDueDate
                             });
@@ -581,17 +594,79 @@ const Financials = () => {
                                 }}>
                                     <TableCell>Member Name</TableCell>
                                     <TableCell>Email</TableCell>
+                                    <TableCell>Plan</TableCell>
                                     <TableCell>Last Payment Date</TableCell>
                                     <TableCell>Last Invoice Status</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {financialSummary.memberPaymentStatus.map(member => (
-                                    <TableRow key={member.id}>
-                                        <TableCell>{member.name}</TableCell>
-                                        <TableCell>{member.email}</TableCell>
+                                    <TableRow 
+                                        key={member.id}
+                                        sx={{
+                                            backgroundColor: member.is_overdue_for_plan === 1 
+                                                ? 'rgba(239, 68, 68, 0.08)' 
+                                                : 'transparent',
+                                            borderLeft: member.is_overdue_for_plan === 1 
+                                                ? '4px solid #ef4444' 
+                                                : '4px solid transparent',
+                                            '&:hover': {
+                                                backgroundColor: member.is_overdue_for_plan === 1 
+                                                    ? 'rgba(239, 68, 68, 0.12)' 
+                                                    : 'rgba(0, 0, 0, 0.04)'
+                                            }
+                                        }}
+                                    >
+                                        <TableCell>
+                                            {member.name}
+                                            {member.is_overdue_for_plan === 1 && (
+                                                <span style={{ 
+                                                    marginLeft: '8px', 
+                                                    fontSize: '12px', 
+                                                    background: '#ef4444', 
+                                                    color: '#fff', 
+                                                    padding: '2px 6px', 
+                                                    borderRadius: '12px',
+                                                    fontWeight: '500'
+                                                }}>
+                                                    Payment Due
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>{member.email || 'N/A'}</TableCell>
+                                        <TableCell>
+                                            {member.plan_name ? (
+                                                <span>
+                                                    {member.plan_name}
+                                                    {member.duration_days && (
+                                                        <span style={{ opacity: 0.7, fontSize: '12px', display: 'block' }}>
+                                                            ({member.duration_days} days)
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            ) : 'No Plan'}
+                                        </TableCell>
                                         <TableCell>{member.last_payment_date ? new Date(member.last_payment_date).toLocaleDateString() : 'N/A'}</TableCell>
-                                        <TableCell>{member.last_invoice_status || 'N/A'}</TableCell>
+                                        <TableCell>
+                                            <span style={{
+                                                padding: '4px 8px',
+                                                borderRadius: '12px',
+                                                fontSize: '12px',
+                                                fontWeight: '500',
+                                                background: member.last_invoice_status === 'paid' 
+                                                    ? 'rgba(34, 197, 94, 0.1)' 
+                                                    : member.last_invoice_status === 'unpaid' 
+                                                        ? 'rgba(239, 68, 68, 0.1)' 
+                                                        : 'rgba(156, 163, 175, 0.1)',
+                                                color: member.last_invoice_status === 'paid' 
+                                                    ? '#059669' 
+                                                    : member.last_invoice_status === 'unpaid' 
+                                                        ? '#dc2626' 
+                                                        : '#6b7280'
+                                            }}>
+                                                {member.last_invoice_status || 'N/A'}
+                                            </span>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

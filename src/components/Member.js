@@ -144,7 +144,16 @@ const Member = () => {
                 setInvoicePlanId(membershipPlanId || (plans[0]?.id || ''));
                 const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId)) || plans[0];
                 setInvoiceAmount(selectedPlan ? String(selectedPlan.price) : '');
-                setInvoiceDueDate(new Date().toISOString().slice(0,10));
+                
+                // Calculate due date based on plan duration from join date
+                const joinDate = new Date();
+                const dueDate = new Date(joinDate);
+                if (selectedPlan && selectedPlan.duration_days) {
+                    dueDate.setDate(joinDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+                } else {
+                    dueDate.setDate(joinDate.getDate() + 30); // Default 30 days
+                }
+                setInvoiceDueDate(dueDate.toISOString().slice(0,10));
                 setOpenInvoice(true);
             }
         } catch (error) {

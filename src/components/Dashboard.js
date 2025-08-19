@@ -12,6 +12,9 @@ const Dashboard = () => {
     const [revenueStats, setRevenueStats] = useState([]);
     const [birthdaysToday, setBirthdaysToday] = useState([]);
     const [showBirthdays, setShowBirthdays] = useState(false);
+    const [paymentReminders, setPaymentReminders] = useState([]);
+    const [upcomingRenewals, setUpcomingRenewals] = useState([]);
+    const [showPaymentReminders, setShowPaymentReminders] = useState(false);
     const [timeframe, setTimeframe] = useState('all'); // all | 12m | 6m | 3m | 30d
     const [currency, setCurrency] = useState('INR');
     const [loading, setLoading] = useState(true);
@@ -102,12 +105,14 @@ const Dashboard = () => {
 
     const fetchAllReports = async () => {
         try {
-            const [summary, growth, attendance, revenue, birthdays] = await Promise.all([
+            const [summary, growth, attendance, revenue, birthdays, reminders, renewals] = await Promise.all([
                 axios.get('/api/reports/summary'),
                 axios.get('/api/reports/member-growth'),
                 axios.get('/api/reports/attendance-stats'),
                 axios.get('/api/reports/revenue-stats'),
-                axios.get('/api/reports/birthdays-today')
+                axios.get('/api/reports/birthdays-today'),
+                axios.get('/api/reports/payment-reminders'),
+                axios.get('/api/reports/upcoming-renewals')
             ]);
 
             setSummaryStats(summary.data || {});
@@ -117,6 +122,14 @@ const Dashboard = () => {
             const bdays = Array.isArray(birthdays.data) ? birthdays.data : [];
             setBirthdaysToday(bdays);
             setShowBirthdays(bdays.length);
+            
+            // Handle payment reminders
+            const overdueInvoices = Array.isArray(reminders.data?.overdue_invoices) ? reminders.data.overdue_invoices : [];
+            const upcomingRenewalsData = Array.isArray(renewals.data?.upcoming_renewals) ? renewals.data.upcoming_renewals : [];
+            setPaymentReminders(overdueInvoices);
+            setUpcomingRenewals(upcomingRenewalsData);
+            setShowPaymentReminders(overdueInvoices.length > 0 || upcomingRenewalsData.length > 0);
+            
             setLoading(false);
         } catch (error) {
             console.error('Error fetching reports:', error);
@@ -159,6 +172,14 @@ const Dashboard = () => {
                             box-shadow: 0 12px 35px rgba(255, 107, 53, 0.6), 0 6px 15px rgba(0, 0, 0, 0.3);
                         }
                     }
+                    @keyframes paymentPulse {
+                        0%, 100% {
+                            box-shadow: 0 8px 25px rgba(220, 38, 38, 0.4), 0 4px 10px rgba(0, 0, 0, 0.2);
+                        }
+                        50% {
+                            box-shadow: 0 12px 35px rgba(220, 38, 38, 0.6), 0 6px 15px rgba(0, 0, 0, 0.3);
+                        }
+                    }
                 `}
             </style>
             <div style={{ position: 'relative' }}>
@@ -175,7 +196,7 @@ const Dashboard = () => {
                         style={{
                             position: 'absolute',
                             top: '-10px',
-                            right: '-10px',
+                            right: paymentReminders.length > 0 || upcomingRenewals.length > 0 ? '60px' : '-10px',
                             width: '60px',
                             height: '60px',
                             zIndex: 1000,
@@ -219,10 +240,62 @@ const Dashboard = () => {
                         )}
                     </div>
                 )}
+
+                {/* Payment Reminder Icon */}
+                {(paymentReminders.length > 0 || upcomingRenewals.length > 0) && (
+                    <div 
+                        onClick={() => setShowPaymentReminders(!showPaymentReminders)}
+                        style={{
+                            position: 'absolute',
+                            top: '-10px',
+                            right: '-10px',
+                            width: '60px',
+                            height: '60px',
+                            zIndex: 1000,
+                            background: 'linear-gradient(145deg, #dc2626, #b91c1c)',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 8px 25px rgba(220, 38, 38, 0.4), 0 4px 10px rgba(0, 0, 0, 0.2)',
+                            transform: showPaymentReminders ? 'scale(1.1)' : 'scale(1)',
+                            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            border: '3px solid #fff',
+                            animation: 'paymentPulse 2s infinite'
+                        }}
+                    >
+                        <span style={{ 
+                            fontSize: '24px', 
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                        }}>💳</span>
+                        {(paymentReminders.length + upcomingRenewals.length) > 1 && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '-5px',
+                                right: '-5px',
+                                width: '24px',
+                                height: '24px',
+                                background: '#f59e0b',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                color: '#fff',
+                                border: '2px solid #fff',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                            }}>
+                                {paymentReminders.length + upcomingRenewals.length}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
             
             {/* Summary Stats Cards */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', paddingBottom: '8px', flexWrap: 'nowrap', alignItems: 'stretch', overflowX: 'hidden', marginTop: birthdaysToday.length > 0 ? '20px' : '0' }}>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', paddingBottom: '8px', flexWrap: 'nowrap', alignItems: 'stretch', overflowX: 'hidden', marginTop: (birthdaysToday.length > 0 || paymentReminders.length > 0 || upcomingRenewals.length > 0) ? '20px' : '0' }}>
                 {cardPrefs.show_total_members && <div
                     onClick={() => navigate('/members')}
                     onMouseEnter={() => setHoveredCard(0)}
@@ -400,6 +473,152 @@ const Dashboard = () => {
                                     </li>
                                 ))}
                             </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment Reminder Popup */}
+            {showPaymentReminders && (paymentReminders.length > 0 || upcomingRenewals.length > 0) && (
+                <div style={{ position: 'fixed', top: 80, right: showBirthdays ? 400 : 24, zIndex: 1300, maxWidth: 420 }}>
+                    <div style={{
+                        background: '#7f1d1d',
+                        color: '#fff',
+                        borderRadius: 12,
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '12px 14px',
+                            backgroundImage: 'linear-gradient(to top, rgba(255,255,255,0.08), rgba(255,255,255,0))'
+                        }}>
+                            <span>💳 Payment Reminders</span>
+                            <button onClick={() => setShowPaymentReminders(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
+                        </div>
+                        <div style={{ maxHeight: 400, overflowY: 'auto', padding: '10px 14px' }}>
+                            {paymentReminders.length > 0 && (
+                                <div style={{ marginBottom: '15px' }}>
+                                    <div style={{ fontWeight: 600, marginBottom: '10px', color: '#fca5a5' }}>Overdue Payments</div>
+                                    {paymentReminders.map((reminder) => {
+                                        const whatsappMessage = `Hi ${reminder.member_name}, your payment of ${formatCurrency(reminder.amount, currency)} for ${reminder.plan_name || 'membership'} was due on ${new Date(reminder.due_date).toLocaleDateString()}. Please make the payment at your earliest convenience. Thank you!`;
+                                        const whatsappUrl = reminder.phone ? `https://wa.me/${encodeURIComponent(reminder.phone.replace(/\D/g,''))}?text=${encodeURIComponent(whatsappMessage)}` : null;
+                                        
+                                        return (
+                                            <div key={reminder.invoice_id} style={{ 
+                                                padding: '10px', 
+                                                marginBottom: '8px', 
+                                                background: 'rgba(255,255,255,0.05)', 
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(255,255,255,0.1)'
+                                            }}>
+                                                <div style={{ fontWeight: 600, fontSize: '14px' }}>{reminder.member_name}</div>
+                                                <div style={{ opacity: 0.9, fontSize: '12px', margin: '4px 0' }}>
+                                                    {formatCurrency(reminder.amount, currency)} • Due: {new Date(reminder.due_date).toLocaleDateString()} • {Math.floor(reminder.days_overdue)} days overdue
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                                    {whatsappUrl && (
+                                                        <a 
+                                                            href={whatsappUrl} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            style={{
+                                                                background: '#25d366',
+                                                                color: '#fff',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                fontSize: '11px',
+                                                                textDecoration: 'none',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}
+                                                        >
+                                                            📱 WhatsApp
+                                                        </a>
+                                                    )}
+                                                    <button
+                                                        onClick={() => navigate('/financials?section=pending-payments')}
+                                                        style={{
+                                                            background: '#1f2937',
+                                                            color: '#fff',
+                                                            border: '1px solid rgba(255,255,255,0.2)',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            fontSize: '11px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        View Details
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            
+                            {upcomingRenewals.length > 0 && (
+                                <div>
+                                    <div style={{ fontWeight: 600, marginBottom: '10px', color: '#fbbf24' }}>Upcoming Renewals</div>
+                                    {upcomingRenewals.map((renewal) => {
+                                        const whatsappMessage = `Hi ${renewal.member_name}, your ${renewal.plan_name} membership is due for renewal on ${new Date(renewal.next_due_date).toLocaleDateString()}. Amount: ${formatCurrency(renewal.price, currency)}. Please renew to continue enjoying our services!`;
+                                        const whatsappUrl = renewal.phone ? `https://wa.me/${encodeURIComponent(renewal.phone.replace(/\D/g,''))}?text=${encodeURIComponent(whatsappMessage)}` : null;
+                                        
+                                        return (
+                                            <div key={renewal.member_id} style={{ 
+                                                padding: '10px', 
+                                                marginBottom: '8px', 
+                                                background: 'rgba(251, 191, 36, 0.1)', 
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(251, 191, 36, 0.3)'
+                                            }}>
+                                                <div style={{ fontWeight: 600, fontSize: '14px' }}>{renewal.member_name}</div>
+                                                <div style={{ opacity: 0.9, fontSize: '12px', margin: '4px 0' }}>
+                                                    {renewal.plan_name} • {formatCurrency(renewal.price, currency)} • Due: {new Date(renewal.next_due_date).toLocaleDateString()}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                                    {whatsappUrl && (
+                                                        <a 
+                                                            href={whatsappUrl} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            style={{
+                                                                background: '#25d366',
+                                                                color: '#fff',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                fontSize: '11px',
+                                                                textDecoration: 'none',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}
+                                                        >
+                                                            📱 WhatsApp
+                                                        </a>
+                                                    )}
+                                                    <button
+                                                        onClick={() => navigate('/financials')}
+                                                        style={{
+                                                            background: '#1f2937',
+                                                            color: '#fff',
+                                                            border: '1px solid rgba(255,255,255,0.2)',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '4px',
+                                                            fontSize: '11px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        Create Invoice
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
