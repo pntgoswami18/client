@@ -3,7 +3,6 @@ import './BiometricEnrollment.css';
 
 const BiometricEnrollment = () => {
   const [members, setMembers] = useState([]);
-  const [selectedMember, setSelectedMember] = useState(null);
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [systemStatus, setSystemStatus] = useState(null);
   const [biometricEvents, setBiometricEvents] = useState([]);
