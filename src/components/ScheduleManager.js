@@ -196,7 +196,13 @@ const ScheduleManager = () => {
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
-                            <TableRow>
+                            <TableRow sx={{ 
+                                background: 'var(--accent-secondary-bg)',
+                                '& .MuiTableCell-root': {
+                                    color: '#fff',
+                                    fontWeight: 700
+                                }
+                            }}>
                                 <TableCell>Class Name</TableCell>
                                 <TableCell>Instructor</TableCell>
                                 <TableCell>Start Time</TableCell>

@@ -192,7 +192,13 @@ const AttendanceTracker = () => {
                         <TableContainer component={Paper}>
                             <Table>
                                 <TableHead>
-                                <TableRow>
+                                <TableRow sx={{ 
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
                                     {selectedMemberId === 'all' && <TableCell>Member</TableCell>}
                                     <TableCell>Check-in Time</TableCell>
                                 </TableRow>

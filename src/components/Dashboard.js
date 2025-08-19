@@ -44,7 +44,9 @@ const Dashboard = () => {
 
     // Helpers to filter series by timeframe
     const computeCutoff = (tf) => {
-        if (tf === 'all') return null;
+        if (tf === 'all') {
+            return null;
+        }
         const now = new Date();
         const cutoff = new Date(now);
         if (tf === '30d') {
@@ -59,7 +61,9 @@ const Dashboard = () => {
     const cutoffDate = useMemo(() => computeCutoff(timeframe), [timeframe]);
 
     const filteredAttendanceStats = useMemo(() => {
-        if (!cutoffDate) return attendanceStats;
+        if (!cutoffDate) {
+            return attendanceStats;
+        }
         return attendanceStats.filter(p => {
             const d = new Date(`${p.date}T00:00:00`);
             return d >= cutoffDate;
@@ -67,7 +71,9 @@ const Dashboard = () => {
     }, [attendanceStats, cutoffDate]);
 
     const filteredMemberGrowth = useMemo(() => {
-        if (!cutoffDate) return memberGrowth;
+        if (!cutoffDate) {
+            return memberGrowth;
+        }
         return memberGrowth.filter(p => {
             const d = new Date(`${p.month}-01T00:00:00`);
             return d >= cutoffDate;
@@ -75,7 +81,9 @@ const Dashboard = () => {
     }, [memberGrowth, cutoffDate]);
 
     const filteredRevenueStats = useMemo(() => {
-        if (!cutoffDate) return revenueStats;
+        if (!cutoffDate) {
+            return revenueStats;
+        }
         return revenueStats.filter(p => {
             const d = new Date(`${p.month}-01T00:00:00`);
             return d >= cutoffDate;
@@ -141,14 +149,80 @@ const Dashboard = () => {
 
     return (
         <div>
-            <h2 style={{
-                background: 'var(--accent-secondary-bg)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-            }}>Dashboard - Analytics & Reports</h2>
+            <style>
+                {`
+                    @keyframes birthdayPulse {
+                        0%, 100% {
+                            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4), 0 4px 10px rgba(0, 0, 0, 0.2);
+                        }
+                        50% {
+                            box-shadow: 0 12px 35px rgba(255, 107, 53, 0.6), 0 6px 15px rgba(0, 0, 0, 0.3);
+                        }
+                    }
+                `}
+            </style>
+            <div style={{ position: 'relative' }}>
+                <h2 style={{
+                    background: 'var(--accent-secondary-bg)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent'
+                }}>Dashboard - Analytics & Reports</h2>
+                
+                {/* Birthday Reminder Icon */}
+                {birthdaysToday.length > 0 && (
+                    <div 
+                        onClick={() => setShowBirthdays(!showBirthdays)}
+                        style={{
+                            position: 'absolute',
+                            top: '-10px',
+                            right: '-10px',
+                            width: '60px',
+                            height: '60px',
+                            zIndex: 1000,
+                            background: 'linear-gradient(145deg, #ff6b35, #f7931e)',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            boxShadow: '0 8px 25px rgba(255, 107, 53, 0.4), 0 4px 10px rgba(0, 0, 0, 0.2)',
+                            transform: showBirthdays ? 'scale(1.1)' : 'scale(1)',
+                            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            border: '3px solid #fff',
+                            animation: 'birthdayPulse 2s infinite'
+                        }}
+                    >
+                        <span style={{ 
+                            fontSize: '24px', 
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                        }}>🎂</span>
+                        {birthdaysToday.length > 1 && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '-5px',
+                                right: '-5px',
+                                width: '24px',
+                                height: '24px',
+                                background: '#dc2626',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                color: '#fff',
+                                border: '2px solid #fff',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                            }}>
+                                {birthdaysToday.length}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
             
             {/* Summary Stats Cards */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', paddingBottom: '8px', flexWrap: 'nowrap', alignItems: 'stretch', overflowX: 'hidden' }}>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', paddingBottom: '8px', flexWrap: 'nowrap', alignItems: 'stretch', overflowX: 'hidden', marginTop: birthdaysToday.length > 0 ? '20px' : '0' }}>
                 {cardPrefs.show_total_members && <div
                     onClick={() => navigate('/members')}
                     onMouseEnter={() => setHoveredCard(0)}

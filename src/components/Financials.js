@@ -259,12 +259,18 @@ const Financials = () => {
                     <TableContainer component={Paper} sx={{ overflow: 'hidden' }}>
                         <Table>
                             <TableHead>
-                                <TableRow>
-                                    <TableCell sx={{ fontWeight: 700 }}>Plan Name</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Price</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Duration (Days)</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
-                                    <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+                                <TableRow sx={{ 
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
+                                    <TableCell>Plan Name</TableCell>
+                                    <TableCell>Price</TableCell>
+                                    <TableCell>Duration (Days)</TableCell>
+                                    <TableCell>Description</TableCell>
+                                    <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -481,7 +487,13 @@ const Financials = () => {
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
-                                <TableRow>
+                                <TableRow sx={{ 
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
                                     <TableCell>Invoice ID</TableCell>
                                     <TableCell>Member Name</TableCell>
                                     <TableCell>Amount</TableCell>
@@ -515,7 +527,13 @@ const Financials = () => {
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
-                                <TableRow>
+                                <TableRow sx={{ 
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
                                     <TableCell>Payment ID</TableCell>
                                     <TableCell>Member Name</TableCell>
                                     <TableCell>Amount</TableCell>
@@ -554,7 +572,13 @@ const Financials = () => {
                     <TableContainer component={Paper}>
                         <Table>
                             <TableHead>
-                                <TableRow>
+                                <TableRow sx={{ 
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
                                     <TableCell>Member Name</TableCell>
                                     <TableCell>Email</TableCell>
                                     <TableCell>Last Payment Date</TableCell>

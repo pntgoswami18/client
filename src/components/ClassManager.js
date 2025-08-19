@@ -139,7 +139,13 @@ const ClassManager = () => {
                 <TableContainer component={Paper}>
                     <Table>
                         <TableHead>
-                            <TableRow>
+                            <TableRow sx={{ 
+                                background: 'var(--accent-secondary-bg)',
+                                '& .MuiTableCell-root': {
+                                    color: '#fff',
+                                    fontWeight: 700
+                                }
+                            }}>
                                 <TableCell>Name</TableCell>
                                 <TableCell>Description</TableCell>
                                 <TableCell>Instructor</TableCell>
