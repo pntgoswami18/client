@@ -551,20 +551,47 @@ const Financials = () => {
                                     <TableCell>Member Name</TableCell>
                                     <TableCell>Amount</TableCell>
                                     <TableCell>Payment Date</TableCell>
+                                    <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {financialSummary.paymentHistory.map(payment => (
-                                    <TableRow 
-                                        key={payment.id}
-                                        hover
-                                        sx={{ cursor: 'pointer' }}
-                                        onClick={() => navigate(`/invoices/${payment.id}`)}
-                                    >
+                                    <TableRow key={payment.id} hover>
                                         <TableCell>{payment.id}</TableCell>
                                         <TableCell>{payment.member_name}</TableCell>
                                         <TableCell>{formatCurrency(payment.amount, currency)}</TableCell>
                                         <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                <Button 
+                                                    size="small" 
+                                                    variant="outlined"
+                                                    onClick={() => navigate(`/invoices/${payment.id}`)}
+                                                >
+                                                    View
+                                                </Button>
+                                                <Button 
+                                                    size="small" 
+                                                    variant="outlined"
+                                                    color="error"
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        if (window.confirm(`Are you sure you want to delete payment #${payment.id}? This will make the associated invoice unpaid.`)) {
+                                                            try {
+                                                                await axios.delete(`/api/payments/${payment.id}`);
+                                                                fetchFinancialSummary(); // Refresh the data
+                                                                alert('Payment deleted successfully. Invoice status updated to unpaid.');
+                                                            } catch (error) {
+                                                                console.error('Error deleting payment:', error);
+                                                                alert(error?.response?.data?.message || 'Error deleting payment.');
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </Box>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
