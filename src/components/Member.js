@@ -13,6 +13,8 @@ import {
     List,
     ListItem,
     ListItemText,
+    ListItemAvatar,
+    Avatar,
     Typography,
     Dialog,
     DialogTitle,
@@ -425,6 +427,18 @@ const Member = () => {
                                             <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
                                         </Box>
                                     }>
+                                        <ListItemAvatar>
+                                            <Avatar 
+                                                src={member.photo_url || undefined}
+                                                sx={{ 
+                                                    width: 48, 
+                                                    height: 48,
+                                                    bgcolor: String(member.is_active) === '0' ? 'grey.400' : 'primary.main'
+                                                }}
+                                            >
+                                                {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
+                                            </Avatar>
+                                        </ListItemAvatar>
                                         <ListItemText
                                             primary={<span>{member.name} {isBirthdayToday ? '🎂' : ''} {String(member.is_active) === '0' ? '(Deactivated)' : ''}</span>}
                                             secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
