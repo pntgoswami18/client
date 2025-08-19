@@ -7,6 +7,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import ClassIcon from '@mui/icons-material/Class';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import SecurityIcon from '@mui/icons-material/Security';
 import PaidIcon from '@mui/icons-material/Paid';
 import { Settings as SettingsIcon } from '@mui/icons-material';
 import axios from 'axios';
@@ -18,6 +19,7 @@ import Financials from './components/Financials';
 import InvoiceView from './components/InvoiceView';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
+import BiometricEnrollment from './components/BiometricEnrollment';
 
 const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
   createTheme({
@@ -121,6 +123,7 @@ function App() {
       { label: 'Classes', to: '/classes', icon: <ClassIcon /> },
       { label: 'Schedules', to: '/schedules', icon: <ScheduleIcon /> },
       { label: 'Attendance', to: '/attendance', icon: <FingerprintIcon /> },
+      { label: 'Biometric', to: '/biometric', icon: <SecurityIcon /> },
       { label: 'Financials', to: '/financials', icon: <PaidIcon /> },
       { label: 'Settings', to: '/settings', icon: <SettingsIcon /> },
     ];
@@ -216,6 +219,7 @@ function App() {
                 <Route path="/classes" element={<ClassManager />} />
                 <Route path="/schedules" element={<ScheduleManager />} />
                 <Route path="/attendance" element={<AttendanceTracker />} />
+                <Route path="/biometric" element={<BiometricEnrollment />} />
                 <Route path="/financials" element={<Financials />} />
                 <Route path="/invoices/:id" element={<InvoiceView />} />
                 <Route path="/settings" element={<Settings />} />
