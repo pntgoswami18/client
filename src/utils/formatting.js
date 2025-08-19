@@ -22,6 +22,29 @@ export const formatCurrency = (amount, currency = 'INR') => {
 };
 
 export const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
+    if (!dateString) return '';
+    const s = String(dateString);
+    const isYearMonth = /^\d{4}-\d{2}$/.test(s);
+    const isFullDate = /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+    try {
+        if (isYearMonth) {
+            const d = new Date(`${s}-01T00:00:00`);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
+            }
+        }
+        if (isFullDate) {
+            const d = new Date(`${s}T00:00:00`);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
+            }
+        }
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString();
+        }
+    } catch (_) {}
+    return s;
 };
 

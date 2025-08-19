@@ -17,7 +17,8 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    Alert
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
@@ -42,6 +43,8 @@ const Member = () => {
     const [currency, setCurrency] = useState('INR');
     const [openAdd, setOpenAdd] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
+    const [addError, setAddError] = useState('');
+    const [editError, setEditError] = useState('');
     const [openBiometric, setOpenBiometric] = useState(false);
     const [bioDeviceUserId, setBioDeviceUserId] = useState('');
     const [bioTemplate, setBioTemplate] = useState('');
@@ -108,6 +111,7 @@ const Member = () => {
     const addMember = async (e) => {
         e.preventDefault();
         try {
+            setAddError('');
             const newMember = { 
                 name, 
                 phone,
@@ -142,7 +146,8 @@ const Member = () => {
                 setOpenInvoice(true);
             }
         } catch (error) {
-            console.error("Error adding member", error);
+            const msg = error?.response?.data?.message || 'Failed to add member. Please check the details and try again.';
+            setAddError(msg);
         }
     };
 
@@ -152,6 +157,7 @@ const Member = () => {
             return;
         }
         try {
+            setEditError('');
             const body = {
                 name,
                 phone,
@@ -171,7 +177,8 @@ const Member = () => {
             setOpenEdit(false);
             setEditingMember(null);
         } catch (error) {
-            console.error('Error updating member', error);
+            const msg = error?.response?.data?.message || 'Failed to update member. Please check the details and try again.';
+            setEditError(msg);
         }
     };
 
@@ -266,6 +273,7 @@ const Member = () => {
             <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Add Member</DialogTitle>
                 <DialogContent>
+                    {addError && <Alert severity="error" sx={{ mb: 2 }}>{addError}</Alert>}
                     <Box component="form" onSubmit={addMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField
                             label="Name"
@@ -321,6 +329,7 @@ const Member = () => {
             <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Member</DialogTitle>
                 <DialogContent>
+                    {editError && <Alert severity="error" sx={{ mb: 2 }}>{editError}</Alert>}
                     <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
                         <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }} helperText="10–15 digits, optional leading +" />
@@ -392,6 +401,15 @@ const Member = () => {
                             {filteredMembers.map(member => {
                                 const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === new Date().toISOString().slice(5,10);
                                 const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
+                                const toggleActive = async () => {
+                                    try {
+                                        const newVal = String(member.is_active) === '0' ? 1 : 0;
+                                        await axios.put(`/api/members/${member.id}/status`, { is_active: newVal });
+                                        fetchMembers();
+                                    } catch (e) {
+                                        console.error('Failed to update status', e);
+                                    }
+                                };
                                 return (
                                     <ListItem key={member.id} divider secondaryAction={
                                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -400,12 +418,15 @@ const Member = () => {
                                                     Wish on WhatsApp
                                                 </Button>
                                             )}
+                                            <Button size="small" color={String(member.is_active) === '0' ? 'success' : 'warning'} onClick={toggleActive}>
+                                                {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
+                                            </Button>
                                             <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
                                             <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
                                         </Box>
                                     }>
                                         <ListItemText
-                                            primary={<span>{member.name} {isBirthdayToday ? '🎂' : ''}</span>}
+                                            primary={<span>{member.name} {isBirthdayToday ? '🎂' : ''} {String(member.is_active) === '0' ? '(Deactivated)' : ''}</span>}
                                             secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
                                         />
                                     </ListItem>

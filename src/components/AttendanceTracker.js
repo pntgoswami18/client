@@ -159,7 +159,7 @@ const AttendanceTracker = () => {
 
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
-            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 120px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
+            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
                 <FormControl fullWidth>
                     <InputLabel>Select member or All users</InputLabel>
                     <Select value={selectedMemberId} onChange={handleMemberSelect}>
@@ -175,10 +175,6 @@ const AttendanceTracker = () => {
                 </FormControl>
                 <TextField label="Start" type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
                 <TextField label="End" type="date" value={endDate} onChange={(e)=>setEndDate(e.target.value)} InputLabelProps={{ shrink: true }} />
-                <Button variant="outlined" onClick={()=>{
-                    if (selectedMemberId === 'all') { fetchAttendanceAll(); }
-                    else if (selectedMemberId) { fetchAttendanceForMember(selectedMemberId); }
-                }}>Apply</Button>
             </Box>
 
             {!selectedMemberId && members.length === 0 && (

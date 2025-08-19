@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency, formatDate } from '../utils/formatting';
@@ -12,6 +12,7 @@ const Dashboard = () => {
     const [revenueStats, setRevenueStats] = useState([]);
     const [birthdaysToday, setBirthdaysToday] = useState([]);
     const [showBirthdays, setShowBirthdays] = useState(false);
+    const [timeframe, setTimeframe] = useState('all'); // all | 12m | 6m | 3m | 30d
     const [currency, setCurrency] = useState('INR');
     const [loading, setLoading] = useState(true);
     const [hoveredCard, setHoveredCard] = useState(-1);
@@ -40,6 +41,56 @@ const Dashboard = () => {
             console.error("Error fetching currency setting", error);
         }
     };
+
+    // Helpers to filter series by timeframe
+    const computeCutoff = (tf) => {
+        if (tf === 'all') return null;
+        const now = new Date();
+        const cutoff = new Date(now);
+        if (tf === '30d') {
+            cutoff.setDate(now.getDate() - 30);
+            return cutoff;
+        }
+        const months = tf === '3m' ? 3 : tf === '6m' ? 6 : 12;
+        cutoff.setMonth(now.getMonth() - months);
+        return cutoff;
+    };
+
+    const cutoffDate = useMemo(() => computeCutoff(timeframe), [timeframe]);
+
+    const filteredAttendanceStats = useMemo(() => {
+        if (!cutoffDate) return attendanceStats;
+        return attendanceStats.filter(p => {
+            const d = new Date(`${p.date}T00:00:00`);
+            return d >= cutoffDate;
+        });
+    }, [attendanceStats, cutoffDate]);
+
+    const filteredMemberGrowth = useMemo(() => {
+        if (!cutoffDate) return memberGrowth;
+        return memberGrowth.filter(p => {
+            const d = new Date(`${p.month}-01T00:00:00`);
+            return d >= cutoffDate;
+        });
+    }, [memberGrowth, cutoffDate]);
+
+    const filteredRevenueStats = useMemo(() => {
+        if (!cutoffDate) return revenueStats;
+        return revenueStats.filter(p => {
+            const d = new Date(`${p.month}-01T00:00:00`);
+            return d >= cutoffDate;
+        });
+    }, [revenueStats, cutoffDate]);
+
+    const timeframeLabel = useMemo(() => {
+        switch (timeframe) {
+            case '30d': return 'Last 30 days';
+            case '3m': return 'Last 3 months';
+            case '6m': return 'Last 6 months';
+            case '12m': return 'Last 12 months';
+            default: return 'All time';
+        }
+    }, [timeframe]);
 
     const fetchAllReports = async () => {
         try {
@@ -153,8 +204,8 @@ const Dashboard = () => {
                         transition: 'box-shadow .3s ease, transform .3s ease, background-position .7s ease'
                     }}
                 >
-                    <h3 style={{ margin: 0, color: '#fff' }}>Total Revenue</h3>
-                    <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalRevenue, true)}</p>
+                    <h3 style={{ margin: 0, color: '#fff' }}>Total Revenue This Month</h3>
+                    <p style={{ fontSize: '2em', margin: 0, fontWeight: 'bold', alignSelf: 'flex-start' }}>{displayValue(summaryStats.totalRevenueThisMonth, true)}</p>
                 </div>}
                 {cardPrefs.show_new_members_this_month && <div
                     onClick={() => navigate('/members?filter=new-this-month')}
@@ -280,12 +331,24 @@ const Dashboard = () => {
                 </div>
             )}
 
+            {/* Timeframe controls */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+                <label style={{ marginRight: 8 }}>Timeframe:</label>
+                <select value={timeframe} onChange={e => setTimeframe(e.target.value)} style={{ padding: '6px 8px', borderRadius: 6 }}>
+                    <option value="all">All time</option>
+                    <option value="12m">Last 12 months</option>
+                    <option value="6m">Last 6 months</option>
+                    <option value="3m">Last 3 months</option>
+                    <option value="30d">Last 30 days</option>
+                </select>
+            </div>
+
             {/* Member Growth Trend */}
             <div style={{ marginBottom: '30px' }}>
-                <h3>Member Growth (Last 12 Months)</h3>
-                {memberGrowth.length > 0 ? (
+                <h3>Member Growth ({timeframeLabel})</h3>
+                {filteredMemberGrowth.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={memberGrowth}>
+                        <BarChart data={filteredMemberGrowth}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="month" tickFormatter={formatDate} />
                             <YAxis />
@@ -301,10 +364,10 @@ const Dashboard = () => {
 
             {/* Revenue Trend */}
             <div style={{ marginBottom: '30px' }}>
-                <h3>Revenue Trend (Last 12 Months)</h3>
-                {revenueStats.length > 0 ? (
+                <h3>Revenue Trend ({timeframeLabel})</h3>
+                {filteredRevenueStats.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={revenueStats}>
+                        <LineChart data={filteredRevenueStats}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="month" tickFormatter={formatDate} />
                             <YAxis tickFormatter={(value) => formatCurrency(value, currency)} />
@@ -320,10 +383,10 @@ const Dashboard = () => {
 
             {/* Attendance Trend */}
             <div style={{ marginBottom: '30px' }}>
-                <h3>Daily Attendance (Last 30 Days)</h3>
-                {attendanceStats.length > 0 ? (
+                <h3>Daily Attendance ({timeframeLabel})</h3>
+                {filteredAttendanceStats.length > 0 ? (
                     <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={attendanceStats}>
+                        <LineChart data={filteredAttendanceStats}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="date" tickFormatter={formatDate} />
                             <YAxis />
