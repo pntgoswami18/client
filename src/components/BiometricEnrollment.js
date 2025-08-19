@@ -116,7 +116,6 @@ const BiometricEnrollment = () => {
 
       if (data.success) {
         setSuccess('Enrollment started! Please ask the member to place their finger on the biometric device.');
-        setSelectedMember(members.find(m => m.id === memberId));
         fetchEnrollmentStatus();
       } else {
         setError(data.message || 'Failed to start enrollment');
@@ -140,7 +139,6 @@ const BiometricEnrollment = () => {
 
       if (data.success) {
         setSuccess('Enrollment stopped');
-        setSelectedMember(null);
         fetchEnrollmentStatus();
         fetchMembersWithoutBiometric();
       } else {
@@ -170,33 +168,6 @@ const BiometricEnrollment = () => {
       }
     } catch (error) {
       setError('Error testing connection: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const removeBiometricData = async (memberId) => {
-    if (!window.confirm('Are you sure you want to remove biometric data for this member?')) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/biometric/members/${memberId}/biometric`, {
-        method: 'DELETE'
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccess('Biometric data removed successfully');
-        fetchMembersWithoutBiometric();
-      } else {
-        setError(data.message || 'Failed to remove biometric data');
-      }
-    } catch (error) {
-      setError('Error removing biometric data: ' + error.message);
     } finally {
       setLoading(false);
     }
