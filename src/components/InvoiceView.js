@@ -194,6 +194,15 @@ const InvoiceView = () => {
       {/* Actions row separated to avoid printing, plus WhatsApp share */}
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', '@media print': { display: 'none' } }}>
         <Box sx={{ display: 'flex', gap: 1 }}>
+          {!invoice.payment_id && (
+            <Button 
+              variant="outlined" 
+              color="primary"
+              onClick={() => navigate(`/financials?editInvoice=${invoice.invoice_id}`)}
+            >
+              Edit Invoice
+            </Button>
+          )}
           <Button onClick={handlePrint}>Print</Button>
           <Button variant="outlined" onClick={handleDownloadPdf}>Download PDF</Button>
           <Button variant="contained" color="success" onClick={async () => {

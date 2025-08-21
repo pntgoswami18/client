@@ -55,6 +55,13 @@ const Financials = () => {
     const [invPlanId, setInvPlanId] = useState('');
     const [invAmount, setInvAmount] = useState('');
     const [invDueDate, setInvDueDate] = useState('');
+    // Edit invoice state
+    const [openEditInvoice, setOpenEditInvoice] = useState(false);
+    const [editInvoiceId, setEditInvoiceId] = useState('');
+    const [editInvMemberId, setEditInvMemberId] = useState('');
+    const [editInvPlanId, setEditInvPlanId] = useState('');
+    const [editInvAmount, setEditInvAmount] = useState('');
+    const [editInvDueDate, setEditInvDueDate] = useState('');
     const [financialSummary, setFinancialSummary] = useState({
         outstandingInvoices: [],
         paymentHistory: [],
@@ -74,11 +81,24 @@ const Financials = () => {
     useEffect(() => {
         const qp = new URLSearchParams(location.search);
         const section = qp.get('section');
+        const editInvoiceParam = qp.get('editInvoice');
+        
         if (section === 'pending-payments' && outstandingRef.current) {
             // Scroll to Outstanding Invoices
             setTimeout(() => {
                 outstandingRef.current.scrollIntoView({ behavior: 'smooth' });
             }, 100);
+        }
+        
+        if (editInvoiceParam) {
+            // Auto-open edit dialog for the specified invoice
+            setTimeout(() => {
+                handleEditInvoice(parseInt(editInvoiceParam, 10));
+                // Clear the URL parameter after opening the dialog
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('editInvoice');
+                window.history.replaceState({}, '', newUrl);
+            }, 500); // Wait for data to load
         }
     }, [location.search]);
 
@@ -96,6 +116,38 @@ const Financials = () => {
             });
         } catch (error) {
             console.error("Error fetching financial summary", error);
+        }
+    };
+
+    const handleEditInvoice = async (invoiceId) => {
+        try {
+            // Fetch full invoice details
+            const response = await axios.get(`/api/payments/invoices/${invoiceId}`);
+            const invoice = response.data;
+            
+            // Populate edit form
+            setEditInvoiceId(invoiceId);
+            setEditInvMemberId(invoice.member_id || '');
+            setEditInvPlanId(invoice.plan_id || '');
+            setEditInvAmount(String(invoice.invoice_amount || ''));
+            setEditInvDueDate(invoice.due_date ? invoice.due_date.split('T')[0] : '');
+            setOpenEditInvoice(true);
+        } catch (error) {
+            console.error('Error fetching invoice details:', error);
+            alert('Error loading invoice details');
+        }
+    };
+
+    const handleDeleteInvoice = async (invoiceId) => {
+        if (window.confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+            try {
+                await axios.delete(`/api/payments/invoices/${invoiceId}`);
+                alert('Invoice deleted successfully');
+                fetchFinancialSummary();
+            } catch (error) {
+                console.error('Error deleting invoice:', error);
+                alert(error?.response?.data?.message || 'Error deleting invoice');
+            }
         }
     };
 
@@ -488,6 +540,66 @@ const Financials = () => {
                 </DialogActions>
             </Dialog>
 
+            {/* Edit Invoice Dialog */}
+            <Dialog open={openEditInvoice} onClose={() => setOpenEditInvoice(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Edit Invoice #{editInvoiceId}</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <FormControl fullWidth>
+                            <InputLabel>Member</InputLabel>
+                            <Select value={editInvMemberId} onChange={(e)=>{ setEditInvMemberId(e.target.value); }}>
+                                {members.map(m => (
+                                    <MenuItem key={m.id} value={m.id}>{m.name} - {m.email}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth>
+                            <InputLabel>Plan</InputLabel>
+                            <Select value={editInvPlanId} onChange={(e)=>{
+                                setEditInvPlanId(e.target.value);
+                                const p = plans.find(pl => String(pl.id) === String(e.target.value));
+                                if (p) { setEditInvAmount(String(p.price)); }
+                            }}>
+                                <MenuItem value="">No Plan</MenuItem>
+                                {plans.map(p => (
+                                    <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <TextField label="Amount" type="number" value={editInvAmount} onChange={(e)=>setEditInvAmount(e.target.value)} />
+                        <TextField label="Due Date" type="date" value={editInvDueDate} onChange={(e)=>setEditInvDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={()=>setOpenEditInvoice(false)}>Cancel</Button>
+                    <Button variant="contained" onClick={async ()=>{
+                        try {
+                            // If no plan selected, try to get member's current plan
+                            let finalPlanId = editInvPlanId ? parseInt(editInvPlanId,10) : null;
+                            if (!finalPlanId && editInvMemberId) {
+                                const selectedMember = members.find(m => String(m.id) === String(editInvMemberId));
+                                if (selectedMember && selectedMember.membership_plan_id) {
+                                    finalPlanId = selectedMember.membership_plan_id;
+                                }
+                            }
+                            
+                            await axios.put(`/api/payments/invoices/${editInvoiceId}`, {
+                                member_id: parseInt(editInvMemberId,10),
+                                plan_id: finalPlanId,
+                                amount: parseFloat(editInvAmount),
+                                due_date: editInvDueDate
+                            });
+                            setOpenEditInvoice(false);
+                            fetchFinancialSummary();
+                            alert('Invoice updated successfully');
+                        } catch (e) {
+                            console.error(e);
+                            alert(e?.response?.data?.message || 'Error updating invoice');
+                        }
+                    }}>Update</Button>
+                </DialogActions>
+            </Dialog>
+
             <Divider sx={{ marginY: '2rem' }} />
 
             {/* Financial Summary Section */}
@@ -511,6 +623,7 @@ const Financials = () => {
                                     <TableCell>Member Name</TableCell>
                                     <TableCell>Amount</TableCell>
                                     <TableCell>Due Date</TableCell>
+                                    <TableCell>Actions</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
@@ -520,6 +633,25 @@ const Financials = () => {
                                         <TableCell>{invoice.member_name}</TableCell>
                                         <TableCell>{formatCurrency(invoice.amount, currency)}</TableCell>
                                         <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                <Button 
+                                                    size="small" 
+                                                    variant="outlined"
+                                                    onClick={() => handleEditInvoice(invoice.id)}
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <Button 
+                                                    size="small" 
+                                                    variant="outlined"
+                                                    color="error"
+                                                    onClick={() => handleDeleteInvoice(invoice.id)}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </Box>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

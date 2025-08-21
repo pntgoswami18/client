@@ -9,6 +9,12 @@ const BiometricEnrollment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  
+  // Manual enrollment state
+  const [showManualEnrollment, setShowManualEnrollment] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [deviceUserId, setDeviceUserId] = useState('');
+  const [sensorMemberId, setSensorMemberId] = useState('');
 
   // Fetch data on component mount
   useEffect(() => {
@@ -177,6 +183,60 @@ const BiometricEnrollment = () => {
     return new Date(dateStr).toLocaleString();
   };
 
+  const openManualEnrollment = (member) => {
+    setSelectedMember(member);
+    setDeviceUserId('');
+    setSensorMemberId('');
+    setError(null);
+    setSuccess(null);
+    setShowManualEnrollment(true);
+  };
+
+  const closeManualEnrollment = () => {
+    setShowManualEnrollment(false);
+    setSelectedMember(null);
+    setDeviceUserId('');
+    setSensorMemberId('');
+  };
+
+  const handleManualEnrollment = async () => {
+    if (!selectedMember || !deviceUserId.trim()) {
+      setError('Member and Device User ID are required');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/biometric/members/${selectedMember.id}/manual-enroll`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deviceUserId: deviceUserId.trim(),
+          sensorMemberId: sensorMemberId.trim() || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccess(`Successfully assigned biometric data to ${selectedMember.name}`);
+        closeManualEnrollment();
+        fetchMembersWithoutBiometric();
+        fetchBiometricEvents();
+      } else {
+        setError(data.message || 'Failed to assign biometric data');
+      }
+    } catch (error) {
+      setError('Error assigning biometric data: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="biometric-enrollment">
       <div className="header">
@@ -287,6 +347,14 @@ const BiometricEnrollment = () => {
                   >
                     🔒 Enroll Fingerprint
                   </button>
+                  <button
+                    onClick={() => openManualEnrollment(member)}
+                    disabled={loading}
+                    className="btn btn-secondary"
+                    style={{ marginLeft: '10px' }}
+                  >
+                    📝 Manual Assignment
+                  </button>
                 </div>
               </div>
             ))}
@@ -297,6 +365,84 @@ const BiometricEnrollment = () => {
           </div>
         )}
       </div>
+
+      {/* Manual Enrollment Modal */}
+      {showManualEnrollment && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>📝 Manual Biometric Assignment</h3>
+              <button 
+                onClick={closeManualEnrollment} 
+                className="modal-close"
+                disabled={loading}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              {selectedMember && (
+                <div className="member-details">
+                  <h4>Assigning biometric data to:</h4>
+                  <p><strong>{selectedMember.name}</strong></p>
+                  <p>{selectedMember.email}</p>
+                  <p>{selectedMember.phone}</p>
+                </div>
+              )}
+              
+              <div className="form-group">
+                <label htmlFor="deviceUserId">Device User ID *</label>
+                <input
+                  id="deviceUserId"
+                  type="text"
+                  value={deviceUserId}
+                  onChange={(e) => setDeviceUserId(e.target.value)}
+                  placeholder="Enter device user ID (e.g., 4)"
+                  disabled={loading}
+                  className="form-input"
+                />
+                <small className="help-text">
+                  The user ID assigned by the biometric device
+                </small>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="sensorMemberId">Sensor Member ID</label>
+                <input
+                  id="sensorMemberId"
+                  type="text"
+                  value={sensorMemberId}
+                  onChange={(e) => setSensorMemberId(e.target.value)}
+                  placeholder="Enter sensor member ID (optional)"
+                  disabled={loading}
+                  className="form-input"
+                />
+                <small className="help-text">
+                  The member ID sent by the biometric sensor (if different from device user ID)
+                </small>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                onClick={closeManualEnrollment}
+                disabled={loading}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleManualEnrollment}
+                disabled={loading || !deviceUserId.trim()}
+                className="btn btn-primary"
+              >
+                {loading ? 'Assigning...' : 'Assign Biometric Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recent Events */}
       <div className="events-section">
@@ -315,7 +461,8 @@ const BiometricEnrollment = () => {
                 </div>
                 <div className="event-details">
                   {event.device_id && <span>Device: {event.device_id}</span>}
-                  {event.biometric_id && <span>ID: {event.biometric_id}</span>}
+                  {event.biometric_id && <span>Device ID: {event.biometric_id}</span>}
+                  {event.sensor_member_id && <span>Sensor ID: {event.sensor_member_id}</span>}
                   {event.error_message && <span className="error">Error: {event.error_message}</span>}
                 </div>
               </div>
