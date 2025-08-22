@@ -467,7 +467,7 @@ const Member = () => {
                 <DialogTitle>Link Biometric to Member</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <TextField label="Device User ID (Secureye)" value={bioDeviceUserId} onChange={(e)=>setBioDeviceUserId(e.target.value)} helperText="User ID configured on device (if already enrolled)" />
+                        <TextField label="Device User ID" value={bioDeviceUserId} onChange={(e)=>setBioDeviceUserId(e.target.value)} helperText="User ID configured on ESP32 device (if already enrolled)" />
                         <TextField label="Sensor Member ID" value={bioSensorMemberId} onChange={(e)=>setBioSensorMemberId(e.target.value)} helperText="Member ID sent by the biometric sensor (if different from device user ID)" />
                         <TextField label="Template (Base64)" value={bioTemplate} onChange={(e)=>setBioTemplate(e.target.value)} multiline minRows={3} placeholder="Paste template string if captured via SDK" />
                     </Box>
