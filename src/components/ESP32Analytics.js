@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -16,7 +16,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   Alert,
   CircularProgress,
   LinearProgress,
@@ -33,12 +32,11 @@ import {
   AccessTime as AccessTimeIcon,
   Security as SecurityIcon,
   People as PeopleIcon,
-  DeviceHub as DeviceHubIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
-import { formatDistanceToNow, format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { formatDistanceToNow, subDays } from 'date-fns';
 
 const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
   const [selectedDevice, setSelectedDevice] = useState('all');
@@ -47,16 +45,6 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchDevices();
-  }, []);
-
-  useEffect(() => {
-    if (devices.length > 0) {
-      fetchAnalytics();
-    }
-  }, [selectedDevice, selectedPeriod, devices]);
 
   const fetchDevices = async () => {
     try {
@@ -70,7 +58,7 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
     }
   };
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -103,7 +91,18 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
     } finally {
       setLoading(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPeriod, selectedDevice]);
+
+  useEffect(() => {
+    fetchDevices();
+  }, []);
+
+  useEffect(() => {
+    if (devices.length > 0) {
+      fetchAnalytics();
+    }
+  }, [selectedDevice, selectedPeriod, devices, fetchAnalytics]);
 
   const getPeriodStartDate = (period) => {
     const now = new Date();

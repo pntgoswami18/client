@@ -16,14 +16,11 @@ import {
   IconButton,
   Switch,
   FormControlLabel,
-  Tooltip
 } from '@mui/material';
 import {
   FiberManualRecord as StatusIcon,
   Fingerprint as FingerprintIcon,
   LockOpen as UnlockIcon,
-  Lock as LockIcon,
-  Warning as WarningIcon,
   CheckCircle as SuccessIcon,
   Error as ErrorIcon,
   Wifi as WifiIcon,
@@ -51,9 +48,10 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       connectToEventStream();
     }
     
+    const eventSource = eventSourceRef.current;
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+      if (eventSource) {
+        eventSource.close();
       }
     };
   }, [isPaused]);

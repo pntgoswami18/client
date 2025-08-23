@@ -23,22 +23,15 @@ import {
   Tabs,
   Tab,
   CircularProgress,
-  Tooltip,
-  Divider,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Tooltip
 } from '@mui/material';
 import {
-  Lock as LockIcon,
   LockOpen as LockOpenIcon,
   Fingerprint as FingerprintIcon,
   Wifi as WifiIcon,
   WifiOff as WifiOffIcon,
   Settings as SettingsIcon,
   Refresh as RefreshIcon,
-  Emergency as EmergencyIcon,
   Monitor as MonitorIcon,
   Timeline as TimelineIcon,
   Security as SecurityIcon,
@@ -67,7 +60,6 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   // Dialog states
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
-  const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   

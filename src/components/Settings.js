@@ -57,11 +57,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     
 
 
-    useEffect(() => {
-        fetchSettings();
-    }, []);
-
-    const fetchSettings = async () => {
+    const fetchSettings = useCallback(async () => {
         try {
             const response = await axios.get('/api/settings');
             const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules } = response.data;
@@ -113,7 +109,12 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
         } catch (error) {
             console.error("Error fetching settings", error);
         }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        fetchSettings();
+    }, [fetchSettings]);
 
     const handleSaveAllSettings = async () => {
         try {
