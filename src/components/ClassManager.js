@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
     TextField,
@@ -16,13 +17,20 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    Tabs,
+    Tab
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import LibraryBooksOutlinedIcon from '@mui/icons-material/LibraryBooksOutlined';
+import {
+    Edit as EditIcon,
+    Delete as DeleteIcon,
+    LibraryBooksOutlined as LibraryBooksOutlinedIcon,
+    Class as ClassIcon,
+    Schedule as ScheduleIcon
+} from '@mui/icons-material';
+import ScheduleManager from './ScheduleManager';
 
-const ClassManager = () => {
+const ClassesManagement = () => {
     const [classes, setClasses] = useState([]);
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -92,7 +100,6 @@ const ClassManager = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom>Class Management</Typography>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                 <Button variant="contained" onClick={() => setOpenAdd(true)}>Add Class</Button>
             </Box>
@@ -171,6 +178,60 @@ const ClassManager = () => {
                 </TableContainer>
             )}
         </div>
+    );
+};
+
+const ClassManager = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    
+    // Determine active tab based on current route
+    const getActiveTab = () => {
+        const path = location.pathname;
+        if (path.includes('/classes/schedules')) {
+            return 1;
+        }
+        return 0; // Classes management
+    };
+    
+    const handleTabChange = (event, newValue) => {
+        const routes = [
+            '/classes',
+            '/classes/schedules'
+        ];
+        navigate(routes[newValue]);
+    };
+
+    return (
+        <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+                Class Management
+            </Typography>
+            
+            <Paper sx={{ mb: 3 }}>
+                <Tabs 
+                    value={getActiveTab()} 
+                    onChange={handleTabChange}
+                    aria-label="class management tabs"
+                >
+                    <Tab 
+                        icon={<ClassIcon />} 
+                        label="Classes" 
+                        sx={{ minHeight: 72 }}
+                    />
+                    <Tab 
+                        icon={<ScheduleIcon />} 
+                        label="Schedules" 
+                        sx={{ minHeight: 72 }}
+                    />
+                </Tabs>
+            </Paper>
+
+            <Routes>
+                <Route path="/" element={<ClassesManagement />} />
+                <Route path="/schedules" element={<ScheduleManager />} />
+            </Routes>
+        </Box>
     );
 };
 

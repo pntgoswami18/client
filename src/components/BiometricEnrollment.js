@@ -1,8 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import './BiometricEnrollment.css';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Alert,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  ListItemSecondaryAction,
+  LinearProgress,
+  Paper,
+  Tab,
+  Tabs
+} from '@mui/material';
+import {
+  Fingerprint as FingerprintIcon,
+  Person as PersonIcon,
+  DeviceHub as DeviceIcon,
+  Close as CloseIcon,
+  Refresh as RefreshIcon,
+  Warning as WarningIcon,
+  Settings as SettingsIcon,
+  History as HistoryIcon,
+  Monitor as MonitorIcon
+} from '@mui/icons-material';
 
 const BiometricEnrollment = () => {
+  // Core state
   const [members, setMembers] = useState([]);
+  const [devices, setDevices] = useState([]);
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [systemStatus, setSystemStatus] = useState(null);
   const [biometricEvents, setBiometricEvents] = useState([]);
@@ -10,28 +54,30 @@ const BiometricEnrollment = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
-  // Manual enrollment state
-  const [showManualEnrollment, setShowManualEnrollment] = useState(false);
-  const [selectedMember, setSelectedMember] = useState(null);
+  // UI state
+  const [currentTab, setCurrentTab] = useState(0);
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  
+  // Enrollment state
+  const [selectedMember, setSelectedMember] = useState('');
+  const [selectedDevice, setSelectedDevice] = useState('');
+  const [enrollmentProgress, setEnrollmentProgress] = useState(null);
   const [deviceUserId, setDeviceUserId] = useState('');
   const [sensorMemberId, setSensorMemberId] = useState('');
+  const [manualMember, setManualMember] = useState('');
+  
+  // Stepper state
+  const [activeStep, setActiveStep] = useState(0);
+  const enrollmentSteps = [
+    'Select Member',
+    'Select Device', 
+    'Start Enrollment',
+    'Complete Enrollment'
+  ];
 
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchMembersWithoutBiometric();
-    fetchSystemStatus();
-    fetchEnrollmentStatus();
-    fetchBiometricEvents();
-    
-    // Poll enrollment status every 2 seconds
-    const interval = setInterval(() => {
-      fetchEnrollmentStatus();
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchMembersWithoutBiometric = async () => {
+  // Define callback functions first
+  const fetchMembersWithoutBiometric = useCallback(async () => {
     try {
       const response = await fetch('/api/biometric/members/without-biometric');
       
@@ -53,9 +99,49 @@ const BiometricEnrollment = () => {
       setError(`Network error: ${error.message}`);
       setMembers([]); // Set empty array as fallback
     }
-  };
+  }, []);
 
-  const fetchSystemStatus = async () => {
+  const checkEnrollmentProgress = useCallback(async () => {
+    if (!enrollmentProgress) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/biometric/enrollment/status');
+      const data = await response.json();
+      
+      if (data.success && data.status) {
+        if (data.status.status === 'completed') {
+          setSuccess('Fingerprint enrollment completed successfully!');
+          setEnrollmentProgress(null);
+          setActiveStep(3);
+          fetchMembersWithoutBiometric(); // Refresh members list
+        } else if (data.status.status === 'failed') {
+          setError('Fingerprint enrollment failed: ' + data.status.message);
+          setEnrollmentProgress(null);
+          setActiveStep(0);
+        } else {
+          setEnrollmentProgress(data.status);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check enrollment progress:', error);
+    }
+  }, [enrollmentProgress, fetchMembersWithoutBiometric]);
+
+  const fetchDevices = useCallback(async () => {
+    try {
+      const response = await fetch('/api/biometric/devices');
+      const data = await response.json();
+      if (data.success) {
+        setDevices(data.devices.filter(device => device.status === 'online') || []);
+      }
+    } catch (error) {
+      setError('Failed to fetch devices: ' + error.message);
+    }
+  }, []);
+
+  const fetchSystemStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/biometric/status');
       const data = await response.json();
@@ -77,9 +163,9 @@ const BiometricEnrollment = () => {
         connectedDevices: 0
       });
     }
-  };
+  }, []);
 
-  const fetchEnrollmentStatus = async () => {
+  const fetchEnrollmentStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/biometric/enrollment/status');
       const data = await response.json();
@@ -92,9 +178,9 @@ const BiometricEnrollment = () => {
       console.error('Error fetching enrollment status:', error);
       setEnrollmentStatus({ active: false });
     }
-  };
+  }, []);
 
-  const fetchBiometricEvents = async () => {
+  const fetchBiometricEvents = useCallback(async () => {
     try {
       const response = await fetch('/api/biometric/events?limit=20');
       const data = await response.json();
@@ -107,30 +193,82 @@ const BiometricEnrollment = () => {
       console.error('Error fetching biometric events:', error);
       setBiometricEvents([]);
     }
-  };
+  }, []);
 
-  const startEnrollment = async (memberId) => {
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchMembersWithoutBiometric();
+    fetchDevices();
+    fetchSystemStatus();
+    fetchEnrollmentStatus();
+    fetchBiometricEvents();
+    
+    // Poll enrollment status every 2 seconds
+    const interval = setInterval(() => {
+      fetchEnrollmentStatus();
+      checkEnrollmentProgress();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [checkEnrollmentProgress, fetchMembersWithoutBiometric, fetchDevices, fetchSystemStatus, fetchEnrollmentStatus, fetchBiometricEvents]);
+
+
+
+  const startEnrollment = async (memberId, deviceId = null) => {
+    if (deviceId && (!selectedMember || !selectedDevice)) {
+      setError('Please select both a member and device');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/biometric/members/${memberId}/enroll`, {
+      let response;
+      if (deviceId) {
+        // ESP32 device-specific enrollment
+        setActiveStep(2);
+        response = await fetch(`/api/biometric/devices/${deviceId}/enroll`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberId })
+        });
+      } else {
+        // Basic enrollment
+        response = await fetch(`/api/biometric/members/${memberId}/enroll`, {
         method: 'POST'
       });
+      }
+      
       const data = await response.json();
 
       if (data.success) {
+                if (deviceId) {
+          setEnrollmentProgress({ status: 'in_progress', step: 1 });
+          setSuccess('Enrollment started. Please place finger on the selected device.');
+        } else {
         setSuccess('Enrollment started! Please ask the member to place their finger on the biometric device.');
         fetchEnrollmentStatus();
+        }
       } else {
         setError(data.message || 'Failed to start enrollment');
+        if (deviceId) {
+          setActiveStep(1);
+        }
       }
     } catch (error) {
       setError('Error starting enrollment: ' + error.message);
+      if (deviceId) {
+        setActiveStep(1);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const startDeviceEnrollment = async () => {
+    await startEnrollment(selectedMember, selectedDevice);
   };
 
   const stopEnrollment = async () => {
@@ -184,23 +322,23 @@ const BiometricEnrollment = () => {
   };
 
   const openManualEnrollment = (member) => {
-    setSelectedMember(member);
+    setManualMember(member.id);
     setDeviceUserId('');
     setSensorMemberId('');
     setError(null);
     setSuccess(null);
-    setShowManualEnrollment(true);
+    setManualDialogOpen(true);
   };
 
   const closeManualEnrollment = () => {
-    setShowManualEnrollment(false);
-    setSelectedMember(null);
+    setManualDialogOpen(false);
+    setManualMember('');
     setDeviceUserId('');
     setSensorMemberId('');
   };
 
   const handleManualEnrollment = async () => {
-    if (!selectedMember || !deviceUserId.trim()) {
+    if (!manualMember || !deviceUserId.trim()) {
       setError('Member and Device User ID are required');
       return;
     }
@@ -209,7 +347,7 @@ const BiometricEnrollment = () => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/biometric/members/${selectedMember.id}/manual-enroll`, {
+      const response = await fetch(`/api/biometric/members/${manualMember}/manual-enroll`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -223,7 +361,7 @@ const BiometricEnrollment = () => {
       const data = await response.json();
 
       if (data.success) {
-        setSuccess(`Successfully assigned biometric data to ${selectedMember.name}`);
+        setSuccess('Manual enrollment completed successfully!');
         closeManualEnrollment();
         fetchMembersWithoutBiometric();
         fetchBiometricEvents();
@@ -237,240 +375,507 @@ const BiometricEnrollment = () => {
     }
   };
 
-  return (
-    <div className="biometric-enrollment">
-      <div className="header">
-        <h2>🔐 Biometric Enrollment Management</h2>
-        
-        {/* System Status */}
-        <div className="status-cards">
-          <div className={`status-card ${systemStatus?.biometricServiceAvailable ? 'online' : 'offline'}`}>
-            <h3>Service Status</h3>
-            <p>{systemStatus?.biometricServiceAvailable ? '🟢 Online' : '🔴 Offline'}</p>
-            <small>Connected Devices: {systemStatus?.connectedDevices || 0}</small>
-          </div>
 
-          <div className={`status-card ${enrollmentStatus?.active ? 'active' : 'inactive'}`}>
-            <h3>Enrollment Status</h3>
-            <p>{enrollmentStatus?.active ? '🟡 Active' : '⚪ Inactive'}</p>
-            {enrollmentStatus?.active && (
-              <small>Member: {enrollmentStatus.enrollmentMode?.memberName}</small>
+
+  const resetEnrollment = () => {
+    setSelectedMember('');
+    setSelectedDevice('');
+    setEnrollmentProgress(null);
+    setActiveStep(0);
+    setEnrollDialogOpen(false);
+  };
+
+  const getDeviceStatusChip = (device) => (
+    <Chip
+      size="small"
+      label={device.status}
+      color={device.status === 'online' ? 'success' : 'error'}
+      sx={{ ml: 1 }}
+    />
+  );
+
+  // Enrollment Stepper Component
+  const EnrollmentStepper = () => (
+    <Stepper activeStep={activeStep} orientation="vertical">
+      {enrollmentSteps.map((label, index) => (
+        <Step key={label}>
+          <StepLabel>{label}</StepLabel>
+          <StepContent>
+            {index === 0 && (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Select Member</InputLabel>
+                <Select
+                  value={selectedMember}
+                  onChange={(e) => {
+                    setSelectedMember(e.target.value);
+                    if (e.target.value) {
+                      setActiveStep(1);
+                    }
+                  }}
+                >
+                  {members.map((member) => (
+                    <MenuItem key={member.id} value={member.id}>
+                      {member.name} (ID: {member.id})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             )}
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="action-buttons">
-          <button 
-            onClick={testConnection}
-            disabled={loading || !systemStatus?.biometricServiceAvailable}
-            className="btn btn-secondary"
-          >
-            🧪 Test Connection
-          </button>
-          
-          {enrollmentStatus?.active && (
-            <button 
-              onClick={stopEnrollment}
+            
+            {index === 1 && (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Select Device</InputLabel>
+                <Select
+                  value={selectedDevice}
+                  onChange={(e) => {
+                    setSelectedDevice(e.target.value);
+                    if (e.target.value) {
+                      setActiveStep(2);
+                    }
+                  }}
+                >
+                  {devices.map((device) => (
+                    <MenuItem key={device.device_id} value={device.device_id}>
+                      {device.device_id} - {device.location || 'Unknown Location'}
+                      {getDeviceStatusChip(device)}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+            
+            {index === 2 && (
+              <Box>
+                {enrollmentProgress ? (
+                  <Box>
+                    <Typography variant="body2" gutterBottom>
+                      Enrollment in progress...
+                    </Typography>
+                    <LinearProgress sx={{ mb: 2 }} />
+                    <Typography variant="caption" color="text.secondary">
+                      Step {enrollmentProgress.step || 1} - Please follow device instructions
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Button
+                    variant="contained"
+                    onClick={startDeviceEnrollment}
               disabled={loading}
-              className="btn btn-warning"
-            >
-              🛑 Stop Enrollment
-            </button>
-          )}
-        </div>
-      </div>
+                    startIcon={<FingerprintIcon />}
+                  >
+                    Start Fingerprint Enrollment
+                  </Button>
+                )}
+              </Box>
+            )}
+            
+            {index === 3 && (
+              <Box>
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  Enrollment completed successfully!
+                </Alert>
+                <Button onClick={resetEnrollment}>
+                  Enroll Another Member
+                </Button>
+              </Box>
+            )}
+          </StepContent>
+        </Step>
+      ))}
+    </Stepper>
+  );
+
+  return (
+    <Box>
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4" component="h1">
+          Biometric Management
+        </Typography>
+        <Box>
+          <Button
+            variant="outlined"
+            onClick={() => setManualDialogOpen(true)}
+            sx={{ mr: 2 }}
+          >
+            Manual Assignment
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => setEnrollDialogOpen(true)}
+            startIcon={<FingerprintIcon />}
+          >
+            New Enrollment
+          </Button>
+        </Box>
+      </Box>
 
       {/* Alerts */}
       {error && (
-        <div className="alert alert-error">
-          ❌ {error}
-        </div>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
       )}
-
       {success && (
-        <div className="alert alert-success">
-          ✅ {success}
-        </div>
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
       )}
 
-      {/* Active Enrollment */}
+      {/* Status Cards */}
+      <Grid container spacing={3} mb={3}>
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" mb={2}>
+                <MonitorIcon color="primary" sx={{ mr: 1 }} />
+                <Typography variant="h6">
+                  Service Status
+                </Typography>
+              </Box>
+              <Chip
+                label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
+                color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
+                sx={{ mb: 1 }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                Connected Devices: {systemStatus?.connectedDevices || 0}
+              </Typography>
+              <Box mt={2}>
+                <Button
+                  variant="outlined"
+                  onClick={testConnection}
+                  disabled={loading || !systemStatus?.biometricServiceAvailable}
+                  startIcon={<RefreshIcon />}
+                  size="small"
+                >
+                  Test Connection
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" mb={2}>
+                <FingerprintIcon color="primary" sx={{ mr: 1 }} />
+                <Typography variant="h6">
+                  Enrollment Status
+                </Typography>
+              </Box>
+              <Chip
+                label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
+                color={enrollmentStatus?.active ? 'warning' : 'default'}
+                sx={{ mb: 1 }}
+              />
+              {enrollmentStatus?.active && (
+                <>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Member: {enrollmentStatus.enrollmentMode?.memberName}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Started: {formatDateTime(enrollmentStatus.enrollmentMode?.startTime)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Attempts: {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3}
+                  </Typography>
+                  <Box mt={2}>
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      onClick={stopEnrollment}
+                      disabled={loading}
+                      startIcon={<CloseIcon />}
+                      size="small"
+                    >
+                      Stop Enrollment
+                    </Button>
+                  </Box>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Active Enrollment Instructions */}
       {enrollmentStatus?.active && (
-        <div className="enrollment-active">
-          <h3>🎯 Active Enrollment Session</h3>
-          <div className="enrollment-details">
-            <p><strong>Member:</strong> {enrollmentStatus.enrollmentMode?.memberName}</p>
-            <p><strong>Started:</strong> {formatDateTime(enrollmentStatus.enrollmentMode?.startTime)}</p>
-            <p><strong>Attempts:</strong> {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3}</p>
-          </div>
-          <div className="enrollment-instructions">
-            <h4>📋 Instructions:</h4>
-            <ol>
-              <li>Ask the member to clean their finger</li>
-              <li>Place finger firmly on the biometric scanner</li>
-              <li>Follow the device prompts for multiple scans</li>
-              <li>Wait for confirmation or error message</li>
-            </ol>
-          </div>
-        </div>
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              🎯 Active Enrollment Session
+            </Typography>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              Follow these instructions for successful enrollment:
+            </Typography>
+            <List dense>
+              <ListItem>
+                <ListItemText primary="1. Ask the member to clean their finger" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="2. Place finger firmly on the biometric scanner" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="3. Follow the device prompts for multiple scans" />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="4. Wait for confirmation or error message" />
+              </ListItem>
+            </List>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Members Without Biometric */}
-      <div className="members-section">
-        <h3>👥 Members Without Biometric Data ({members ? members.length : '?'})</h3>
+      {/* Main Content Tabs */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
+          <Tab icon={<PersonIcon />} label="Members" />
+          <Tab icon={<DeviceIcon />} label="Devices" />
+          <Tab icon={<HistoryIcon />} label="Events" />
+        </Tabs>
+      </Paper>
+
+      {/* Tab Content */}
+      {currentTab === 0 && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Members Without Biometric Data ({members ? members.length : '?'})
+                </Typography>
         
         {!systemStatus?.biometricServiceAvailable && (
-          <div className="alert alert-warning" style={{marginBottom: '20px'}}>
-            ⚠️ Biometric service is offline. Member data may not be current. Service is not required to view members, but enrollment will not work.
-          </div>
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    Biometric service is offline. Member data may not be current. Service is not required to view members, but enrollment will not work.
+                  </Alert>
         )}
         
         {members && members.length === 0 ? (
-          <div className="no-members">
-            <p>🎉 All members have biometric data enrolled!</p>
-          </div>
+                  <Alert severity="success">
+                    🎉 All members have biometric data enrolled!
+                  </Alert>
         ) : members && members.length > 0 ? (
-          <div className="members-grid">
+                  <Grid container spacing={2}>
             {members.map(member => (
-              <div key={member.id} className="member-card">
-                <div className="member-info">
-                  <h4>{member.name}</h4>
-                  <p>{member.email}</p>
-                  <p>{member.phone}</p>
-                  <small>Joined: {formatDateTime(member.join_date)}</small>
-                </div>
-                <div className="member-actions">
-                  <button
+                      <Grid item xs={12} md={6} lg={4} key={member.id}>
+                        <Card variant="outlined">
+                          <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                              {member.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              {member.email}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              {member.phone}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Joined: {formatDateTime(member.join_date)}
+                            </Typography>
+                          </CardContent>
+                          <Box p={2} pt={0}>
+                            <Button
+                              fullWidth
+                              variant="contained"
                     onClick={() => startEnrollment(member.id)}
                     disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable}
-                    className="btn btn-primary"
-                  >
-                    🔒 Enroll Fingerprint
-                  </button>
-                  <button
+                              startIcon={<FingerprintIcon />}
+                              sx={{ mb: 1 }}
+                            >
+                              Enroll Fingerprint
+                            </Button>
+                            <Button
+                              fullWidth
+                              variant="outlined"
                     onClick={() => openManualEnrollment(member)}
                     disabled={loading}
-                    className="btn btn-secondary"
-                    style={{ marginLeft: '10px' }}
-                  >
-                    📝 Manual Assignment
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="no-members">
-            <p>Loading member data...</p>
-          </div>
-        )}
-      </div>
+                              startIcon={<SettingsIcon />}
+                            >
+                              Manual Assignment
+                            </Button>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography>Loading member data...</Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
 
-      {/* Manual Enrollment Modal */}
-      {showManualEnrollment && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>📝 Manual Biometric Assignment</h3>
-              <button 
-                onClick={closeManualEnrollment} 
-                className="modal-close"
-                disabled={loading}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="modal-body">
-              {selectedMember && (
-                <div className="member-details">
-                  <h4>Assigning biometric data to:</h4>
-                  <p><strong>{selectedMember.name}</strong></p>
-                  <p>{selectedMember.email}</p>
-                  <p>{selectedMember.phone}</p>
-                </div>
+      {/* Devices Tab */}
+      {currentTab === 1 && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Available Devices
+            </Typography>
+            <List>
+              {devices.length === 0 ? (
+                <ListItem>
+                  <ListItemIcon>
+                    <WarningIcon color="warning" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="No online devices"
+                    secondary="Make sure ESP32 devices are connected"
+                  />
+                </ListItem>
+              ) : (
+                devices.map((device) => (
+                  <ListItem key={device.device_id}>
+                    <ListItemIcon>
+                      <DeviceIcon color="primary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={device.device_id}
+                      secondary={`${device.location || 'Unknown Location'} - ${device.deviceData?.enrolled_prints || 0} enrolled`}
+                    />
+                    <ListItemSecondaryAction>
+                      {getDeviceStatusChip(device)}
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))
               )}
-              
-              <div className="form-group">
-                <label htmlFor="deviceUserId">Device User ID *</label>
-                <input
-                  id="deviceUserId"
-                  type="text"
+            </List>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Events Tab */}
+      {currentTab === 2 && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Recent Biometric Events
+            </Typography>
+            
+            {biometricEvents.length === 0 ? (
+              <Typography>No biometric events recorded yet.</Typography>
+            ) : (
+              <List>
+                {biometricEvents.map(event => (
+                  <ListItem key={event.id} divider>
+                    <ListItemIcon>
+                      <Chip
+                        size="small"
+                        label={event.success ? 'Success' : 'Error'}
+                        color={event.success ? 'success' : 'error'}
+                      />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={`${event.event_type} - ${event.member_name || 'Unknown'}`}
+                      secondary={
+                        <Box>
+                          <Typography variant="caption" display="block">
+                            {formatDateTime(event.timestamp)}
+                          </Typography>
+                          {event.device_id && (
+                            <Typography variant="caption" display="block">
+                              Device: {event.device_id}
+                            </Typography>
+                          )}
+                          {event.biometric_id && (
+                            <Typography variant="caption" display="block">
+                              Device ID: {event.biometric_id}
+                            </Typography>
+                          )}
+                          {event.error_message && (
+                            <Typography variant="caption" color="error" display="block">
+                              Error: {event.error_message}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Enrollment Dialog */}
+      <Dialog 
+        open={enrollDialogOpen} 
+        onClose={() => setEnrollDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Fingerprint Enrollment Wizard
+        </DialogTitle>
+        <DialogContent>
+          <EnrollmentStepper />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={resetEnrollment}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manual Enrollment Dialog */}
+      <Dialog open={manualDialogOpen} onClose={() => setManualDialogOpen(false)}>
+        <DialogTitle>Manual Biometric Assignment</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Use this for members who have already enrolled their fingerprint directly on the device.
+          </Alert>
+          
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Select Member</InputLabel>
+            <Select
+              value={manualMember}
+              onChange={(e) => setManualMember(e.target.value)}
+            >
+              {members.map((member) => (
+                <MenuItem key={member.id} value={member.id}>
+                  {member.name} (ID: {member.id})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <TextField
+            fullWidth
+            label="Device User ID"
                   value={deviceUserId}
                   onChange={(e) => setDeviceUserId(e.target.value)}
-                  placeholder="Enter device user ID (e.g., 4)"
-                  disabled={loading}
-                  className="form-input"
-                />
-                <small className="help-text">
-                  The user ID assigned by the biometric device
-                </small>
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="sensorMemberId">Sensor Member ID</label>
-                <input
-                  id="sensorMemberId"
-                  type="text"
+            placeholder="e.g., 1, 2, 3..."
+            helperText="The user ID assigned by the ESP32 device"
+            sx={{ mb: 2 }}
+          />
+          
+          <TextField
+            fullWidth
+            label="Sensor Member ID"
                   value={sensorMemberId}
                   onChange={(e) => setSensorMemberId(e.target.value)}
                   placeholder="Enter sensor member ID (optional)"
-                  disabled={loading}
-                  className="form-input"
-                />
-                <small className="help-text">
-                  The member ID sent by the biometric sensor (if different from device user ID)
-                </small>
-              </div>
-            </div>
-            
-            <div className="modal-footer">
-              <button 
-                onClick={closeManualEnrollment}
-                disabled={loading}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button 
+            helperText="The member ID sent by the biometric sensor (if different from device user ID)"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeManualEnrollment}>Cancel</Button>
+          <Button 
                 onClick={handleManualEnrollment}
-                disabled={loading || !deviceUserId.trim()}
-                className="btn btn-primary"
+            variant="contained"
+            disabled={loading || !manualMember || !deviceUserId}
               >
                 {loading ? 'Assigning...' : 'Assign Biometric Data'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Events */}
-      <div className="events-section">
-        <h3>📊 Recent Biometric Events</h3>
-        
-        {biometricEvents.length === 0 ? (
-          <p>No biometric events recorded yet.</p>
-        ) : (
-          <div className="events-list">
-            {biometricEvents.map(event => (
-              <div key={event.id} className={`event-item ${event.success ? 'success' : 'error'}`}>
-                <div className="event-main">
-                  <span className="event-type">{event.event_type}</span>
-                  <span className="event-member">{event.member_name || 'Unknown'}</span>
-                  <span className="event-time">{formatDateTime(event.timestamp)}</span>
-                </div>
-                <div className="event-details">
-                  {event.device_id && <span>Device: {event.device_id}</span>}
-                  {event.biometric_id && <span>Device ID: {event.biometric_id}</span>}
-                  {event.sensor_member_id && <span>Sensor ID: {event.sensor_member_id}</span>}
-                  {event.error_message && <span className="error">Error: {event.error_message}</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

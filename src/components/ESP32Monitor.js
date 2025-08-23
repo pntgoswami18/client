@@ -36,7 +36,7 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 
-const ESP32Monitor = () => {
+const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   const [realtimeEvents, setRealtimeEvents] = useState([]);
   const [deviceStatuses, setDeviceStatuses] = useState({});
   const [isConnected, setIsConnected] = useState(false);

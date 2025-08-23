@@ -40,7 +40,7 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow, format, subDays, startOfDay, endOfDay } from 'date-fns';
 
-const ESP32Analytics = () => {
+const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
   const [selectedDevice, setSelectedDevice] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('7days');
   const [devices, setDevices] = useState([]);

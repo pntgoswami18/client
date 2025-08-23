@@ -37,10 +37,12 @@ The frontend dashboard includes:
 
 - **Analytics Dashboard:** Real-time reporting with summary statistics, member growth trends, revenue analytics, and popular class rankings
 - **Member Management:** Add, view, edit, and delete gym members with automated welcome emails
-- **Class Management:** Create and manage fitness classes with instructor and duration details
-- **Schedule Management:** Schedule classes with datetime pickers and capacity management
+- **Consolidated Biometric Management:** Unified ESP32 fingerprint enrollment with guided process, device selection, real-time enrollment monitoring, and manual member-device linking
+- **Class & Schedule Management:** Create and manage fitness classes with integrated schedule management (schedules accessible as a tab under Classes)
 - **Attendance Tracking:** View member attendance history and simulate biometric check-ins
 - **Financial Management:** Create membership plans, invoices, and record manual payments
+- **Advanced Settings Management:** Centralized settings with tabbed interface including General settings and comprehensive ESP32 device management
+- **ESP32 Configuration:** User-configurable ESP32 connection settings with helpful defaults
 
 ## Technology Stack
 
@@ -93,26 +95,32 @@ Once running, you can navigate between different sections:
 
 - **Dashboard (/):** Analytics and reporting overview
 - **Members (/members):** Manage gym members
-- **Classes (/classes):** Manage fitness classes
-- **Schedules (/schedules):** Schedule classes and manage capacity
+- **Biometric (/biometric):** Consolidated ESP32 fingerprint enrollment with guided process, device selection, and member-device linking
+- **Classes (/classes):** Manage fitness classes with integrated schedule management (schedules accessible as a tab under Classes)
 - **Attendance (/attendance):** Track member attendance. Session check-in rules are enforced (Morning 05:00–11:00, Evening 16:00–22:00) with max one check-in per calendar date. Filter by date range (default: current week).
 - **Financials (/financials):** Manage membership plans and billing. Manual payment modal supports selecting a member to fetch unpaid invoices and autofilling invoice/amount.
+- **Settings (/settings):** General settings and ESP32 device management (ESP32 Devices, Monitor, Analytics accessible as tabs under Settings)
 
 ## Component Structure
 
 ```
 src/
 ├── components/
-│   ├── Dashboard.js          # Analytics dashboard with reporting
-│   ├── Member.js             # Member management interface
-│   ├── ClassManager.js       # Class management interface
-│   ├── ScheduleManager.js    # Schedule management interface
-│   ├── AttendanceTracker.js  # Attendance tracking interface
-│   ├── Financials.js         # Financial management interface
-│   └── Pages.js              # Placeholder components
-├── App.js                    # Main app with routing
-├── App.css                   # Application styling
-└── index.js                  # App entry point
+│   ├── Dashboard.js               # Analytics dashboard with reporting
+│   ├── Member.js                  # Member management interface
+│   ├── BiometricEnrollment.js     # Consolidated biometric management
+│   ├── ClassManager.js            # Class management with integrated schedules
+│   ├── ScheduleManager.js         # Schedule management (nested under Classes)
+│   ├── AttendanceTracker.js       # Attendance tracking interface
+│   ├── Financials.js              # Financial management interface
+│   ├── Settings.js                # Settings with ESP32 device management tabs
+│   ├── ESP32DeviceManager.js      # ESP32 device management (nested under Settings)
+│   ├── ESP32Monitor.js            # ESP32 monitoring (nested under Settings)
+│   ├── ESP32Analytics.js          # ESP32 analytics (nested under Settings)
+│   └── Pages.js                   # Placeholder components
+├── App.js                         # Main app with routing
+├── App.css                        # Application styling
+└── index.js                       # App entry point
 ```
 
 ## Styling & Branding

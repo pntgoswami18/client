@@ -1,9 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Routes, Route, useNavigate, useLocation, useBeforeUnload } from 'react-router-dom';
 import axios from 'axios';
-import { TextField, Button, Box, Grid, Typography, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
+import { 
+  TextField, 
+  Button, 
+  Box, 
+  Grid, 
+  Typography, 
+  FormGroup, 
+  FormControlLabel, 
+  Checkbox,
+  Tabs,
+  Tab,
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert
+} from '@mui/material';
+import {
+  Settings as SettingsIcon,
+  DeviceHub as DeviceHubIcon,
+  Monitor as MonitorIcon,
+  Analytics as AnalyticsIcon,
+  Warning as WarningIcon
+} from '@mui/icons-material';
 import GradientEditor from './GradientEditor';
+import ESP32DeviceManager from './ESP32DeviceManager';
+import ESP32Monitor from './ESP32Monitor';
+import ESP32Analytics from './ESP32Analytics';
 
-const Settings = () => {
+const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [currency, setCurrency] = useState('INR');
     const [gymName, setGymName] = useState('');
     const [gymLogo, setGymLogo] = useState('');
@@ -24,6 +52,10 @@ const Settings = () => {
     const [showNewMembersThisMonth, setShowNewMembersThisMonth] = useState(true);
     const [showUnpaidMembersThisMonth, setShowUnpaidMembersThisMonth] = useState(true);
     const [showActiveSchedules, setShowActiveSchedules] = useState(true);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const initialValues = useRef({});
+    
+
 
     useEffect(() => {
         fetchSettings();
@@ -52,6 +84,32 @@ const Settings = () => {
             if (show_card_new_members_this_month !== undefined) { setShowNewMembersThisMonth(String(show_card_new_members_this_month) !== 'false'); }
             if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(String(show_card_unpaid_members_this_month) !== 'false'); }
             if (show_card_active_schedules !== undefined) { setShowActiveSchedules(String(show_card_active_schedules) !== 'false'); }
+
+            // Store initial values after loading
+            setTimeout(() => {
+                initialValues.current = {
+                    currency,
+                    gymName,
+                    gymLogo,
+                    primaryColor,
+                    secondaryColor,
+                    primaryColorMode,
+                    secondaryColorMode,
+                    primaryGradient,
+                    secondaryGradient,
+                    paymentReminderDays,
+                    morningStart,
+                    morningEnd,
+                    eveningStart,
+                    eveningEnd,
+                    showTotalMembers,
+                    showTotalRevenue,
+                    showNewMembersThisMonth,
+                    showUnpaidMembersThisMonth,
+                    showActiveSchedules
+                };
+            }, 100);
+
         } catch (error) {
             console.error("Error fetching settings", error);
         }
@@ -96,6 +154,9 @@ const Settings = () => {
 
             await axios.put('/api/settings', settingsToUpdate);
 
+            setHasUnsavedChanges(false);
+            if (onSave) { onSave(); }
+            if (onUnsavedChanges) { onUnsavedChanges(false); }
             alert('Settings updated successfully!');
             fetchSettings();
         } catch (error) {
@@ -104,11 +165,55 @@ const Settings = () => {
         }
     };
 
+    // Check for changes in form values
+    const checkForChanges = useCallback(() => {
+        if (!initialValues.current || Object.keys(initialValues.current).length === 0) {
+            return;
+        }
+
+        const currentValues = {
+            currency,
+            gymName,
+            gymLogo,
+            primaryColor,
+            secondaryColor,
+            primaryColorMode,
+            secondaryColorMode,
+            primaryGradient,
+            secondaryGradient,
+            paymentReminderDays,
+            morningStart,
+            morningEnd,
+            eveningStart,
+            eveningEnd,
+            showTotalMembers,
+            showTotalRevenue,
+            showNewMembersThisMonth,
+            showUnpaidMembersThisMonth,
+            showActiveSchedules
+        };
+
+        const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(initialValues.current) || logoFile !== null;
+        
+        if (hasChanges !== hasUnsavedChanges) {
+            setHasUnsavedChanges(hasChanges);
+            if (onUnsavedChanges) {
+                onUnsavedChanges(hasChanges);
+            }
+        }
+    }, [currency, gymName, gymLogo, primaryColor, secondaryColor, primaryColorMode, secondaryColorMode, 
+        primaryGradient, secondaryGradient, paymentReminderDays, morningStart, morningEnd, eveningStart, 
+        eveningEnd, showTotalMembers, showTotalRevenue, showNewMembersThisMonth, showUnpaidMembersThisMonth, 
+        showActiveSchedules, logoFile, hasUnsavedChanges, onUnsavedChanges]);
+
+    // Track changes in form values
+    useEffect(() => {
+        checkForChanges();
+    }, [checkForChanges]);
+
     return (
-        <div>
-            <h2>Settings</h2>
-            <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-                <form>
+        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+            <form>
                     <TextField
                         id="gym-name"
                         label="Gym Name"
@@ -305,14 +410,215 @@ const Settings = () => {
                         type="number"
                         value={paymentReminderDays}
                         onChange={(e) => setPaymentReminderDays(e.target.value)}
-                        inputProps={{ min: 1 }}
+                        slotProps={{ htmlInput: { min: 1 } }}
                         fullWidth
                         margin="normal"
                     />
                 </div>
+
+
                 <Button variant="contained" color="primary" onClick={handleSaveAllSettings} style={{marginTop: '20px'}}>Save All Settings</Button>
             </div>
-        </div>
+    );
+};
+
+const Settings = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [pendingNavigation, setPendingNavigation] = useState(null);
+
+    
+    // Determine active tab based on current route
+    const getActiveTab = () => {
+        const path = location.pathname;
+        if (path.includes('/settings/esp32-devices')) {
+            return 1;
+        }
+        if (path.includes('/settings/esp32-monitor')) {
+            return 2;
+        }
+        if (path.includes('/settings/esp32-analytics')) {
+            return 3;
+        }
+        return 0; // General settings
+    };
+    
+    // Use beforeunload to warn about unsaved changes when leaving the page
+    useBeforeUnload(
+        React.useCallback(() => {
+            if (hasUnsavedChanges) {
+                return 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        }, [hasUnsavedChanges])
+    );
+
+    const handleUnsavedChanges = useCallback((hasChanges) => {
+        setHasUnsavedChanges(hasChanges);
+    }, []);
+
+    const handleSave = useCallback(() => {
+        setHasUnsavedChanges(false);
+    }, []);
+
+    const handleTabChange = (event, newValue) => {
+        const routes = [
+            '/settings',
+            '/settings/esp32-devices',
+            '/settings/esp32-monitor',
+            '/settings/esp32-analytics'
+        ];
+        
+        if (hasUnsavedChanges) {
+            setPendingNavigation(routes[newValue]);
+            setConfirmDialogOpen(true);
+        } else {
+            navigate(routes[newValue]);
+        }
+    };
+
+    const handleConfirmNavigation = () => {
+        setHasUnsavedChanges(false);
+        setConfirmDialogOpen(false);
+        if (pendingNavigation) {
+            navigate(pendingNavigation);
+            setPendingNavigation(null);
+        }
+    };
+
+    const handleCancelNavigation = () => {
+        setConfirmDialogOpen(false);
+        setPendingNavigation(null);
+    };
+
+    const handleSaveAndNavigate = async () => {
+        // For now, just proceed with navigation
+        // Individual components handle their own save logic
+        handleConfirmNavigation();
+    };
+
+    return (
+        <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+                Settings
+            </Typography>
+            
+            <Paper sx={{ mb: 3 }}>
+                <Tabs 
+                    value={getActiveTab()} 
+                    onChange={handleTabChange}
+                    aria-label="settings tabs"
+                >
+                    <Tab 
+                        icon={<SettingsIcon />} 
+                        label="General" 
+                        sx={{ minHeight: 72 }}
+                    />
+                    <Tab 
+                        icon={<DeviceHubIcon />} 
+                        label="ESP32 Devices" 
+                        sx={{ minHeight: 72 }}
+                    />
+                    <Tab 
+                        icon={<MonitorIcon />} 
+                        label="Device Monitor" 
+                        sx={{ minHeight: 72 }}
+                    />
+                    <Tab 
+                        icon={<AnalyticsIcon />} 
+                        label="Device Analytics" 
+                        sx={{ minHeight: 72 }}
+                    />
+                </Tabs>
+            </Paper>
+
+            <Routes>
+                <Route path="/" element={
+                    <GeneralSettings 
+                        onUnsavedChanges={handleUnsavedChanges} 
+                        onSave={handleSave}
+                    />
+                } />
+                <Route path="/esp32-devices" element={
+                    <ESP32DeviceManager 
+                        onUnsavedChanges={handleUnsavedChanges}
+                        onSave={handleSave}
+                    />
+                } />
+                <Route path="/esp32-monitor" element={
+                    <ESP32Monitor 
+                        onUnsavedChanges={handleUnsavedChanges}
+                        onSave={handleSave}
+                    />
+                } />
+                <Route path="/esp32-analytics" element={
+                    <ESP32Analytics 
+                        onUnsavedChanges={handleUnsavedChanges}
+                        onSave={handleSave}
+                    />
+                } />
+            </Routes>
+
+            {/* Unsaved Changes Warning Banner */}
+            {hasUnsavedChanges && (
+                <Box 
+                    sx={{ 
+                        position: 'fixed', 
+                        bottom: 0, 
+                        left: 0, 
+                        right: 0, 
+                        bgcolor: 'warning.main', 
+                        color: 'warning.contrastText',
+                        p: 2,
+                        zIndex: 1000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1
+                    }}
+                >
+                    <WarningIcon />
+                    <Typography variant="body2">
+                        You have unsaved changes
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Confirmation Dialog */}
+            <Dialog
+                open={confirmDialogOpen}
+                onClose={handleCancelNavigation}
+                aria-labelledby="unsaved-changes-dialog-title"
+                aria-describedby="unsaved-changes-dialog-description"
+            >
+                <DialogTitle id="unsaved-changes-dialog-title">
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <WarningIcon color="warning" />
+                        Unsaved Changes
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        You have unsaved changes that will be lost if you navigate away.
+                    </Alert>
+                    <Typography variant="body1">
+                        What would you like to do?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCancelNavigation} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleConfirmNavigation} color="error" variant="outlined">
+                        Discard Changes
+                    </Button>
+                    <Button onClick={handleSaveAndNavigate} color="primary" variant="contained">
+                        Save & Continue
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
     );
 };
 

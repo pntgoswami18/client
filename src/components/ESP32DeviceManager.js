@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
 import {
   Box,
   Typography,
@@ -23,7 +24,11 @@ import {
   Tab,
   CircularProgress,
   Tooltip,
-  Divider
+  Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   Lock as LockIcon,
@@ -37,11 +42,13 @@ import {
   Monitor as MonitorIcon,
   Timeline as TimelineIcon,
   Security as SecurityIcon,
-  DeviceHub as DeviceHubIcon
+  DeviceHub as DeviceHubIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 
-const ESP32DeviceManager = () => {
+const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,24 +56,157 @@ const ESP32DeviceManager = () => {
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   
+  // ESP32 Biometric Reader Configuration
+  const [esp32Host, setEsp32Host] = useState('192.168.1.100');
+  const [esp32Port, setEsp32Port] = useState('8080');
+  const [localListenHost, setLocalListenHost] = useState('0.0.0.0');
+  const [localListenPort, setLocalListenPort] = useState('8080');
+  const [hasUnsavedConfigChanges, setHasUnsavedConfigChanges] = useState(false);
+  const initialConfigValues = useRef({});
+  
   // Dialog states
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   // Form states
   const [unlockReason, setUnlockReason] = useState('');
   const [enrollMemberId, setEnrollMemberId] = useState('');
   const [members, setMembers] = useState([]);
+  const [editDevice, setEditDevice] = useState({
+    device_id: '',
+    location: '',
+    description: ''
+  });
 
   useEffect(() => {
     fetchDevices();
     fetchMembers();
+    fetchEsp32Settings();
     
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchDevices, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchEsp32Settings = async () => {
+    try {
+      const response = await axios.get('/api/settings');
+      const { esp32_host, esp32_port, local_listen_host, local_listen_port } = response.data;
+      
+      if (esp32_host) { setEsp32Host(esp32_host); }
+      if (esp32_port) { setEsp32Port(String(esp32_port)); }
+      if (local_listen_host) { setLocalListenHost(local_listen_host); }
+      if (local_listen_port) { setLocalListenPort(String(local_listen_port)); }
+      
+      // Store initial values for change tracking
+      setTimeout(() => {
+        initialConfigValues.current = {
+          esp32Host: esp32_host || '192.168.1.100',
+          esp32Port: String(esp32_port || '8080'),
+          localListenHost: local_listen_host || '0.0.0.0',
+          localListenPort: String(local_listen_port || '8080')
+        };
+      }, 100);
+    } catch (error) {
+      console.error("Error fetching ESP32 settings", error);
+    }
+  };
+
+  const saveEsp32Settings = async () => {
+    try {
+      const settingsToUpdate = {
+        esp32_host: esp32Host,
+        esp32_port: parseInt(esp32Port) || 8080,
+        local_listen_host: localListenHost,
+        local_listen_port: parseInt(localListenPort) || 8080
+      };
+
+      await axios.put('/api/settings', settingsToUpdate);
+      setHasUnsavedConfigChanges(false);
+      if (onSave) { onSave(); }
+      if (onUnsavedChanges) { onUnsavedChanges(false); }
+      setSuccess('ESP32 configuration updated successfully!');
+      
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
+    } catch (error) {
+      console.error("Error updating ESP32 settings", error);
+      setError('Error updating ESP32 configuration. Please try again.');
+      
+      setTimeout(() => {
+        setError(null);
+      }, 3000);
+    }
+  };
+
+  const handleEditDevice = (device) => {
+    setEditDevice({
+      device_id: device.device_id,
+      location: device.location || '',
+      description: device.description || ''
+    });
+    setSelectedDevice(device);
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateDevice = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/biometric/devices/${selectedDevice.device_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          device_id: editDevice.device_id,
+          location: editDevice.location,
+          description: editDevice.description
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Device updated successfully!');
+        setEditDialogOpen(false);
+        fetchDevices(); // Refresh the devices list
+      } else {
+        setError(data.message || 'Failed to update device');
+      }
+    } catch (error) {
+      setError('Failed to update device: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDevice = (device) => {
+    setSelectedDevice(device);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteDevice = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/biometric/devices/${selectedDevice.device_id}`, {
+        method: 'DELETE'
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Device deleted successfully!');
+        setDeleteDialogOpen(false);
+        fetchDevices(); // Refresh the devices list
+      } else {
+        setError(data.message || 'Failed to delete device');
+      }
+    } catch (error) {
+      setError('Failed to delete device: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchDevices = async () => {
     try {
@@ -97,6 +237,34 @@ const ESP32DeviceManager = () => {
     }
   };
 
+  // Check for changes in ESP32 configuration
+  const checkForConfigChanges = useCallback(() => {
+    if (!initialConfigValues.current || Object.keys(initialConfigValues.current).length === 0) {
+      return;
+    }
+
+    const currentConfigValues = {
+      esp32Host,
+      esp32Port,
+      localListenHost,
+      localListenPort
+    };
+
+    const hasChanges = JSON.stringify(currentConfigValues) !== JSON.stringify(initialConfigValues.current);
+    
+    if (hasChanges !== hasUnsavedConfigChanges) {
+      setHasUnsavedConfigChanges(hasChanges);
+      if (onUnsavedChanges) {
+        onUnsavedChanges(hasChanges);
+      }
+    }
+  }, [esp32Host, esp32Port, localListenHost, localListenPort, hasUnsavedConfigChanges, onUnsavedChanges]);
+
+  // Track changes in configuration values
+  useEffect(() => {
+    checkForConfigChanges();
+  }, [checkForConfigChanges]);
+
   const getDeviceStatusColor = (status) => {
     switch (status) {
       case 'online': return 'success';
@@ -107,15 +275,15 @@ const ESP32DeviceManager = () => {
   };
 
   const getSignalStrength = (rssi) => {
-    if (!rssi) return 'Unknown';
-    if (rssi > -50) return 'Excellent';
-    if (rssi > -60) return 'Good';
-    if (rssi > -70) return 'Fair';
+    if (!rssi) { return 'Unknown'; }
+    if (rssi > -50) { return 'Excellent'; }
+    if (rssi > -60) { return 'Good'; }
+    if (rssi > -70) { return 'Fair'; }
     return 'Poor';
   };
 
   const handleUnlockDevice = async () => {
-    if (!selectedDevice) return;
+    if (!selectedDevice) { return; }
     
     try {
       setLoading(true);
@@ -141,7 +309,7 @@ const ESP32DeviceManager = () => {
   };
 
   const handleRemoteEnrollment = async () => {
-    if (!selectedDevice || !enrollMemberId) return;
+    if (!selectedDevice || !enrollMemberId) { return; }
     
     try {
       setLoading(true);
@@ -207,37 +375,68 @@ const ESP32DeviceManager = () => {
       </CardContent>
       
       <CardActions>
-        <Button 
-          size="small" 
-          startIcon={<LockOpenIcon />}
-          onClick={() => {
-            setSelectedDevice(device);
-            setUnlockDialogOpen(true);
-          }}
-          disabled={device.status !== 'online'}
+        <Tooltip 
+          title={device.status !== 'online' ? 'Device must be online to unlock' : 'Remotely unlock door'}
         >
-          Unlock
-        </Button>
-        <Button 
-          size="small" 
-          startIcon={<FingerprintIcon />}
-          onClick={() => {
-            setSelectedDevice(device);
-            setEnrollDialogOpen(true);
-          }}
-          disabled={device.status !== 'online'}
+          <span>
+            <Button 
+              size="small" 
+              startIcon={<LockOpenIcon />}
+              onClick={() => {
+                setSelectedDevice(device);
+                setUnlockDialogOpen(true);
+              }}
+              disabled={device.status !== 'online'}
+            >
+              Unlock
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip 
+          title={device.status !== 'online' ? 'Device must be online to enroll fingerprints' : 'Enroll new fingerprint'}
         >
-          Enroll
-        </Button>
-        <IconButton 
-          size="small"
-          onClick={() => {
-            setSelectedDevice(device);
-            setConfigDialogOpen(true);
-          }}
+          <span>
+            <Button 
+              size="small" 
+              startIcon={<FingerprintIcon />}
+              onClick={() => {
+                setSelectedDevice(device);
+                setEnrollDialogOpen(true);
+              }}
+              disabled={device.status !== 'online'}
+            >
+              Enroll
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip 
+          title={device.status !== 'online' ? 'Device must be online to edit settings' : 'Edit device settings'}
         >
-          <SettingsIcon />
-        </IconButton>
+          <span>
+            <IconButton 
+              size="small"
+              onClick={() => handleEditDevice(device)}
+              color="primary"
+              disabled={device.status !== 'online'}
+            >
+              <EditIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip 
+          title={device.status !== 'online' ? 'Device must be online to delete' : 'Delete device'}
+        >
+          <span>
+            <IconButton 
+              size="small"
+              onClick={() => handleDeleteDevice(device)}
+              color="error"
+              disabled={device.status !== 'online'}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
       </CardActions>
     </Card>
   );
@@ -332,7 +531,7 @@ const ESP32DeviceManager = () => {
         <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
           <Tab label="Device Overview" />
           <Tab label="Device Details" />
-          <Tab label="Device Analytics" />
+          <Tab label="Configuration" />
         </Tabs>
       </Box>
 
@@ -367,14 +566,129 @@ const ESP32DeviceManager = () => {
             </Grid>
           )}
 
-          {activeTab === 1 && selectedDevice && (
-            <DeviceDetails device={selectedDevice} />
+          {activeTab === 1 && (
+            <Box>
+              <Typography variant="h5" gutterBottom>
+                All Device Details
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+                Comprehensive details for all connected ESP32 devices
+              </Typography>
+              
+              {devices.length === 0 ? (
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" align="center" color="text.secondary">
+                      No ESP32 devices found
+                    </Typography>
+                    <Typography variant="body2" align="center" color="text.secondary">
+                      Make sure your ESP32 devices are connected and sending heartbeat messages.
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Grid container spacing={3}>
+                  {devices.map((device) => (
+                    <Grid item xs={12} lg={6} key={device.device_id}>
+                      <DeviceDetails device={device} />
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </Box>
           )}
 
           {activeTab === 2 && (
-            <Typography variant="h6" color="text.secondary">
-              Device Analytics - Coming Soon
-            </Typography>
+            <Box>
+              <Typography variant="h5" gutterBottom>
+                ESP32 Biometric Reader Configuration
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+                Configure connection settings for ESP32 fingerprint readers and the local listener service.
+              </Typography>
+              
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        label="ESP32 Device Host Address"
+                        value={esp32Host}
+                        onChange={(e) => setEsp32Host(e.target.value)}
+                        fullWidth
+                        helperText="IP address where ESP32 devices are located (default: 192.168.1.100)"
+                        placeholder="192.168.1.100"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        label="ESP32 Device Port"
+                        type="number"
+                        value={esp32Port}
+                        onChange={(e) => setEsp32Port(e.target.value)}
+                        fullWidth
+                        helperText="Port number for ESP32 device communication (default: 8080)"
+                        placeholder="8080"
+                        slotProps={{ htmlInput: { min: 1, max: 65535 } }}
+                      />
+                    </Grid>
+                  </Grid>
+                  
+                  <Grid container spacing={2} sx={{ mb: 2 }}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        label="Local Listen Host"
+                        value={localListenHost}
+                        onChange={(e) => setLocalListenHost(e.target.value)}
+                        fullWidth
+                        helperText="Host address for incoming connections (default: 0.0.0.0 = all interfaces)"
+                        placeholder="0.0.0.0"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        label="Local Listen Port"
+                        type="number"
+                        value={localListenPort}
+                        onChange={(e) => setLocalListenPort(e.target.value)}
+                        fullWidth
+                        helperText="Port for gym management app to listen on (default: 8080)"
+                        placeholder="8080"
+                        slotProps={{ htmlInput: { min: 1, max: 65535 } }}
+                      />
+                    </Grid>
+                  </Grid>
+                  
+                  <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>📋 Configuration Notes:</strong>
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • <strong>ESP32 Host/Port:</strong> Where your ESP32 fingerprint devices are located and connect to
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • <strong>Local Listen Host/Port:</strong> Where this gym management app listens for incoming ESP32 messages
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • <strong>Default Setup:</strong> ESP32 devices at 192.168.1.100:8080, gym app listens on 0.0.0.0:8080
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      • <strong>Network Setup:</strong> Ensure ESP32 devices and server are on the same network or have proper routing
+                    </Typography>
+                  </Box>
+                </CardContent>
+                <CardActions>
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={saveEsp32Settings}
+                    startIcon={<SettingsIcon />}
+                  >
+                    Save Configuration
+                  </Button>
+                </CardActions>
+              </Card>
+            </Box>
           )}
         </>
       )}
@@ -441,6 +755,102 @@ const ESP32DeviceManager = () => {
             disabled={loading || !enrollMemberId}
           >
             Start Enrollment
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Device Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <EditIcon />
+            Edit Device
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Device ID"
+              value={editDevice.device_id}
+              onChange={(e) => setEditDevice(prev => ({ ...prev, device_id: e.target.value }))}
+              margin="normal"
+              helperText="Unique identifier for this ESP32 device"
+            />
+            <TextField
+              fullWidth
+              label="Location"
+              value={editDevice.location}
+              onChange={(e) => setEditDevice(prev => ({ ...prev, location: e.target.value }))}
+              margin="normal"
+              helperText="Physical location of the device (e.g., Main Entrance, Back Door)"
+            />
+            <TextField
+              fullWidth
+              label="Description"
+              value={editDevice.description}
+              onChange={(e) => setEditDevice(prev => ({ ...prev, description: e.target.value }))}
+              margin="normal"
+              multiline
+              rows={3}
+              helperText="Optional description or notes about this device"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpdateDevice}
+            variant="contained"
+            disabled={!editDevice.device_id || loading}
+            startIcon={loading ? <CircularProgress size={16} /> : <EditIcon />}
+          >
+            {loading ? 'Updating...' : 'Update Device'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="sm">
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1} color="error.main">
+            <DeleteIcon />
+            Delete Device
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This action cannot be undone. All associated data for this device will be permanently removed.
+          </Alert>
+          <Typography variant="body1" gutterBottom>
+            Are you sure you want to delete the following device?
+          </Typography>
+          <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              <strong>Device ID:</strong> {selectedDevice?.device_id}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              <strong>Location:</strong> {selectedDevice?.location || 'Not specified'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              <strong>Status:</strong> {selectedDevice?.status || 'Unknown'}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteDevice}
+            variant="contained"
+            color="error"
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={16} /> : <DeleteIcon />}
+          >
+            {loading ? 'Deleting...' : 'Delete Device'}
           </Button>
         </DialogActions>
       </Dialog>

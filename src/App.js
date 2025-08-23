@@ -5,29 +5,22 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import ClassIcon from '@mui/icons-material/Class';
-import ScheduleIcon from '@mui/icons-material/Schedule';
+
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PaidIcon from '@mui/icons-material/Paid';
 import { Settings as SettingsIcon } from '@mui/icons-material';
-import DeviceHubIcon from '@mui/icons-material/DeviceHub';
-import MonitorIcon from '@mui/icons-material/Monitor';
-import AnalyticsIcon from '@mui/icons-material/Analytics';
-import SecurityIcon from '@mui/icons-material/Security';
+
+
 import axios from 'axios';
 import Member from './components/Member';
 import ClassManager from './components/ClassManager';
-import ScheduleManager from './components/ScheduleManager';
 import AttendanceTracker from './components/AttendanceTracker';
 import Financials from './components/Financials';
 import InvoiceView from './components/InvoiceView';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import BiometricEnrollment from './components/BiometricEnrollment';
-import ESP32DeviceManager from './components/ESP32DeviceManager';
-import ESP32Monitor from './components/ESP32Monitor';
-import ESP32BiometricEnrollment from './components/ESP32BiometricEnrollment';
-import ESP32Analytics from './components/ESP32Analytics';
 
 const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
   createTheme({
@@ -129,13 +122,8 @@ function App() {
       { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
       { label: 'Members', to: '/members', icon: <PeopleIcon /> },
       { label: 'Classes', to: '/classes', icon: <ClassIcon /> },
-      { label: 'Schedules', to: '/schedules', icon: <ScheduleIcon /> },
       { label: 'Attendance', to: '/attendance', icon: <CheckCircleIcon /> },
       { label: 'Biometric', to: '/biometric', icon: <FingerprintIcon /> },
-      { label: 'ESP32 Devices', to: '/esp32-devices', icon: <DeviceHubIcon /> },
-      { label: 'Device Monitor', to: '/esp32-monitor', icon: <MonitorIcon /> },
-      { label: 'ESP32 Enrollment', to: '/esp32-enrollment', icon: <SecurityIcon /> },
-      { label: 'Device Analytics', to: '/esp32-analytics', icon: <AnalyticsIcon /> },
       { label: 'Financials', to: '/financials', icon: <PaidIcon /> },
       { label: 'Settings', to: '/settings', icon: <SettingsIcon /> },
     ];
@@ -228,17 +216,12 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/members" element={<Member />} />
-                <Route path="/classes" element={<ClassManager />} />
-                <Route path="/schedules" element={<ScheduleManager />} />
+                <Route path="/classes/*" element={<ClassManager />} />
                 <Route path="/attendance" element={<AttendanceTracker />} />
                 <Route path="/biometric" element={<BiometricEnrollment />} />
-                <Route path="/esp32-devices" element={<ESP32DeviceManager />} />
-                <Route path="/esp32-monitor" element={<ESP32Monitor />} />
-                <Route path="/esp32-enrollment" element={<ESP32BiometricEnrollment />} />
-                <Route path="/esp32-analytics" element={<ESP32Analytics />} />
                 <Route path="/financials" element={<Financials />} />
                 <Route path="/invoices/:id" element={<InvoiceView />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings/*" element={<Settings />} />
               </Routes>
             </Container>
           </Box>
