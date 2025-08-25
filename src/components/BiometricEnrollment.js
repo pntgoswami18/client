@@ -323,7 +323,6 @@ const BiometricEnrollment = () => {
   const openManualEnrollment = (member) => {
     setManualMember(member.id);
     setDeviceUserId('');
-    setSensorMemberId('');
     setError(null);
     setSuccess(null);
     setManualDialogOpen(true);
