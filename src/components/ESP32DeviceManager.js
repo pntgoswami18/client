@@ -59,6 +59,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [esp32Port, setEsp32Port] = useState('80');
   const [localListenHost, setLocalListenHost] = useState('0.0.0.0');
   const [localListenPort, setLocalListenPort] = useState('8080');
+  const [mainServerPort, setMainServerPort] = useState('3001');  // New state for main server port
   const [hasUnsavedConfigChanges, setHasUnsavedConfigChanges] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [testConnectionResult, setTestConnectionResult] = useState(null);
@@ -138,20 +139,24 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const fetchEsp32Settings = async () => {
     try {
       const response = await axios.get('/api/settings');
-      const { esp32_host, esp32_port, local_listen_host, local_listen_port } = response.data;
+      const { esp32_host, esp32_port, local_listen_host, local_listen_port, main_server_port, biometric_port_env, biometric_host_env } = response.data;
       
       if (esp32_host) { setEsp32Host(esp32_host); }
       if (esp32_port !== undefined) { setEsp32Port(String(esp32_port)); }
       if (local_listen_host) { setLocalListenHost(local_listen_host); }
       if (local_listen_port) { setLocalListenPort(String(local_listen_port)); }
+      if (main_server_port) { setMainServerPort(String(main_server_port)); }
       
-      // Store initial values for change tracking
+      // Store initial values for change tracking (including environment values for reference)
       setTimeout(() => {
         initialConfigValues.current = {
           esp32Host: esp32_host || '192.168.1.100',
           esp32Port: String(esp32_port || '80'),
           localListenHost: local_listen_host || '0.0.0.0',
-          localListenPort: String(local_listen_port || '8080')
+          localListenPort: String(local_listen_port || '8080'),
+          mainServerPort: String(main_server_port || '3001'),
+          biometricPortEnv: String(biometric_port_env || '8080'),
+          biometricHostEnv: biometric_host_env || '0.0.0.0'
         };
       }, 100);
     } catch (error) {
@@ -1064,13 +1069,22 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                         <strong>🔧 Port Architecture Explained:</strong>
                       </Typography>
                       <Typography variant="caption" display="block" sx={{ ml: 1, mb: 0.5 }}>
-                        • <strong>ESP32 Port 80:</strong> Web interface for status/control (ESP32 listens)
+                        • <strong>ESP32 Port 80:</strong> Web interface for status/control (ESP32 listens) - <span style={{ color: '#1976d2', fontWeight: 'bold' }}>Fixed at 80</span>
                       </Typography>
                       <Typography variant="caption" display="block" sx={{ ml: 1, mb: 0.5 }}>
-                        • <strong>ESP32 → Server Port 5005:</strong> Biometric data sent TO your gym server
+                        • <strong>ESP32 Web Config Port:</strong> ESP32 device configuration page - <span style={{ color: '#1976d2', fontWeight: 'bold' }}>Current: {esp32Port}</span> (default: 80)
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ ml: 1, mb: 0.5 }}>
+                        • <strong>Main Server Port:</strong> Primary gym management API - <span style={{ color: '#1976d2', fontWeight: 'bold' }}>Current: {mainServerPort}</span> (default: 3001)
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ ml: 1, mb: 0.5 }}>
+                        • <strong>ESP32 → Server Port (BIOMETRIC_PORT):</strong> Biometric data sent TO your gym server - <span style={{ color: '#1976d2', fontWeight: 'bold' }}>Current: {localListenPort}</span> (default: 8080)
                       </Typography>
                       <Typography variant="caption" display="block" sx={{ ml: 1, mb: 1 }}>
-                        • <strong>Local Listen Port 8080:</strong> Where gym server listens FOR ESP32 data
+                        • <strong>Local Listen Port (BIOMETRIC_PORT):</strong> Where gym server listens FOR ESP32 data - <span style={{ color: '#1976d2', fontWeight: 'bold' }}>Current: {localListenPort}</span> (default: 8080)
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ ml: 1, mb: 0.5, fontStyle: 'italic', color: '#666' }}>
+                        💡 <strong>Active values</strong> are shown in blue and reflect your current configuration.
                       </Typography>
                     </Box>
                     
