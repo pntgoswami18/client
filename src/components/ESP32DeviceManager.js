@@ -51,11 +51,12 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   
   // ESP32 Biometric Reader Configuration
   const [esp32Host, setEsp32Host] = useState('192.168.1.100');
-  const [esp32Port, setEsp32Port] = useState('8080');
+  const [esp32Port, setEsp32Port] = useState('80');
   const [localListenHost, setLocalListenHost] = useState('0.0.0.0');
   const [localListenPort, setLocalListenPort] = useState('8080');
   const [hasUnsavedConfigChanges, setHasUnsavedConfigChanges] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
+  const [testConnectionResult, setTestConnectionResult] = useState(null);
   const initialConfigValues = useRef({});
   
   // Dialog states
@@ -90,7 +91,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       const { esp32_host, esp32_port, local_listen_host, local_listen_port } = response.data;
       
       if (esp32_host) { setEsp32Host(esp32_host); }
-      if (esp32_port) { setEsp32Port(String(esp32_port)); }
+      if (esp32_port !== undefined) { setEsp32Port(String(esp32_port)); }
       if (local_listen_host) { setLocalListenHost(local_listen_host); }
       if (local_listen_port) { setLocalListenPort(String(local_listen_port)); }
       
@@ -98,7 +99,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       setTimeout(() => {
         initialConfigValues.current = {
           esp32Host: esp32_host || '192.168.1.100',
-          esp32Port: String(esp32_port || '8080'),
+          esp32Port: String(esp32_port || '80'),
           localListenHost: local_listen_host || '0.0.0.0',
           localListenPort: String(local_listen_port || '8080')
         };
@@ -112,12 +113,21 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     try {
       const settingsToUpdate = {
         esp32_host: esp32Host,
-        esp32_port: parseInt(esp32Port) || 8080,
+        esp32_port: parseInt(esp32Port) || 80,
         local_listen_host: localListenHost,
         local_listen_port: parseInt(localListenPort) || 8080
       };
 
       await axios.put('/api/settings', settingsToUpdate);
+      
+      // Update initial values with the actual saved values to prevent false change detection
+      initialConfigValues.current = {
+        esp32Host: esp32Host,
+        esp32Port: esp32Port,
+        localListenHost: localListenHost,
+        localListenPort: localListenPort
+      };
+      
       setHasUnsavedConfigChanges(false);
       if (onSave) { onSave(); }
       if (onUnsavedChanges) { onUnsavedChanges(false); }
@@ -139,44 +149,63 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const testESP32Connection = async () => {
     try {
       setTestingConnection(true);
-      setError(null);
-      setSuccess(null);
-      
-      // Test if we can reach the ESP32 device
-      const testUrl = `http://${esp32Host}:80`; // ESP32 web interface is usually on port 80
+      setTestConnectionResult(null);
       
       try {
-        // First try a simple ping-like test using a HEAD request to avoid CORS issues
+        // Test ESP32 device connectivity via backend
         const response = await fetch(`/api/biometric/test-connection`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             host: esp32Host, 
-            port: parseInt(esp32Port) || 8080 
+            port: parseInt(esp32Port) || 80 
           })
         });
         
         const result = await response.json();
         
         if (result.success) {
-          setSuccess(`✅ Connection test successful! ESP32 device is reachable at ${esp32Host}:${esp32Port}`);
+          setTestConnectionResult({
+            type: 'success',
+            message: `✅ Connection test successful! ESP32 web interface is reachable at ${esp32Host}:${esp32Port}`
+          });
         } else {
-          setError(`❌ Connection test failed: ${result.message || 'Unable to reach ESP32 device'}\n\nTips:\n• Check if ESP32 IP address is correct\n• Ensure ESP32 is powered on and connected to WiFi\n• Verify you're on the same network as the ESP32`);
+          setTestConnectionResult({
+            type: 'error',
+            message: `❌ Connection test failed: ${result.message || 'Unable to reach ESP32 device'}`,
+            tips: [
+              'Check if ESP32 IP address is correct',
+              'Ensure ESP32 is powered on and connected to WiFi',
+              'Verify you\'re on the same network as the ESP32'
+            ]
+          });
         }
       } catch (fetchError) {
-        setError(`❌ Connection test failed: Network error\n\nTips:\n• Check if ESP32 IP address (${esp32Host}) is correct\n• Ensure ESP32 is powered on and connected to WiFi\n• Verify you're on the same network as the ESP32\n• Check router admin panel for connected devices`);
+        setTestConnectionResult({
+          type: 'error',
+          message: `❌ Connection test failed: Network error`,
+          tips: [
+            `Check if ESP32 IP address (${esp32Host}) is correct`,
+            'Ensure ESP32 is powered on and connected to WiFi',
+            'Verify you\'re on the same network as the ESP32',
+            'Check router admin panel for connected devices'
+          ]
+        });
       }
       
     } catch (error) {
       console.error('Error testing ESP32 connection:', error);
-      setError('Error testing connection. Please check your configuration.');
+      setTestConnectionResult({
+        type: 'error',
+        message: 'Error testing connection. Please check your configuration.'
+      });
     } finally {
       setTestingConnection(false);
       
+      // Auto-clear the test result after 10 seconds
       setTimeout(() => {
-        setError(null);
-        setSuccess(null);
-      }, 8000);
+        setTestConnectionResult(null);
+      }, 10000);
     }
   };
 
@@ -651,7 +680,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                       <TextField
                         label="ESP32 Device Host Address"
                         value={esp32Host}
-                        onChange={(e) => setEsp32Host(e.target.value)}
+                        onChange={(e) => {
+                          setEsp32Host(e.target.value);
+                          setTestConnectionResult(null); // Clear test result when config changes
+                        }}
                         fullWidth
                         helperText="IP address of your ESP32 device (check router admin panel or ESP32 Serial Monitor)"
                         placeholder="192.168.1.100"
@@ -662,10 +694,13 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                         label="ESP32 Device Port"
                         type="number"
                         value={esp32Port}
-                        onChange={(e) => setEsp32Port(e.target.value)}
+                        onChange={(e) => {
+                          setEsp32Port(e.target.value);
+                          setTestConnectionResult(null); // Clear test result when config changes
+                        }}
                         fullWidth
-                        helperText="Port number for ESP32 device communication (default: 8080)"
-                        placeholder="8080"
+                        helperText="Port number for ESP32 web interface (default: 80)"
+                        placeholder="80"
                         slotProps={{ htmlInput: { min: 1, max: 65535 } }}
                       />
                     </Grid>
@@ -676,7 +711,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                       <TextField
                         label="Local Listen Host"
                         value={localListenHost}
-                        onChange={(e) => setLocalListenHost(e.target.value)}
+                        onChange={(e) => {
+                          setLocalListenHost(e.target.value);
+                          setTestConnectionResult(null); // Clear test result when config changes
+                        }}
                         fullWidth
                         helperText="Host address for incoming connections (default: 0.0.0.0 = all interfaces)"
                         placeholder="0.0.0.0"
@@ -687,7 +725,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                         label="Local Listen Port"
                         type="number"
                         value={localListenPort}
-                        onChange={(e) => setLocalListenPort(e.target.value)}
+                        onChange={(e) => {
+                          setLocalListenPort(e.target.value);
+                          setTestConnectionResult(null); // Clear test result when config changes
+                        }}
                         fullWidth
                         helperText="Port for gym management app to listen on (default: 8080)"
                         placeholder="8080"
@@ -714,7 +755,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                     </Typography>
                     
                     <Typography variant="caption" display="block" sx={{ mb: 1 }}>
-                      <strong>2. ESP32 Port:</strong> Default is 8080 (configured in Arduino firmware)
+                      <strong>2. ESP32 Port:</strong> Default is 80 (ESP32 web interface port, not biometric data port)
                     </Typography>
                     
                     <Typography variant="caption" display="block" sx={{ mb: 1 }}>
@@ -726,6 +767,21 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                     <Typography variant="caption" display="block" sx={{ ml: 2, mb: 1 }}>
                       • <strong>Port:</strong> Must match BIOMETRIC_PORT in your .env file (default: 8080)
                     </Typography>
+                    
+                    <Box sx={{ mt: 2, p: 1.5, backgroundColor: '#fff3e0', borderRadius: 1 }}>
+                      <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                        <strong>🔧 Port Architecture Explained:</strong>
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ ml: 1, mb: 0.5 }}>
+                        • <strong>ESP32 Port 80:</strong> Web interface for status/control (ESP32 listens)
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ ml: 1, mb: 0.5 }}>
+                        • <strong>ESP32 → Server Port 5005:</strong> Biometric data sent TO your gym server
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ ml: 1, mb: 1 }}>
+                        • <strong>Local Listen Port 8080:</strong> Where gym server listens FOR ESP32 data
+                      </Typography>
+                    </Box>
                     
                     <Box sx={{ mt: 2, p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1 }}>
                       <Typography variant="caption" display="block">
@@ -753,6 +809,33 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                     {testingConnection ? 'Testing...' : 'Test Connection'}
                   </Button>
                 </CardActions>
+                
+                {/* Test Connection Result */}
+                {testConnectionResult && (
+                  <Box sx={{ px: 2, pb: 2 }}>
+                    <Alert 
+                      severity={testConnectionResult.type === 'success' ? 'success' : 'error'} 
+                      onClose={() => setTestConnectionResult(null)}
+                      sx={{ mb: 0 }}
+                    >
+                      <Typography variant="body2" gutterBottom>
+                        {testConnectionResult.message}
+                      </Typography>
+                      {testConnectionResult.tips && testConnectionResult.tips.length > 0 && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                            Troubleshooting Tips:
+                          </Typography>
+                          {testConnectionResult.tips.map((tip, index) => (
+                            <Typography key={index} variant="caption" display="block" sx={{ ml: 1 }}>
+                              • {tip}
+                            </Typography>
+                          ))}
+                        </Box>
+                      )}
+                    </Alert>
+                  </Box>
+                )}
               </Card>
             </Box>
           )}
