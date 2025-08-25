@@ -64,7 +64,6 @@ const BiometricEnrollment = () => {
   const [selectedDevice, setSelectedDevice] = useState('');
   const [enrollmentProgress, setEnrollmentProgress] = useState(null);
   const [deviceUserId, setDeviceUserId] = useState('');
-  const [sensorMemberId, setSensorMemberId] = useState('');
   const [manualMember, setManualMember] = useState('');
   
   // Stepper state
@@ -334,7 +333,6 @@ const BiometricEnrollment = () => {
     setManualDialogOpen(false);
     setManualMember('');
     setDeviceUserId('');
-    setSensorMemberId('');
   };
 
   const handleManualEnrollment = async () => {
@@ -354,7 +352,6 @@ const BiometricEnrollment = () => {
         },
         body: JSON.stringify({
           deviceUserId: deviceUserId.trim(),
-          sensorMemberId: sensorMemberId.trim() || null,
         }),
       });
 
@@ -853,15 +850,6 @@ const BiometricEnrollment = () => {
             placeholder="e.g., 1, 2, 3..."
             helperText="The user ID assigned by the ESP32 device"
             sx={{ mb: 2 }}
-          />
-          
-          <TextField
-            fullWidth
-            label="Sensor Member ID"
-                  value={sensorMemberId}
-                  onChange={(e) => setSensorMemberId(e.target.value)}
-                  placeholder="Enter sensor member ID (optional)"
-            helperText="The member ID sent by the biometric sensor (if different from device user ID)"
           />
         </DialogContent>
         <DialogActions>

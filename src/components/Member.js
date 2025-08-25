@@ -49,7 +49,6 @@ const Member = () => {
     const [editError, setEditError] = useState('');
     const [openBiometric, setOpenBiometric] = useState(false);
     const [bioDeviceUserId, setBioDeviceUserId] = useState('');
-    const [bioSensorMemberId, setBioSensorMemberId] = useState('');
     const [bioTemplate, setBioTemplate] = useState('');
     const [editingMember, setEditingMember] = useState(null);
     const [openInvoice, setOpenInvoice] = useState(false);
@@ -208,7 +207,6 @@ const Member = () => {
         setEditingMember(member);
         setOpenBiometric(true);
         setBioDeviceUserId('');
-        setBioSensorMemberId('');
         setBioTemplate('');
     };
 
@@ -219,7 +217,6 @@ const Member = () => {
         try {
             const payload = {};
             if (bioDeviceUserId) { payload.device_user_id = bioDeviceUserId; }
-            if (bioSensorMemberId) { payload.sensor_member_id = bioSensorMemberId; }
             if (bioTemplate) { payload.template = bioTemplate; }
             await axios.put(`/api/members/${editingMember.id}/biometric`, payload);
             setOpenBiometric(false);
@@ -468,7 +465,6 @@ const Member = () => {
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                         <TextField label="Device User ID" value={bioDeviceUserId} onChange={(e)=>setBioDeviceUserId(e.target.value)} helperText="User ID configured on ESP32 device (if already enrolled)" />
-                        <TextField label="Sensor Member ID" value={bioSensorMemberId} onChange={(e)=>setBioSensorMemberId(e.target.value)} helperText="Member ID sent by the biometric sensor (if different from device user ID)" />
                         <TextField label="Template (Base64)" value={bioTemplate} onChange={(e)=>setBioTemplate(e.target.value)} multiline minRows={3} placeholder="Paste template string if captured via SDK" />
                     </Box>
                 </DialogContent>

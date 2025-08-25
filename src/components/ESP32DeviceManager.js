@@ -37,7 +37,12 @@ import {
   Security as SecurityIcon,
   DeviceHub as DeviceHubIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Router as RouterIcon,
+  NetworkWifi as NetworkWifiIcon,
+  Check as CheckIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -64,6 +69,22 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  
+  // Device configuration states
+  const [deviceConfigs, setDeviceConfigs] = useState({}); // Store config for each device
+  const [configDevice, setConfigDevice] = useState(null);
+  const [deviceConfig, setDeviceConfig] = useState({
+    wifi_ssid: '',
+    wifi_password: '',
+    gym_server_ip: '',
+    gym_server_port: 8080,
+    device_id: ''
+  });
+  const [configLoading, setConfigLoading] = useState(false);
+  const [testingConfig, setTestingConfig] = useState(false);
+  const [configErrors, setConfigErrors] = useState({});
+  const [configSuccess, setConfigSuccess] = useState('');
   
   // Form states
   const [unlockReason, setUnlockReason] = useState('');
@@ -84,6 +105,35 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     const interval = setInterval(fetchDevices, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch device configurations when devices change
+  useEffect(() => {
+    const fetchAllDeviceConfigs = async () => {
+      const configs = {};
+      for (const device of devices) {
+        if (device.status === 'online' && device.ip_address) {
+          try {
+            const config = await fetchDeviceConfig(device.ip_address);
+            configs[device.device_id] = {
+              ...config,
+              wifi_password_masked: maskPassword(config.wifi_ssid || ''),
+              configStatus: config.wifi_ssid ? 'configured' : 'default'
+            };
+          } catch (error) {
+            configs[device.device_id] = { 
+              error: 'Failed to fetch config',
+              configStatus: 'error'
+            };
+          }
+        }
+      }
+      setDeviceConfigs(configs);
+    };
+    
+    if (devices.length > 0) {
+      fetchAllDeviceConfigs();
+    }
+  }, [devices]);
 
   const fetchEsp32Settings = async () => {
     try {
@@ -206,6 +256,200 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       setTimeout(() => {
         setTestConnectionResult(null);
       }, 10000);
+    }
+  };
+
+  // Device Configuration API Functions
+  const fetchDeviceConfig = async (deviceIP) => {
+    try {
+      const response = await axios.get(`http://${deviceIP}/api/config`, {
+        timeout: 5000
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch config from ${deviceIP}:`, error);
+      throw error;
+    }
+  };
+
+  const updateDeviceConfig = async (deviceIP, config) => {
+    try {
+      const response = await axios.post(`http://${deviceIP}/api/config`, config, {
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to update config for ${deviceIP}:`, error);
+      throw error;
+    }
+  };
+
+  const testDeviceConfig = async (deviceIP, config) => {
+    try {
+      // First validate the configuration locally
+      const errors = validateConfig(config);
+      if (Object.keys(errors).length > 0) {
+        throw new Error('Configuration validation failed');
+      }
+
+      // Test configuration without auto_restart
+      const testConfig = { ...config, auto_restart: false };
+      return await updateDeviceConfig(deviceIP, testConfig);
+    } catch (error) {
+      console.error(`Failed to test config for ${deviceIP}:`, error);
+      throw error;
+    }
+  };
+
+  const validateConfig = (config) => {
+    const errors = {};
+    
+    if (!config.wifi_ssid?.trim()) {
+      errors.wifi_ssid = 'WiFi SSID is required';
+    }
+    
+    if (!config.wifi_password?.trim()) {
+      errors.wifi_password = 'WiFi password is required';
+    }
+    
+    if (!config.gym_server_ip?.trim()) {
+      errors.gym_server_ip = 'Server IP is required';
+    } else if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(config.gym_server_ip)) {
+      errors.gym_server_ip = 'Invalid IP address format';
+    }
+    
+    if (!config.gym_server_port || config.gym_server_port < 1 || config.gym_server_port > 65535) {
+      errors.gym_server_port = 'Port must be between 1 and 65535';
+    }
+
+    if (!config.device_id?.trim()) {
+      errors.device_id = 'Device ID is required';
+    }
+    
+    return errors;
+  };
+
+  const handleConfigureDevice = async (device) => {
+    setConfigDevice(device);
+    setConfigLoading(true);
+    setConfigErrors({});
+    setConfigSuccess('');
+    
+    // Try to fetch current configuration from device
+    if (device.ip_address) {
+      try {
+        const config = await fetchDeviceConfig(device.ip_address);
+        setDeviceConfig({
+          wifi_ssid: config.wifi_ssid || '',
+          wifi_password: '', // Never pre-fill password for security
+          gym_server_ip: config.gym_server_ip || '',
+          gym_server_port: config.gym_server_port || 8080,
+          device_id: config.device_id || device.device_id
+        });
+      } catch (error) {
+        // If we can't fetch config, use defaults
+        setDeviceConfig({
+          wifi_ssid: '',
+          wifi_password: '',
+          gym_server_ip: localListenHost === '0.0.0.0' ? window.location.hostname : localListenHost,
+          gym_server_port: parseInt(localListenPort) || 8080,
+          device_id: device.device_id
+        });
+        setConfigErrors({ fetch: 'Could not fetch current configuration. Using defaults.' });
+      }
+    }
+    
+    setConfigLoading(false);
+    setConfigDialogOpen(true);
+  };
+
+  const handleSaveDeviceConfig = async () => {
+    setConfigLoading(true);
+    setConfigErrors({});
+    setConfigSuccess('');
+    
+    try {
+      // Validate configuration
+      const errors = validateConfig(deviceConfig);
+      if (Object.keys(errors).length > 0) {
+        setConfigErrors(errors);
+        return;
+      }
+
+      // Update device configuration
+      const configToSend = { ...deviceConfig, auto_restart: true };
+      await updateDeviceConfig(configDevice.ip_address, configToSend);
+      
+      setConfigSuccess('Configuration updated successfully! Device will restart to apply changes.');
+      
+      // Update local cache
+      setDeviceConfigs(prev => ({
+        ...prev,
+        [configDevice.device_id]: { ...deviceConfig, wifi_password_masked: maskPassword(deviceConfig.wifi_password) }
+      }));
+      
+      // Refresh devices after a delay
+      setTimeout(() => {
+        fetchDevices();
+        setConfigDialogOpen(false);
+      }, 3000);
+      
+    } catch (error) {
+      setConfigErrors({ 
+        submit: error.response?.data?.error || 'Failed to update configuration. Please check device connectivity.' 
+      });
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const handleTestDeviceConfig = async () => {
+    setTestingConfig(true);
+    setConfigErrors({});
+    setConfigSuccess('');
+    
+    try {
+      // Validate configuration
+      const errors = validateConfig(deviceConfig);
+      if (Object.keys(errors).length > 0) {
+        setConfigErrors(errors);
+        return;
+      }
+
+      await testDeviceConfig(configDevice.ip_address, deviceConfig);
+      setConfigSuccess('Configuration test successful! Settings are valid.');
+      
+    } catch (error) {
+      setConfigErrors({ 
+        test: error.response?.data?.error || 'Configuration test failed. Please check your settings.' 
+      });
+    } finally {
+      setTestingConfig(false);
+    }
+  };
+
+  const maskPassword = (password) => {
+    if (!password) {
+      return '';
+    }
+    if (password.length <= 2) {
+      return '**';
+    }
+    if (password.length <= 4) {
+      return password[0] + '**' + password[password.length - 1];
+    }
+    return password.slice(0, 2) + '*'.repeat(password.length - 3) + password[password.length - 1];
+  };
+
+  const getConfigStatusColor = (status) => {
+    switch (status) {
+      case 'configured': return 'success';
+      case 'default': return 'warning'; 
+      case 'error': return 'error';
+      default: return 'default';
     }
   };
 
@@ -438,6 +682,39 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
             </Typography>
           </Box>
         )}
+
+        {/* Configuration Status Section */}
+        {deviceConfigs[device.device_id] && (
+          <Box mt={2}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Configuration Status
+            </Typography>
+            <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <Chip 
+                label={deviceConfigs[device.device_id].configStatus || 'Unknown'} 
+                color={getConfigStatusColor(deviceConfigs[device.device_id].configStatus)}
+                size="small"
+                icon={deviceConfigs[device.device_id].configStatus === 'configured' ? <CheckIcon /> : 
+                      deviceConfigs[device.device_id].configStatus === 'error' ? <ErrorIcon /> : <WarningIcon />}
+              />
+            </Box>
+            {deviceConfigs[device.device_id].wifi_ssid && (
+              <Box>
+                <Typography variant="caption" display="block">
+                  WiFi: {deviceConfigs[device.device_id].wifi_ssid}
+                </Typography>
+                <Typography variant="caption" display="block">
+                  Server: {deviceConfigs[device.device_id].gym_server_ip}:{deviceConfigs[device.device_id].gym_server_port}
+                </Typography>
+              </Box>
+            )}
+            {deviceConfigs[device.device_id].error && (
+              <Typography variant="caption" color="error">
+                {deviceConfigs[device.device_id].error}
+              </Typography>
+            )}
+          </Box>
+        )}
       </CardContent>
       
       <CardActions>
@@ -487,6 +764,20 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
             >
               <EditIcon />
             </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip 
+          title={device.status !== 'online' ? 'Device must be online to configure' : 'Configure device WiFi and server settings'}
+        >
+          <span>
+            <Button 
+              size="small" 
+              startIcon={<RouterIcon />}
+              onClick={() => handleConfigureDevice(device)}
+              disabled={device.status !== 'online'}
+            >
+              Configure
+            </Button>
           </span>
         </Tooltip>
         <Tooltip 
@@ -1000,6 +1291,160 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
             startIcon={loading ? <CircularProgress size={16} /> : <DeleteIcon />}
           >
             {loading ? 'Deleting...' : 'Delete Device'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Device Configuration Dialog */}
+      <Dialog open={configDialogOpen} onClose={() => setConfigDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <RouterIcon />
+            Configure Device: {configDevice?.device_id}
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {configLoading && (
+            <Box display="flex" justifyContent="center" my={2}>
+              <CircularProgress />
+            </Box>
+          )}
+          
+          {!configLoading && (
+            <>
+              {/* WiFi Configuration Section */}
+              <Typography variant="h6" gutterBottom sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <NetworkWifiIcon />
+                WiFi Configuration
+              </Typography>
+              
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="WiFi SSID"
+                    value={deviceConfig.wifi_ssid}
+                    onChange={(e) => setDeviceConfig(prev => ({ ...prev, wifi_ssid: e.target.value }))}
+                    error={!!configErrors.wifi_ssid}
+                    helperText={configErrors.wifi_ssid || 'Network name (case sensitive)'}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    type="password"
+                    label="WiFi Password"
+                    value={deviceConfig.wifi_password}
+                    onChange={(e) => setDeviceConfig(prev => ({ ...prev, wifi_password: e.target.value }))}
+                    error={!!configErrors.wifi_password}
+                    helperText={configErrors.wifi_password || 'WiFi network password'}
+                    required
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Server Configuration Section */}
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SecurityIcon />
+                Gym Server Configuration
+              </Typography>
+              
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Server IP Address"
+                    value={deviceConfig.gym_server_ip}
+                    onChange={(e) => setDeviceConfig(prev => ({ ...prev, gym_server_ip: e.target.value }))}
+                    error={!!configErrors.gym_server_ip}
+                    helperText={configErrors.gym_server_ip || 'IP address of gym management server'}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Server Port"
+                    value={deviceConfig.gym_server_port}
+                    onChange={(e) => setDeviceConfig(prev => ({ ...prev, gym_server_port: parseInt(e.target.value) || 8080 }))}
+                    error={!!configErrors.gym_server_port}
+                    helperText={configErrors.gym_server_port || 'Server port (default: 8080)'}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    fullWidth
+                    label="Device ID"
+                    value={deviceConfig.device_id}
+                    onChange={(e) => setDeviceConfig(prev => ({ ...prev, device_id: e.target.value }))}
+                    error={!!configErrors.device_id}
+                    helperText={configErrors.device_id || 'Unique device identifier'}
+                    required
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Error and Success Messages */}
+              {configErrors.fetch && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  {configErrors.fetch}
+                </Alert>
+              )}
+              
+              {configErrors.submit && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {configErrors.submit}
+                </Alert>
+              )}
+              
+              {configErrors.test && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {configErrors.test}
+                </Alert>
+              )}
+
+              {configSuccess && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  {configSuccess}
+                </Alert>
+              )}
+
+              {/* Configuration Tips */}
+              <Box sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  💡 Configuration Tips:
+                </Typography>
+                <Typography variant="body2" component="div">
+                  • ESP32 only supports 2.4GHz WiFi networks<br/>
+                  • Server IP should be accessible from the WiFi network<br/>
+                  • Device will restart automatically after saving changes<br/>
+                  • Use "Test Configuration" to validate settings before applying
+                </Typography>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfigDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleTestDeviceConfig}
+            disabled={configLoading || testingConfig}
+            startIcon={testingConfig ? <CircularProgress size={16} /> : <CheckIcon />}
+          >
+            {testingConfig ? 'Testing...' : 'Test Configuration'}
+          </Button>
+          <Button 
+            onClick={handleSaveDeviceConfig}
+            variant="contained"
+            disabled={configLoading}
+            startIcon={configLoading ? <CircularProgress size={16} /> : <RouterIcon />}
+          >
+            {configLoading ? 'Saving...' : 'Save & Apply'}
           </Button>
         </DialogActions>
       </Dialog>
