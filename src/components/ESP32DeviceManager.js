@@ -55,6 +55,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [localListenHost, setLocalListenHost] = useState('0.0.0.0');
   const [localListenPort, setLocalListenPort] = useState('8080');
   const [hasUnsavedConfigChanges, setHasUnsavedConfigChanges] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
   const initialConfigValues = useRef({});
   
   // Dialog states
@@ -132,6 +133,50 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       setTimeout(() => {
         setError(null);
       }, 3000);
+    }
+  };
+
+  const testESP32Connection = async () => {
+    try {
+      setTestingConnection(true);
+      setError(null);
+      setSuccess(null);
+      
+      // Test if we can reach the ESP32 device
+      const testUrl = `http://${esp32Host}:80`; // ESP32 web interface is usually on port 80
+      
+      try {
+        // First try a simple ping-like test using a HEAD request to avoid CORS issues
+        const response = await fetch(`/api/biometric/test-connection`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            host: esp32Host, 
+            port: parseInt(esp32Port) || 8080 
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          setSuccess(`✅ Connection test successful! ESP32 device is reachable at ${esp32Host}:${esp32Port}`);
+        } else {
+          setError(`❌ Connection test failed: ${result.message || 'Unable to reach ESP32 device'}\n\nTips:\n• Check if ESP32 IP address is correct\n• Ensure ESP32 is powered on and connected to WiFi\n• Verify you're on the same network as the ESP32`);
+        }
+      } catch (fetchError) {
+        setError(`❌ Connection test failed: Network error\n\nTips:\n• Check if ESP32 IP address (${esp32Host}) is correct\n• Ensure ESP32 is powered on and connected to WiFi\n• Verify you're on the same network as the ESP32\n• Check router admin panel for connected devices`);
+      }
+      
+    } catch (error) {
+      console.error('Error testing ESP32 connection:', error);
+      setError('Error testing connection. Please check your configuration.');
+    } finally {
+      setTestingConnection(false);
+      
+      setTimeout(() => {
+        setError(null);
+        setSuccess(null);
+      }, 8000);
     }
   };
 
@@ -608,7 +653,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                         value={esp32Host}
                         onChange={(e) => setEsp32Host(e.target.value)}
                         fullWidth
-                        helperText="IP address where ESP32 devices are located (default: 192.168.1.100)"
+                        helperText="IP address of your ESP32 device (check router admin panel or ESP32 Serial Monitor)"
                         placeholder="192.168.1.100"
                       />
                     </Grid>
@@ -653,23 +698,43 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                   
                   <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
                     <Typography variant="body2" gutterBottom>
-                      <strong>📋 Configuration Notes:</strong>
+                      <strong>📋 How to Find ESP32 Host and Port:</strong>
                     </Typography>
-                    <Typography variant="caption" display="block">
-                      • <strong>ESP32 Host/Port:</strong> Where your ESP32 fingerprint devices are located and connect to
+                    <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                      <strong>1. Find ESP32 IP Address:</strong>
                     </Typography>
-                    <Typography variant="caption" display="block">
-                      • <strong>Local Listen Host/Port:</strong> Where this gym management app listens for incoming ESP32 messages
+                    <Typography variant="caption" display="block" sx={{ ml: 2, mb: 0.5 }}>
+                      • Check your router's admin panel for connected devices (look for "ESP32" or device MAC)
                     </Typography>
-                    <Typography variant="caption" display="block">
-                      • <strong>Default Setup:</strong> ESP32 devices at 192.168.1.100:8080, gym app listens on 0.0.0.0:8080
+                    <Typography variant="caption" display="block" sx={{ ml: 2, mb: 0.5 }}>
+                      • Connect ESP32 via USB and check Serial Monitor for IP address output
                     </Typography>
-                    <Typography variant="caption" display="block">
-                      • <strong>Network Setup:</strong> Ensure ESP32 devices and server are on the same network or have proper routing
+                    <Typography variant="caption" display="block" sx={{ ml: 2, mb: 1 }}>
+                      • Use network scanner: <code style={{ backgroundColor: '#e0e0e0', padding: '1px 4px' }}>nmap -sn 192.168.1.0/24</code>
                     </Typography>
+                    
+                    <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                      <strong>2. ESP32 Port:</strong> Default is 8080 (configured in Arduino firmware)
+                    </Typography>
+                    
+                    <Typography variant="caption" display="block" sx={{ mb: 1 }}>
+                      <strong>3. Local Listen Settings:</strong>
+                    </Typography>
+                    <Typography variant="caption" display="block" sx={{ ml: 2, mb: 0.5 }}>
+                      • <strong>Host:</strong> Use 0.0.0.0 to listen on all network interfaces
+                    </Typography>
+                    <Typography variant="caption" display="block" sx={{ ml: 2, mb: 1 }}>
+                      • <strong>Port:</strong> Must match BIOMETRIC_PORT in your .env file (default: 8080)
+                    </Typography>
+                    
+                    <Box sx={{ mt: 2, p: 1.5, backgroundColor: '#e3f2fd', borderRadius: 1 }}>
+                      <Typography variant="caption" display="block">
+                        <strong>💡 Quick Test:</strong> After setting up, ESP32 devices should appear in the "Device Overview" tab above within 1-2 minutes if configured correctly.
+                      </Typography>
+                    </Box>
                   </Box>
                 </CardContent>
-                <CardActions>
+                <CardActions sx={{ gap: 1 }}>
                   <Button 
                     variant="contained" 
                     color="primary" 
@@ -677,6 +742,15 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                     startIcon={<SettingsIcon />}
                   >
                     Save Configuration
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    color="secondary" 
+                    onClick={testESP32Connection}
+                    disabled={testingConnection || !esp32Host}
+                    startIcon={testingConnection ? <CircularProgress size={16} /> : <WifiIcon />}
+                  >
+                    {testingConnection ? 'Testing...' : 'Test Connection'}
                   </Button>
                 </CardActions>
               </Card>
