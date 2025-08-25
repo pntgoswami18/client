@@ -81,28 +81,28 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(String(show_card_unpaid_members_this_month) !== 'false'); }
             if (show_card_active_schedules !== undefined) { setShowActiveSchedules(String(show_card_active_schedules) !== 'false'); }
 
-            // Store initial values after loading
+            // Store initial values after loading with the actual fetched values
             setTimeout(() => {
                 initialValues.current = {
-                    currency,
-                    gymName,
-                    gymLogo,
-                    primaryColor,
-                    secondaryColor,
-                    primaryColorMode,
-                    secondaryColorMode,
-                    primaryGradient,
-                    secondaryGradient,
-                    paymentReminderDays,
-                    morningStart,
-                    morningEnd,
-                    eveningStart,
-                    eveningEnd,
-                    showTotalMembers,
-                    showTotalRevenue,
-                    showNewMembersThisMonth,
-                    showUnpaidMembersThisMonth,
-                    showActiveSchedules
+                    currency: currency || 'INR',
+                    gymName: gym_name || '',
+                    gymLogo: gym_logo || '',
+                    primaryColor: primary_color || '#3f51b5',
+                    secondaryColor: secondary_color || '#f50057',
+                    primaryColorMode: primary_color_mode || 'solid',
+                    secondaryColorMode: secondary_color_mode || 'solid',
+                    primaryGradient: primary_color_gradient || '',
+                    secondaryGradient: secondary_color_gradient || '',
+                    paymentReminderDays: String(payment_reminder_days || '7'),
+                    morningStart: morning_session_start || '05:00',
+                    morningEnd: morning_session_end || '11:00',
+                    eveningStart: evening_session_start || '16:00',
+                    eveningEnd: evening_session_end || '22:00',
+                    showTotalMembers: String(show_card_total_members) !== 'false',
+                    showTotalRevenue: String(show_card_total_revenue) !== 'false',
+                    showNewMembersThisMonth: String(show_card_new_members_this_month) !== 'false',
+                    showUnpaidMembersThisMonth: String(show_card_unpaid_members_this_month) !== 'false',
+                    showActiveSchedules: String(show_card_active_schedules) !== 'false'
                 };
             }, 100);
 
@@ -155,6 +155,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
 
             await axios.put('/api/settings', settingsToUpdate);
 
+            // Reset the logo file state since it was successfully uploaded
+            setLogoFile(null);
             setHasUnsavedChanges(false);
             if (onSave) { onSave(); }
             if (onUnsavedChanges) { onUnsavedChanges(false); }
