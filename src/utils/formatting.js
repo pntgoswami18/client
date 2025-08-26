@@ -73,3 +73,19 @@ export const formatDateToLocalString = (date) => {
     return `${year}-${month}-${day}`;
 };
 
+/**
+ * Get previous day's date in local timezone as YYYY-MM-DD string
+ * This prevents timezone-related date shifts that can occur with toISOString()
+ * @returns {string} Previous day's date in YYYY-MM-DD format
+ */
+export const getPreviousDayString = () => {
+    const now = new Date();
+    const previousDay = new Date(now);
+    previousDay.setDate(now.getDate() - 1);
+    
+    const year = previousDay.getFullYear();
+    const month = String(previousDay.getMonth() + 1).padStart(2, '0');
+    const day = String(previousDay.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
