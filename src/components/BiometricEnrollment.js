@@ -212,7 +212,7 @@ const BiometricEnrollment = () => {
         if (data.success && data.data.events) {
           // Look for recent enrollment events for this member
           const recentEvents = data.data.events.filter(event => 
-            (event.event_type === 'enrollment' || event.event_type === 'enrollment_failed' || event.event_type === 'enrollment_cancelled') &&
+            (event.event_type === 'enrollment' || event.event_type === 'enrollment_progress' || event.event_type === 'enrollment_failed' || event.event_type === 'enrollment_cancelled') &&
             new Date(event.timestamp) > new Date(ongoingEnrollment.startTime) &&
             (!lastCheckedEventId || event.id !== lastCheckedEventId)
           );
@@ -225,6 +225,10 @@ const BiometricEnrollment = () => {
               setSuccess(`🎉 ${ongoingEnrollment.memberName} has been successfully enrolled! They can now use their fingerprint to access the gym.`);
               setOngoingEnrollment(null);
               fetchMembersWithoutBiometric(); // Refresh members list
+            } else if (latestEvent.event_type === 'enrollment_progress') {
+              // Reset the timeout timer since we received a progress update
+              // This means the enrollment is still active
+              setSuccess(`🔄 Enrollment in progress: ${latestEvent.raw_data ? JSON.parse(latestEvent.raw_data).enrollmentStep || 'scanning' : 'scanning'}`);
             } else if (latestEvent.event_type === 'enrollment_cancelled') {
               setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName}.`);
               setOngoingEnrollment(null);
@@ -236,8 +240,14 @@ const BiometricEnrollment = () => {
           }
           
           // Auto-timeout after 3 minutes (increased from 2 minutes)
+          // But only if no progress events have been received recently
           const enrollmentAge = Date.now() - new Date(ongoingEnrollment.startTime).getTime();
-          if (enrollmentAge > 180000) { // 3 minutes
+          const hasRecentProgress = recentEvents.some(event => 
+            event.event_type === 'enrollment_progress' && 
+            new Date(event.timestamp) > new Date(Date.now() - 60000) // Progress in last minute
+          );
+          
+          if (enrollmentAge > 180000 && !hasRecentProgress) { // 3 minutes and no recent progress
             setSuccess(null); // Clear the enrollment started message
             setError(`⏰ Enrollment timeout for ${ongoingEnrollment.memberName}. Please try again.`);
             setOngoingEnrollment(null);
@@ -1122,103 +1132,103 @@ const BiometricEnrollment = () => {
               </CardContent>
             </Card>
           </Grid>
+          
+          {/* Members With Biometric Data */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Box display="flex" alignItems="center" mb={2}>
+                  <FingerprintIcon color="success" sx={{ mr: 1 }} />
+                  <Typography variant="h6">
+                    Members With Biometric Data ({membersWithBiometric ? membersWithBiometric.length : '?'})
+                  </Typography>
+                </Box>
+                
+                {membersWithBiometric && membersWithBiometric.length === 0 ? (
+                  <Alert severity="info">
+                    📝 No members have biometric data enrolled yet.
+                  </Alert>
+                ) : membersWithBiometric && membersWithBiometric.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {membersWithBiometric.map(member => (
+                      <Grid item xs={12} md={6} lg={4} key={member.id}>
+                        <Card variant="outlined" sx={{ 
+                          position: 'relative',
+                          border: '2px solid #4caf50',
+                          boxShadow: '0 0 10px rgba(76, 175, 80, 0.2)'
+                        }}>
+                          <Box 
+                            sx={{ 
+                              position: 'absolute', 
+                              top: 8, 
+                              right: 8, 
+                              bgcolor: 'success.main', 
+                              color: 'white', 
+                              px: 1, 
+                              py: 0.5, 
+                              borderRadius: 1,
+                              fontSize: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5
+                            }}
+                          >
+                            <FingerprintIcon sx={{ fontSize: '1rem' }} />
+                            Enrolled
+                          </Box>
+                          <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                              {member.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              {member.email}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              {member.phone}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Biometric ID: {member.biometric_id}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Joined: {formatDateTime(member.join_date)}
+                            </Typography>
+                          </CardContent>
+                          <Box p={2} pt={0}>
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              color="error"
+                              onClick={() => openDeleteConfirmDialog(member.id, member.name)}
+                              disabled={loading || !!ongoingEnrollment}
+                              startIcon={<DeleteIcon />}
+                              sx={{ mb: 1 }}
+                            >
+                              Delete & Re-enroll
+                            </Button>
+                            <Button
+                              fullWidth
+                              variant="outlined"
+                              onClick={() => startEnrollment(member.id)}
+                              disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                              startIcon={<RefreshIcon />}
+                            >
+                              Re-enroll Now
+                            </Button>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography>Loading member data...</Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
       )}
 
-      {/* Members With Biometric Data */}
-      <Grid container spacing={3} mb={3}>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" mb={2}>
-                <FingerprintIcon color="success" sx={{ mr: 1 }} />
-                <Typography variant="h6">
-                  Members With Biometric Data ({membersWithBiometric ? membersWithBiometric.length : '?'})
-                </Typography>
-              </Box>
-              
-              {membersWithBiometric && membersWithBiometric.length === 0 ? (
-                <Alert severity="info">
-                  📝 No members have biometric data enrolled yet.
-                </Alert>
-              ) : membersWithBiometric && membersWithBiometric.length > 0 ? (
-                <Grid container spacing={2}>
-                  {membersWithBiometric.map(member => (
-                    <Grid item xs={12} md={6} lg={4} key={member.id}>
-                      <Card variant="outlined" sx={{ 
-                        position: 'relative',
-                        border: '2px solid #4caf50',
-                        boxShadow: '0 0 10px rgba(76, 175, 80, 0.2)'
-                      }}>
-                        <Box 
-                          sx={{ 
-                            position: 'absolute', 
-                            top: 8, 
-                            right: 8, 
-                            bgcolor: 'success.main', 
-                            color: 'white', 
-                            px: 1, 
-                            py: 0.5, 
-                            borderRadius: 1,
-                            fontSize: '0.75rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5
-                          }}
-                        >
-                          <FingerprintIcon sx={{ fontSize: '1rem' }} />
-                          Enrolled
-                        </Box>
-                        <CardContent>
-                          <Typography variant="h6" gutterBottom>
-                            {member.name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {member.email}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {member.phone}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Biometric ID: {member.biometric_id}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Joined: {formatDateTime(member.join_date)}
-                          </Typography>
-                        </CardContent>
-                        <Box p={2} pt={0}>
-                          <Button
-                            fullWidth
-                            variant="outlined"
-                            color="error"
-                            onClick={() => openDeleteConfirmDialog(member.id, member.name)}
-                            disabled={loading || !!ongoingEnrollment}
-                            startIcon={<DeleteIcon />}
-                            sx={{ mb: 1 }}
-                          >
-                            Delete & Re-enroll
-                          </Button>
-                          <Button
-                            fullWidth
-                            variant="outlined"
-                            onClick={() => startEnrollment(member.id)}
-                            disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                            startIcon={<RefreshIcon />}
-                          >
-                            Re-enroll Now
-                          </Button>
-                        </Box>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              ) : (
-                <Typography>Loading member data...</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+
 
       {/* Devices Tab */}
       {currentTab === 1 && (
