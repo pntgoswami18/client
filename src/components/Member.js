@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
+import { formatDateToLocalString } from '../utils/formatting';
 import {
     TextField,
     Button,
@@ -153,7 +154,7 @@ const Member = () => {
                 } else {
                     dueDate.setDate(joinDate.getDate() + 30); // Default 30 days
                 }
-                setInvoiceDueDate(dueDate.toISOString().slice(0,10));
+                setInvoiceDueDate(formatDateToLocalString(dueDate));
                 setOpenInvoice(true);
             }
         } catch (error) {
@@ -410,7 +411,10 @@ const Member = () => {
                     ) : (
                         <List>
                             {filteredMembers.map(member => {
-                                const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === new Date().toISOString().slice(5,10);
+                                const today = new Date();
+                                const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+                                const todayDay = String(today.getDate()).padStart(2, '0');
+                                const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === `${todayMonth}-${todayDay}`;
                                 const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
                                 const toggleActive = async () => {
                                     try {

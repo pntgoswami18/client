@@ -21,6 +21,7 @@ import {
     Alert
 } from '@mui/material';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
+import { getCurrentDateString } from '../utils/formatting';
 
 const AttendanceTracker = () => {
     const [members, setMembers] = useState([]);
@@ -28,8 +29,8 @@ const AttendanceTracker = () => {
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     const [simulateMemberId, setSimulateMemberId] = useState('');
     const [checkInError, setCheckInError] = useState('');
-    const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0,10));
-    const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0,10));
+    const [startDate, setStartDate] = useState(() => getCurrentDateString());
+    const [endDate, setEndDate] = useState(() => getCurrentDateString());
 
     useEffect(() => {
         fetchMembers();

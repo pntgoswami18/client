@@ -48,3 +48,28 @@ export const formatDate = (dateString) => {
     return s;
 };
 
+/**
+ * Get current date in local timezone as YYYY-MM-DD string
+ * This prevents timezone-related date shifts that can occur with toISOString()
+ * @returns {string} Current date in YYYY-MM-DD format
+ */
+export const getCurrentDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+/**
+ * Format a Date object to YYYY-MM-DD string in local timezone
+ * @param {Date} date - Date object to format
+ * @returns {string} Date in YYYY-MM-DD format
+ */
+export const formatDateToLocalString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+

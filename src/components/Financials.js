@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
+import { formatDateToLocalString } from '../utils/formatting';
 import {
     Typography,
     TextField,
@@ -384,7 +385,7 @@ const Financials = () => {
                         // Calculate default due date 30 days from now
                         const defaultDueDate = new Date();
                         defaultDueDate.setDate(defaultDueDate.getDate() + 30);
-                        setInvDueDate(defaultDueDate.toISOString().slice(0,10));
+                        setInvDueDate(formatDateToLocalString(defaultDueDate));
                     }}>Create Invoice</Button>
                 </Box>
             </Box>
