@@ -121,7 +121,7 @@ const Dashboard = () => {
             setRevenueStats(Array.isArray(revenue.data) ? revenue.data : []);
             const bdays = Array.isArray(birthdays.data) ? birthdays.data : [];
             setBirthdaysToday(bdays);
-            setShowBirthdays(bdays.length);
+            setShowBirthdays(false);
             
             // Handle payment reminders
             const overdueInvoices = Array.isArray(reminders.data?.overdue_invoices) ? reminders.data.overdue_invoices : [];
