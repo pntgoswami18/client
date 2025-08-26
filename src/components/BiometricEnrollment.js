@@ -175,16 +175,25 @@ const BiometricEnrollment = () => {
         const data = await response.json();
         
         if (data.success && data.status) {
-          if (data.status.status === 'completed') {
+          if (data.status.status === 'completed' || data.status.endReason === 'success') {
             setSuccess('Fingerprint enrollment completed successfully!');
             setEnrollmentProgress(null);
             setActiveStep(3);
             fetchMembersWithoutBiometric(); // Refresh members list
-          } else if (data.status.status === 'failed') {
+          } else if (data.status.status === 'failed' || data.status.endReason === 'max_attempts' || data.status.endReason === 'error') {
             setSuccess(null); // Clear the enrollment started message
-            setError('Fingerprint enrollment failed: ' + data.status.message);
+            setError('Fingerprint enrollment failed: ' + (data.status.message || 'Maximum attempts reached or error occurred'));
             setEnrollmentProgress(null);
             setActiveStep(0);
+          } else if (data.status.endReason === 'cancelled') {
+            setSuccess(null); // Clear the enrollment started message
+            setError('Fingerprint enrollment was cancelled.');
+            setEnrollmentProgress(null);
+            setActiveStep(0);
+          } else if (data.status.currentStep) {
+            // Show progress update
+            setEnrollmentProgress(data.status);
+            setSuccess(`🔄 Enrollment in progress: ${data.status.currentStep}`);
           } else {
             setEnrollmentProgress(data.status);
           }
@@ -193,7 +202,7 @@ const BiometricEnrollment = () => {
       
       // Check individual member enrollment progress
       if (ongoingEnrollment) {
-        const response = await fetch(`/api/biometric/events?limit=5&memberId=${ongoingEnrollment.memberId}`);
+        const response = await fetch(`/api/biometric/events?limit=10&memberId=${ongoingEnrollment.memberId}`);
         const data = await response.json();
         
         if (data.success && data.data.events) {
@@ -222,9 +231,9 @@ const BiometricEnrollment = () => {
             }
           }
           
-          // Auto-timeout after 2 minutes
+          // Auto-timeout after 3 minutes (increased from 2 minutes)
           const enrollmentAge = Date.now() - new Date(ongoingEnrollment.startTime).getTime();
-          if (enrollmentAge > 120000) { // 2 minutes
+          if (enrollmentAge > 180000) { // 3 minutes
             setSuccess(null); // Clear the enrollment started message
             setError(`⏰ Enrollment timeout for ${ongoingEnrollment.memberName}. Please try again.`);
             setOngoingEnrollment(null);
