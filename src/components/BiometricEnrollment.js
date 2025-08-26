@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -90,6 +90,10 @@ const BiometricEnrollment = () => {
   // Track ongoing enrollments for individual members
   const [ongoingEnrollment, setOngoingEnrollment] = useState(null); // { memberId, memberName, startTime }
   const [lastCheckedEventId, setLastCheckedEventId] = useState(null);
+  
+  // WebSocket connection for real-time updates
+  const [wsConnected, setWsConnected] = useState(false);
+  const wsRef = useRef(null);
   
   // Event filtering state - heartbeat events deselected by default
   const [eventTypeFilters, setEventTypeFilters] = useState({
@@ -333,13 +337,85 @@ const BiometricEnrollment = () => {
     fetchEnrollmentStatus();
     fetchBiometricEvents();
     
-    // Poll enrollment status every 2 seconds
+    // Set up WebSocket connection for real-time updates
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+    
+    ws.onopen = () => {
+      console.log('🔌 WebSocket connected for real-time enrollment updates');
+      setWsConnected(true);
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('📡 WebSocket message received:', data);
+        
+        if (data.type === 'enrollment_started') {
+          setSuccess(`📱 Enrollment started for ${data.memberName}. Please place your finger on the biometric device.`);
+          setOngoingEnrollment({
+            memberId: data.memberId,
+            memberName: data.memberName,
+            startTime: new Date().toISOString()
+          });
+        } else if (data.type === 'enrollment_progress') {
+          if (data.status === 'progress') {
+            setSuccess(`🔄 Enrollment in progress: ${data.currentStep}`);
+          } else if (data.status === 'retry') {
+            setSuccess(`🔄 ${data.message}`);
+          }
+        } else if (data.type === 'enrollment_complete') {
+          if (data.status === 'success') {
+            setSuccess(`🎉 ${data.memberName} has been successfully enrolled! They can now use their fingerprint to access the gym.`);
+            setOngoingEnrollment(null);
+            fetchMembersWithoutBiometric(); // Refresh members list
+          } else if (data.status === 'failed') {
+            setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
+            setOngoingEnrollment(null);
+          } else if (data.status === 'cancelled') {
+            setSuccess(`⏹️ Enrollment cancelled for ${data.memberName}.`);
+            setOngoingEnrollment(null);
+          } else if (data.status === 'error') {
+            setError(`❌ Enrollment error for ${data.memberName}: ${data.message}`);
+            setOngoingEnrollment(null);
+          }
+        } else if (data.type === 'enrollment_stopped') {
+          if (data.reason !== 'success') {
+            setSuccess(null);
+            setError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
+            setOngoingEnrollment(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+    
+    ws.onclose = () => {
+      console.log('🔌 WebSocket disconnected');
+      setWsConnected(false);
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setWsConnected(false);
+    };
+    
+    // Poll enrollment status every 2 seconds (fallback)
     const interval = setInterval(() => {
       fetchEnrollmentStatus();
       checkEnrollmentProgress();
     }, 2000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
   }, [checkEnrollmentProgress, fetchMembersWithoutBiometric, fetchMembersWithBiometric, fetchDevices, fetchSystemStatus, fetchEnrollmentStatus, fetchBiometricEvents]);
 
 
@@ -807,6 +883,14 @@ const BiometricEnrollment = () => {
                 color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
                 sx={{ mb: 1 }}
               />
+              <Box display="flex" alignItems="center" mb={1}>
+                <Chip
+                  label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
+                  color={wsConnected ? 'success' : 'warning'}
+                  size="small"
+                  icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
+                />
+              </Box>
               <Typography variant="body2" color="text.secondary">
                 Connected Devices: {systemStatus?.connectedDevices || 0}
               </Typography>
