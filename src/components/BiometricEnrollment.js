@@ -181,6 +181,7 @@ const BiometricEnrollment = () => {
             setActiveStep(3);
             fetchMembersWithoutBiometric(); // Refresh members list
           } else if (data.status.status === 'failed') {
+            setSuccess(null); // Clear the enrollment started message
             setError('Fingerprint enrollment failed: ' + data.status.message);
             setEnrollmentProgress(null);
             setActiveStep(0);
@@ -215,6 +216,7 @@ const BiometricEnrollment = () => {
               setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName}.`);
               setOngoingEnrollment(null);
             } else if (latestEvent.event_type === 'enrollment_failed' || !latestEvent.success) {
+              setSuccess(null); // Clear the enrollment started message
               setError(`❌ Fingerprint enrollment failed for ${ongoingEnrollment.memberName}. Please try again. Make sure the finger is clean and placed firmly on the scanner.`);
               setOngoingEnrollment(null);
             }
@@ -223,6 +225,7 @@ const BiometricEnrollment = () => {
           // Auto-timeout after 2 minutes
           const enrollmentAge = Date.now() - new Date(ongoingEnrollment.startTime).getTime();
           if (enrollmentAge > 120000) { // 2 minutes
+            setSuccess(null); // Clear the enrollment started message
             setError(`⏰ Enrollment timeout for ${ongoingEnrollment.memberName}. Please try again.`);
             setOngoingEnrollment(null);
           }
@@ -400,12 +403,14 @@ const BiometricEnrollment = () => {
           fetchEnrollmentStatus();
         }
       } else {
+        setSuccess(null); // Clear any existing success message
         setError(data.message || 'Failed to start enrollment');
         if (deviceId) {
           setActiveStep(1);
         }
       }
     } catch (error) {
+      setSuccess(null); // Clear any existing success message
       setError('Error starting enrollment: ' + error.message);
       if (deviceId) {
         setActiveStep(1);
@@ -434,9 +439,11 @@ const BiometricEnrollment = () => {
         fetchEnrollmentStatus();
         fetchMembersWithoutBiometric();
       } else {
+        setSuccess(null); // Clear any existing success message
         setError(data.message || 'Failed to stop enrollment');
       }
     } catch (error) {
+      setSuccess(null); // Clear any existing success message
       setError('Error stopping enrollment: ' + error.message);
     } finally {
       setLoading(false);
@@ -470,10 +477,12 @@ const BiometricEnrollment = () => {
         fetchMembersWithoutBiometric();
         fetchMembersWithBiometric();
       } else {
+        setSuccess(null); // Clear any existing success message
         setError(`❌ Failed to delete biometric data: ${data.message}`);
       }
     } catch (error) {
       console.error('Error deleting biometric data:', error);
+      setSuccess(null); // Clear any existing success message
       setError(`❌ Error deleting biometric data: ${error.message}`);
     } finally {
       setLoading(false);
@@ -504,16 +513,16 @@ const BiometricEnrollment = () => {
       setLastCheckedEventId(null);
       
       if (data.success) {
-        setSuccess(`Enrollment cancelled for ${ongoingEnrollment.memberName}`);
+        setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName}`);
       } else {
-        setSuccess(`Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
+        setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
       }
     } catch (error) {
       // Even if the API call fails, we should still cancel locally
       console.error('Error cancelling enrollment:', error);
       setOngoingEnrollment(null);
       setLastCheckedEventId(null);
-      setSuccess(`Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
+      setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
     } finally {
       setLoading(false);
     }
@@ -532,9 +541,11 @@ const BiometricEnrollment = () => {
       if (data.success) {
         setSuccess(`Test message sent to ${data.data.connectedDevices} device(s)`);
       } else {
+        setSuccess(null); // Clear any existing success message
         setError(data.message || 'Connection test failed');
       }
     } catch (error) {
+      setSuccess(null); // Clear any existing success message
       setError('Error testing connection: ' + error.message);
     } finally {
       setLoading(false);
@@ -588,9 +599,11 @@ const BiometricEnrollment = () => {
         fetchMembersWithoutBiometric();
         fetchBiometricEvents();
       } else {
+        setSuccess(null); // Clear any existing success message
         setError(data.message || 'Failed to assign biometric data');
       }
     } catch (error) {
+      setSuccess(null); // Clear any existing success message
       setError('Error assigning biometric data: ' + error.message);
     } finally {
       setLoading(false);
@@ -606,6 +619,8 @@ const BiometricEnrollment = () => {
     setActiveStep(0);
     setEnrollDialogOpen(false);
     setOngoingEnrollment(null); // Clear ongoing enrollment tracking
+    setSuccess(null); // Clear any success messages
+    setError(null); // Clear any error messages
   };
 
   const getDeviceStatusChip = (device) => (
@@ -1237,7 +1252,11 @@ const BiometricEnrollment = () => {
       {/* Enrollment Dialog */}
       <Dialog 
         open={enrollDialogOpen} 
-        onClose={() => setEnrollDialogOpen(false)}
+        onClose={() => {
+          setEnrollDialogOpen(false);
+          setSuccess(null); // Clear success message when dialog is closed
+          setError(null); // Clear error message when dialog is closed
+        }}
         maxWidth="md"
         fullWidth
       >
@@ -1255,7 +1274,11 @@ const BiometricEnrollment = () => {
       </Dialog>
 
       {/* Manual Enrollment Dialog */}
-      <Dialog open={manualDialogOpen} onClose={() => setManualDialogOpen(false)}>
+      <Dialog open={manualDialogOpen} onClose={() => {
+        setManualDialogOpen(false);
+        setSuccess(null); // Clear success message when dialog is closed
+        setError(null); // Clear error message when dialog is closed
+      }}>
         <DialogTitle>Manual Biometric Assignment</DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 2 }}>

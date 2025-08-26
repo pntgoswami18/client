@@ -1,34 +1,5 @@
 # Gym Management Software - Frontend Dashboard
 
-React admin dashboard for managing members, classes, schedules, attendance, billing, and high‑level analytics.
-
-## High‑level Features
-
-- Analytics dashboard with summary cards and charts
-- Member management (add/edit/list)
-- Classes and schedules
-- Attendance tracking with date‑range filtering
-- Financials: membership plans, invoices, manual payments
-- Branding via accent colors (solid/gradient) with a gradient editor
-
-## Technology Stack
-
-- React 19, React Router
-- Material UI
-- Axios
-
-## Installation
-
-```bash
-cd client
-npm install
-npm start
-```
-
-Runs at `http://localhost:3000` and proxies API requests to the backend (`http://localhost:3001`).
-
-# Gym Management Software - Frontend Dashboard
-
 This is the React frontend for the Gym Management Software, providing a comprehensive admin dashboard for gym owners and staff to manage their operations.
 
 ## Features
@@ -49,7 +20,8 @@ The frontend dashboard includes:
 - **React.js** with functional components and hooks
 - **React Router** for multi-page navigation
 - **Axios** for API communication with the backend
-- **Professional styling** with responsive design
+- **Material UI** for professional styling and components
+- **Responsive design** with professional styling
 
 ## Getting Started
 
