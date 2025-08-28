@@ -44,7 +44,6 @@ import {
   History as HistoryIcon,
   Monitor as MonitorIcon,
   Delete as DeleteIcon,
-  Star as CrownIcon,
   Star as StarIcon
 } from '@mui/icons-material';
 
