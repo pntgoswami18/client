@@ -395,8 +395,11 @@ const Financials = () => {
                 <DialogTitle>Record Manual Payment</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+                            Note: Admin users are exempt from payments and will not appear in this list.
+                        </Typography>
                         <Autocomplete
-                            options={members}
+                            options={members.filter(m => m.is_admin !== 1)}
                             isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
                             getOptionLabel={(option) => option?.name || ''}
                             value={manualMember}
@@ -464,6 +467,12 @@ const Financials = () => {
                     <Button onClick={() => setOpenManualPayment(false)}>Cancel</Button>
                     <Button onClick={async ()=>{
                         try {
+                            // Check if selected member is an admin user
+                            if (manualMember && manualMember.is_admin === 1) {
+                                alert('Admin users are exempt from payments and cannot have payments recorded against them.');
+                                return;
+                            }
+                            
                             const amountNum = Number(manualAmount);
                             if (!manualAmount || Number.isNaN(amountNum) || amountNum <= 0) {
                                 alert('Please enter a valid amount greater than 0.');
@@ -492,11 +501,17 @@ const Financials = () => {
                 <DialogTitle>Create Invoice</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+                            Note: Admin users are exempt from payments and cannot have invoices created against them.
+                        </Typography>
                         <FormControl fullWidth>
                             <InputLabel>Member</InputLabel>
                             <Select value={invMemberId} onChange={(e)=>{ setInvMemberId(e.target.value); }}>
                                 {members.map(m => (
-                                    <MenuItem key={m.id} value={m.id}>{m.name} - {m.email}</MenuItem>
+                                    <MenuItem key={m.id} value={m.id} disabled={m.is_admin === 1}>
+                                        {m.name} - {m.email}
+                                        {m.is_admin === 1 && ' (Admin - No Payments)'}
+                                    </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
@@ -520,10 +535,16 @@ const Financials = () => {
                     <Button onClick={()=>setOpenCreateInvoice(false)}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
+                            // Check if selected member is an admin user
+                            const selectedMember = members.find(m => String(m.id) === String(invMemberId));
+                            if (selectedMember && selectedMember.is_admin === 1) {
+                                alert('Admin users are exempt from payments and cannot have invoices created against them.');
+                                return;
+                            }
+                            
                             // If no plan selected, try to get member's current plan
                             let finalPlanId = invPlanId ? parseInt(invPlanId,10) : null;
                             if (!finalPlanId && invMemberId) {
-                                const selectedMember = members.find(m => String(m.id) === String(invMemberId));
                                 if (selectedMember && selectedMember.membership_plan_id) {
                                     finalPlanId = selectedMember.membership_plan_id;
                                 }
@@ -537,7 +558,10 @@ const Financials = () => {
                             });
                             setOpenCreateInvoice(false);
                             fetchFinancialSummary();
-                        } catch (e) { console.error(e); }
+                        } catch (e) { 
+                            console.error(e);
+                            alert(e?.response?.data?.message || 'Error creating invoice.');
+                        }
                     }}>Create</Button>
                 </DialogActions>
             </Dialog>
@@ -547,11 +571,17 @@ const Financials = () => {
                 <DialogTitle>Edit Invoice #{editInvoiceId}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+                            Note: Admin users are exempt from payments and cannot have invoices created against them.
+                        </Typography>
                         <FormControl fullWidth>
                             <InputLabel>Member</InputLabel>
                             <Select value={editInvMemberId} onChange={(e)=>{ setEditInvMemberId(e.target.value); }}>
                                 {members.map(m => (
-                                    <MenuItem key={m.id} value={m.id}>{m.name} - {m.email}</MenuItem>
+                                    <MenuItem key={m.id} value={m.id} disabled={m.is_admin === 1}>
+                                        {m.name} - {m.email}
+                                        {m.is_admin === 1 && ' (Admin - No Payments)'}
+                                    </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
@@ -576,10 +606,16 @@ const Financials = () => {
                     <Button onClick={()=>setOpenEditInvoice(false)}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
+                            // Check if selected member is an admin user
+                            const selectedMember = members.find(m => String(m.id) === String(editInvMemberId));
+                            if (selectedMember && selectedMember.is_admin === 1) {
+                                alert('Admin users are exempt from payments and cannot have invoices created against them.');
+                                return;
+                            }
+                            
                             // If no plan selected, try to get member's current plan
                             let finalPlanId = editInvPlanId ? parseInt(editInvPlanId,10) : null;
                             if (!finalPlanId && editInvMemberId) {
-                                const selectedMember = members.find(m => String(m.id) === String(editInvMemberId));
                                 if (selectedMember && selectedMember.membership_plan_id) {
                                     finalPlanId = selectedMember.membership_plan_id;
                                 }

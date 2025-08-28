@@ -1217,7 +1217,7 @@ const BiometricEnrollment = () => {
                               startIcon={<DeleteIcon />}
                               sx={{ mb: 1 }}
                             >
-                              Delete & Re-enroll
+                              Delete Enrollment
                             </Button>
                             <Button
                               fullWidth
@@ -1446,15 +1446,15 @@ const BiometricEnrollment = () => {
         aria-describedby="delete-confirm-dialog-description"
       >
         <DialogTitle id="delete-confirm-dialog-title">
-          Confirm Biometric Data Deletion
+          Confirm Enrollment Deletion
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the biometric data for{' '}
+            Are you sure you want to delete the biometric enrollment for{' '}
             <strong>{deleteConfirmDialog.memberName}</strong>?
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This will require them to re-enroll their fingerprint. The action cannot be undone.
+            This will remove their fingerprint data and require them to re-enroll. The action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -1467,7 +1467,7 @@ const BiometricEnrollment = () => {
             variant="contained"
             disabled={loading}
           >
-            Delete & Re-enroll
+            Delete Enrollment
           </Button>
         </DialogActions>
       </Dialog>
