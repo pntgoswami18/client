@@ -44,7 +44,8 @@ import {
   History as HistoryIcon,
   Monitor as MonitorIcon,
   Delete as DeleteIcon,
-  Star as CrownIcon
+  Star as CrownIcon,
+  Star as StarIcon
 } from '@mui/icons-material';
 
 const BiometricEnrollment = () => {
@@ -749,7 +750,18 @@ const BiometricEnrollment = () => {
                 >
                   {members.map((member) => (
                     <MenuItem key={member.id} value={member.id}>
-                      {member.name} (ID: {member.id})
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {member.name} (ID: {member.id})
+                        {member.is_admin === 1 && (
+                          <StarIcon 
+                            sx={{ 
+                              color: '#ffd700', 
+                              fontSize: 16,
+                              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                            }} 
+                          />
+                        )}
+                      </Box>
                     </MenuItem>
                   ))}
                 </Select>
@@ -1068,7 +1080,7 @@ const BiometricEnrollment = () => {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 {member.name}
                                 {member.is_admin === 1 && (
-                                  <CrownIcon 
+                                  <StarIcon 
                                     sx={{ 
                                       color: '#ffd700', 
                                       fontSize: 20,
@@ -1168,8 +1180,9 @@ const BiometricEnrollment = () => {
                       <Grid item xs={12} md={6} lg={4} key={member.id}>
                         <Card variant="outlined" sx={{ 
                           position: 'relative',
-                          border: '2px solid #4caf50',
-                          boxShadow: '0 0 10px rgba(76, 175, 80, 0.2)'
+                          background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                          border: member.is_admin === 1 ? '2px solid #ffd700' : '2px solid #4caf50',
+                          boxShadow: member.is_admin === 1 ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)'
                         }}>
                           <Box 
                             sx={{ 
@@ -1191,9 +1204,20 @@ const BiometricEnrollment = () => {
                             Enrolled
                           </Box>
                           <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                              {member.name}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                                {member.name}
+                              </Typography>
+                              {member.is_admin === 1 && (
+                                <StarIcon 
+                                  sx={{ 
+                                    color: '#ffd700', 
+                                    fontSize: 20,
+                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                  }} 
+                                />
+                              )}
+                            </Box>
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                               {member.email}
                             </Typography>
@@ -1410,7 +1434,18 @@ const BiometricEnrollment = () => {
             >
               {members.map((member) => (
                 <MenuItem key={member.id} value={member.id}>
-                  {member.name} (ID: {member.id})
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {member.name} (ID: {member.id})
+                    {member.is_admin === 1 && (
+                      <StarIcon 
+                        sx={{ 
+                          color: '#ffd700', 
+                          fontSize: 16,
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                        }} 
+                      />
+                    )}
+                  </Box>
                 </MenuItem>
               ))}
             </Select>
