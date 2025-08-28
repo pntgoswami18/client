@@ -43,7 +43,8 @@ import {
   Settings as SettingsIcon,
   History as HistoryIcon,
   Monitor as MonitorIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Star as CrownIcon
 } from '@mui/icons-material';
 
 const BiometricEnrollment = () => {
@@ -1026,6 +1027,8 @@ const BiometricEnrollment = () => {
                       <Grid item xs={12} md={6} lg={4} key={member.id}>
                         <Card variant="outlined" sx={{ 
                           position: 'relative',
+                          background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                          border: member.is_admin === 1 ? '2px solid #ffd700' : undefined,
                           ...(ongoingEnrollment && ongoingEnrollment.memberId === member.id && {
                             border: '2px solid #2196f3',
                             boxShadow: '0 0 10px rgba(33, 150, 243, 0.3)'
@@ -1062,7 +1065,18 @@ const BiometricEnrollment = () => {
                           )}
                           <CardContent>
                             <Typography variant="h6" gutterBottom>
-                              {member.name}
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {member.name}
+                                {member.is_admin === 1 && (
+                                  <CrownIcon 
+                                    sx={{ 
+                                      color: '#ffd700', 
+                                      fontSize: 20,
+                                      filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                    }} 
+                                  />
+                                )}
+                              </Box>
                             </Typography>
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                               {member.email}

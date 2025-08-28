@@ -32,6 +32,7 @@ import {
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HistoryToggleOffOutlinedIcon from '@mui/icons-material/HistoryToggleOffOutlined';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
+import StarIcon from '@mui/icons-material/Star';
 
 const Financials = () => {
     const [plans, setPlans] = useState([]);
@@ -764,21 +765,39 @@ const Financials = () => {
                                     <TableRow 
                                         key={member.id}
                                         sx={{
-                                            backgroundColor: member.is_overdue_for_plan === 1 
-                                                ? 'rgba(239, 68, 68, 0.08)' 
-                                                : 'transparent',
-                                            borderLeft: member.is_overdue_for_plan === 1 
-                                                ? '4px solid #ef4444' 
-                                                : '4px solid transparent',
+                                            backgroundColor: member.is_admin === 1 
+                                                ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)'
+                                                : member.is_overdue_for_plan === 1 
+                                                    ? 'rgba(239, 68, 68, 0.08)' 
+                                                    : 'transparent',
+                                            borderLeft: member.is_admin === 1 
+                                                ? '4px solid #ffd700'
+                                                : member.is_overdue_for_plan === 1 
+                                                    ? '4px solid #ef4444' 
+                                                    : '4px solid transparent',
+                                            border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
                                             '&:hover': {
-                                                backgroundColor: member.is_overdue_for_plan === 1 
-                                                    ? 'rgba(239, 68, 68, 0.12)' 
-                                                    : 'rgba(0, 0, 0, 0.04)'
+                                                backgroundColor: member.is_admin === 1 
+                                                    ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)'
+                                                    : member.is_overdue_for_plan === 1 
+                                                        ? 'rgba(239, 68, 68, 0.12)' 
+                                                        : 'rgba(0, 0, 0, 0.04)'
                                             }
                                         }}
                                     >
                                         <TableCell>
-                                            {member.name}
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {member.name}
+                                                {member.is_admin === 1 && (
+                                                    <StarIcon 
+                                                        sx={{ 
+                                                            color: '#ffd700', 
+                                                            fontSize: 16,
+                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                        }} 
+                                                    />
+                                                )}
+                                            </Box>
                                             {member.is_overdue_for_plan === 1 && (
                                                 <span style={{ 
                                                     marginLeft: '8px', 

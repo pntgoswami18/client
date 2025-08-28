@@ -6,6 +6,12 @@ This is the React frontend for the Gym Management Software, providing a comprehe
 
 The frontend dashboard includes:
 
+### User Roles & Admin Privileges
+- **Admin User Management**: Create and manage admin users with special privileges
+- **Visual Admin Indicators**: Admin users are highlighted with golden styling and crown icons across all interfaces
+- **Role-based Filtering**: Filter members and attendance records by admin status
+- **Admin Check-in Privileges**: Admin users can check in multiple times per day without session restrictions
+
 - **Analytics Dashboard:** Real-time reporting with summary statistics, member growth trends, revenue analytics, and popular class rankings
 - **Member Management:** Add, view, edit, and delete gym members with automated welcome emails
 - **Consolidated Biometric Management:** Unified ESP32 fingerprint enrollment with guided process, device selection, real-time enrollment monitoring, and manual member-device linking
@@ -95,6 +101,33 @@ src/
 └── index.js                       # App entry point
 ```
 
+## Admin Roles Implementation
+
+The frontend implements comprehensive admin role functionality with visual indicators and special privileges.
+
+### Admin User Features
+- **Multiple Daily Check-ins**: Admin users can enter the gym multiple times per day
+- **Session Bypass**: Admin users are not restricted to morning/evening shift limitations
+- **Visual Recognition**: Admin users are clearly identified with golden styling and crown icons
+
+### Admin User Management
+- **Creation**: Check "Admin User" checkbox when adding new members
+- **Updates**: Modify admin status for existing members
+- **Filtering**: Separate views for admins and regular members
+- **Visual Indicators**: Golden background, borders, and crown icons
+
+### Admin Styling System
+- **Golden Accent**: Linear gradient from #fff9c4 to #fffde7
+- **Border Styling**: 2px solid #ffd700 borders
+- **Crown Icons**: Star icons representing admin status
+- **Hover Effects**: Enhanced golden background on interaction
+
+### Components with Admin Support
+- **Member.js**: Admin checkbox, filtering, and visual indicators
+- **AttendanceTracker.js**: Member type filtering and admin highlighting
+- **BiometricEnrollment.js**: Admin user identification
+- **Financials.js**: Admin user highlighting in payment tables
+
 ## Component Details
 
 ### Dashboard Component
@@ -111,10 +144,13 @@ The main dashboard provides:
 
 Features include:
 - **CRUD Operations**: Create, read, update, and delete gym members
+- **Admin Role Management**: Create and manage admin users with special privileges
 - **Biometric Linking**: Connect members to ESP32 devices via `device_user_id`
 - **Search & Filter**: Find members by name, phone, or email
+- **Role-based Filtering**: Separate views for admins and regular members
 - **Validation**: Required fields and unique phone number constraints
 - **Real-time Updates**: Immediate UI updates after operations
+- **Visual Admin Indicators**: Admin users highlighted with golden styling and crown icons
 
 ### Biometric Enrollment
 
@@ -137,11 +173,14 @@ Integrated class and schedule system:
 ### Attendance Tracking
 
 Advanced attendance management:
-- **Session Enforcement**: Morning (05:00–11:00) and Evening (16:00–22:00) sessions
-- **Daily Limits**: Maximum one check-in per calendar date
+- **Session Enforcement**: Morning (05:00–11:00) and Evening (16:00–22:00) sessions for regular members
+- **Admin Privileges**: Admin users can check in multiple times per day without session restrictions
+- **Daily Limits**: Maximum one check-in per calendar date for regular members
 - **Date Range Filtering**: Default to current week with full-day coverage
+- **Member Type Filtering**: Filter attendance records by admin/member type
 - **Biometric Integration**: Support for ESP32 device check-ins
 - **Manual Override**: Simulate check-ins for testing
+- **Admin Visual Indicators**: Admin attendance records highlighted with golden styling
 
 ### Financial Management
 
@@ -151,6 +190,7 @@ Comprehensive billing system:
 - **Manual Payments**: Record cash, bank, or UPI payments
 - **Payment History**: Track all financial transactions
 - **Unpaid Invoices**: View and manage outstanding balances
+- **Admin User Highlighting**: Admin users highlighted in payment status tables with crown icons
 
 ### Settings Management
 
@@ -205,6 +245,9 @@ The frontend communicates with the backend through REST API calls using Axios. A
 - **`GET /api/payments/unpaid?member_id=<id>`** - Financials modal unpaid invoices
 - **`POST /api/payments/manual`** - Record manual payment
 - **`PUT /api/members/:id/biometric`** - Link member to ESP32 device
+- **`POST /api/members`** - Create member with admin role support
+- **`PUT /api/members/:id`** - Update member including admin status
+- **`GET /api/attendance?member_type=<type>`** - Filter attendance by member type (admins, members, all)
 
 ### WebSocket Integration
 
@@ -338,6 +381,8 @@ Planned improvements for the frontend:
 6. **Advanced Filtering**: Complex search and filter capabilities
 7. **Bulk Operations**: Multi-select and bulk actions
 8. **Export Functionality**: Data export to CSV/PDF formats
+9. **Advanced Role Management**: Multiple admin levels and granular permissions
+10. **Role-based UI**: Dynamic interface based on user roles
 
 ## Support
 

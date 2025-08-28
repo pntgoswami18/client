@@ -21,11 +21,14 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Alert
+    Alert,
+    FormControlLabel,
+    Checkbox
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
+import CrownIcon from '@mui/icons-material/Star';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -57,6 +60,7 @@ const Member = () => {
     const [invoiceAmount, setInvoiceAmount] = useState('');
     const [invoiceDueDate, setInvoiceDueDate] = useState('');
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         fetchMembers();
@@ -121,7 +125,8 @@ const Member = () => {
                 membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null,
                 address: address || null,
                 birthday: birthday || null,
-                photo_url: photoUrl || null
+                photo_url: photoUrl || null,
+                is_admin: isAdmin
             };
             const res = await axios.post('/api/members', newMember);
             if (res?.data?.id && photoFile) {
@@ -175,7 +180,8 @@ const Member = () => {
                 phone,
                 address: address || null,
                 birthday: birthday || null,
-                photo_url: photoUrl || null
+                photo_url: photoUrl || null,
+                is_admin: isAdmin
             };
             await axios.put(`/api/members/${editingMember.id}`, body);
             if (photoFile) {
@@ -201,6 +207,7 @@ const Member = () => {
         setAddress(member.address || '');
         setBirthday(member.birthday || '');
         setPhotoUrl(member.photo_url || '');
+        setIsAdmin(member.is_admin === 1);
         setOpenEdit(true);
     };
 
@@ -253,6 +260,12 @@ const Member = () => {
             const unpaidIds = new Set(unpaidMembersThisMonth.map(m => String(m.id)));
             return members.filter(m => unpaidIds.has(String(m.id)));
         }
+        if (filter === 'admins') {
+            return members.filter(m => m.is_admin === 1);
+        }
+        if (filter === 'members') {
+            return members.filter(m => m.is_admin !== 1);
+        }
         return members;
     }, [members, filter, unpaidMembersThisMonth]);
 
@@ -270,6 +283,8 @@ const Member = () => {
                         <MenuItem value="all">All Members</MenuItem>
                         <MenuItem value="new-this-month">Joined This Month</MenuItem>
                         <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>
+                        <MenuItem value="admins">Admins</MenuItem>
+                        <MenuItem value="members">Regular Members</MenuItem>
                     </Select>
                 </FormControl>
                 <Box sx={{ flex: 1 }} />
@@ -330,6 +345,17 @@ const Member = () => {
                                 )}
                             </Select>
                         </FormControl>
+                        
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isAdmin}
+                                    onChange={(e) => setIsAdmin(e.target.checked)}
+                                />
+                            }
+                            label="Admin User (can enter multiple times per day)"
+                        />
+                        
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
                             <Button type="submit" variant="contained" disabled={plans.length === 0}>Add Member</Button>
@@ -359,6 +385,16 @@ const Member = () => {
                             </Button>
                             {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
                         </Box>
+                        
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isAdmin}
+                                    onChange={(e) => setIsAdmin(e.target.checked)}
+                                />
+                            }
+                            label="Admin User (can enter multiple times per day)"
+                        />
                         
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
@@ -426,7 +462,16 @@ const Member = () => {
                                     }
                                 };
                                 return (
-                                    <ListItem key={member.id} divider secondaryAction={
+                                    <ListItem 
+                                        key={member.id} 
+                                        divider 
+                                        sx={{
+                                            background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                                            border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
+                                            borderRadius: member.is_admin === 1 ? 2 : 0,
+                                            mb: member.is_admin === 1 ? 1 : 0
+                                        }}
+                                        secondaryAction={
                                         <Box sx={{ display: 'flex', gap: 1 }}>
                                             {whatsappHref && (
                                                 <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
@@ -453,7 +498,22 @@ const Member = () => {
                                             </Avatar>
                                         </ListItemAvatar>
                                         <ListItemText
-                                            primary={<span>{member.name} {isBirthdayToday ? '🎂' : ''} {String(member.is_active) === '0' ? '(Deactivated)' : ''}</span>}
+                                            primary={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <span>{member.name}</span>
+                                                    {member.is_admin === 1 && (
+                                                        <CrownIcon 
+                                                            sx={{ 
+                                                                color: '#ffd700', 
+                                                                fontSize: 20,
+                                                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                            }} 
+                                                        />
+                                                    )}
+                                                    {isBirthdayToday && '🎂'}
+                                                    {String(member.is_active) === '0' && '(Deactivated)'}
+                                                </Box>
+                                            }
                                             secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
                                         />
                                     </ListItem>

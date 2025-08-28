@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { getCurrentDateString, getPreviousDayString } from '../utils/formatting';
+import CrownIcon from '@mui/icons-material/Star';
 
 const AttendanceTracker = () => {
     const [members, setMembers] = useState([]);
@@ -31,6 +32,7 @@ const AttendanceTracker = () => {
     const [checkInError, setCheckInError] = useState('');
     const [startDate, setStartDate] = useState(() => getPreviousDayString());
     const [endDate, setEndDate] = useState(() => getCurrentDateString());
+    const [memberTypeFilter, setMemberTypeFilter] = useState('all');
 
     useEffect(() => {
         fetchMembers();
@@ -63,6 +65,7 @@ const AttendanceTracker = () => {
             const params = new URLSearchParams();
             if (startDate) { params.append('start', startDate); }
             if (endDate) { params.append('end', endDate); }
+            if (memberTypeFilter !== 'all') { params.append('member_type', memberTypeFilter); }
             const response = await axios.get(`/api/attendance?${params.toString()}`);
             setAttendanceRecords(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
@@ -93,7 +96,7 @@ const AttendanceTracker = () => {
             setAttendanceRecords([]);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedMemberId, startDate, endDate]);
+    }, [selectedMemberId, startDate, endDate, memberTypeFilter]);
 
     const simulateCheckIn = async (e) => {
         e.preventDefault();
@@ -160,7 +163,7 @@ const AttendanceTracker = () => {
 
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
-            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
+            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
                 <FormControl fullWidth>
                     <InputLabel>Select member or All users</InputLabel>
                     <Select value={selectedMemberId} onChange={handleMemberSelect}>
@@ -172,6 +175,14 @@ const AttendanceTracker = () => {
                                 {member.name}
                             </MenuItem>
                         ))}
+                    </Select>
+                </FormControl>
+                <FormControl fullWidth>
+                    <InputLabel>Member Type</InputLabel>
+                    <Select value={memberTypeFilter} onChange={(e) => setMemberTypeFilter(e.target.value)}>
+                        <MenuItem value="all">All member types</MenuItem>
+                        <MenuItem value="admins">Admins</MenuItem>
+                        <MenuItem value="members">Members</MenuItem>
                     </Select>
                 </FormControl>
                 <TextField label="Start" type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} InputLabelProps={{ shrink: true }} />
@@ -206,8 +217,32 @@ const AttendanceTracker = () => {
                                 </TableHead>
                                 <TableBody>
                                     {attendanceRecords.map(record => (
-                                        <TableRow key={record.id}>
-                                            {selectedMemberId === 'all' && <TableCell>{record.member_name || getMemberName(record.member_id)}</TableCell>}
+                                        <TableRow 
+                                            key={record.id}
+                                            sx={{
+                                                background: record.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                                                border: record.is_admin === 1 ? '2px solid #ffd700' : 'none',
+                                                '&:hover': {
+                                                    background: record.is_admin === 1 ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)' : undefined
+                                                }
+                                            }}
+                                        >
+                                            {selectedMemberId === 'all' && (
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        {record.member_name || getMemberName(record.member_id)}
+                                                        {record.is_admin === 1 && (
+                                                            <CrownIcon 
+                                                                sx={{ 
+                                                                    color: '#ffd700', 
+                                                                    fontSize: 16,
+                                                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                                }} 
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                </TableCell>
+                                            )}
                                             <TableCell>{formatDateTime(record.check_in_time)}</TableCell>
                                         </TableRow>
                                     ))}

@@ -128,7 +128,7 @@ const Dashboard = () => {
             const upcomingRenewalsData = Array.isArray(renewals.data?.upcoming_renewals) ? renewals.data.upcoming_renewals : [];
             setPaymentReminders(overdueInvoices);
             setUpcomingRenewals(upcomingRenewalsData);
-            setShowPaymentReminders(overdueInvoices.length > 0 || upcomingRenewalsData.length > 0);
+            setShowPaymentReminders(false);
             
             setLoading(false);
         } catch (error) {
