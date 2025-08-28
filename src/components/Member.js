@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
+import { formatDateToLocalString } from '../utils/formatting';
 import {
     TextField,
     Button,
@@ -20,11 +21,19 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Alert
+    Alert,
+    FormControlLabel,
+    Checkbox,
+    Chip
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
+import CrownIcon from '@mui/icons-material/Star';
+import StarIcon from '@mui/icons-material/Star';
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -48,15 +57,19 @@ const Member = () => {
     const [addError, setAddError] = useState('');
     const [editError, setEditError] = useState('');
     const [openBiometric, setOpenBiometric] = useState(false);
-    const [bioDeviceUserId, setBioDeviceUserId] = useState('');
-    const [bioSensorMemberId, setBioSensorMemberId] = useState('');
-    const [bioTemplate, setBioTemplate] = useState('');
     const [editingMember, setEditingMember] = useState(null);
     const [openInvoice, setOpenInvoice] = useState(false);
     const [invoicePlanId, setInvoicePlanId] = useState('');
     const [invoiceAmount, setInvoiceAmount] = useState('');
     const [invoiceDueDate, setInvoiceDueDate] = useState('');
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    
+    // New state for biometric data
+    const [memberBiometricStatus, setMemberBiometricStatus] = useState(null);
+    const [biometricLoading, setBiometricLoading] = useState(false);
+    const [biometricError, setBiometricError] = useState('');
+    const [biometricSuccess, setBiometricSuccess] = useState('');
 
     useEffect(() => {
         fetchMembers();
@@ -121,7 +134,8 @@ const Member = () => {
                 membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null,
                 address: address || null,
                 birthday: birthday || null,
-                photo_url: photoUrl || null
+                photo_url: photoUrl || null,
+                is_admin: isAdmin
             };
             const res = await axios.post('/api/members', newMember);
             if (res?.data?.id && photoFile) {
@@ -154,7 +168,7 @@ const Member = () => {
                 } else {
                     dueDate.setDate(joinDate.getDate() + 30); // Default 30 days
                 }
-                setInvoiceDueDate(dueDate.toISOString().slice(0,10));
+                setInvoiceDueDate(formatDateToLocalString(dueDate));
                 setOpenInvoice(true);
             }
         } catch (error) {
@@ -175,7 +189,9 @@ const Member = () => {
                 phone,
                 address: address || null,
                 birthday: birthday || null,
-                photo_url: photoUrl || null
+                photo_url: photoUrl || null,
+                is_admin: isAdmin,
+                membership_plan_id: isAdmin ? null : (membershipPlanId ? parseInt(membershipPlanId, 10) : null)
             };
             await axios.put(`/api/members/${editingMember.id}`, body);
             if (photoFile) {
@@ -201,31 +217,105 @@ const Member = () => {
         setAddress(member.address || '');
         setBirthday(member.birthday || '');
         setPhotoUrl(member.photo_url || '');
+        setIsAdmin(member.is_admin === 1);
+        setMembershipPlanId(member.membership_plan_id ? String(member.membership_plan_id) : '');
         setOpenEdit(true);
     };
 
-    const openBiometricDialog = (member) => {
+    const openBiometricDialog = async (member) => {
         setEditingMember(member);
         setOpenBiometric(true);
-        setBioDeviceUserId('');
-        setBioSensorMemberId('');
-        setBioTemplate('');
+        setMemberBiometricStatus(null);
+        setBiometricError('');
+        setBiometricSuccess('');
+        
+        // Fetch member's biometric status
+        try {
+            setBiometricLoading(true);
+            const response = await axios.get(`/api/biometric/members/${member.id}/status`);
+            if (response.data.success) {
+                setMemberBiometricStatus(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching biometric status:', error);
+            setBiometricError('Failed to fetch biometric status');
+        } finally {
+            setBiometricLoading(false);
+        }
     };
 
-    const saveBiometric = async () => {
-        if (!editingMember) {
+    const startEnrollment = async () => {
+        if (!editingMember) return;
+        
+        try {
+            setBiometricLoading(true);
+            setBiometricError('');
+            setBiometricSuccess('');
+            
+            const response = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+            if (response.data.success) {
+                setBiometricSuccess('Enrollment started successfully. Please ask the member to place their finger on the biometric device.');
+                // Refresh biometric status
+                openBiometricDialog(editingMember);
+            }
+        } catch (error) {
+            console.error('Error starting enrollment:', error);
+            setBiometricError(error?.response?.data?.message || 'Failed to start enrollment');
+        } finally {
+            setBiometricLoading(false);
+        }
+    };
+
+    const deleteEnrollment = async () => {
+        if (!editingMember) return;
+        
+        if (!window.confirm(`Are you sure you want to delete the biometric enrollment for ${editingMember.name}?`)) {
             return;
         }
+        
         try {
-            const payload = {};
-            if (bioDeviceUserId) { payload.device_user_id = bioDeviceUserId; }
-            if (bioSensorMemberId) { payload.sensor_member_id = bioSensorMemberId; }
-            if (bioTemplate) { payload.template = bioTemplate; }
-            await axios.put(`/api/members/${editingMember.id}/biometric`, payload);
-            setOpenBiometric(false);
-        } catch (e) {
-            console.error('Error saving biometric', e);
-            alert(e?.response?.data?.message || 'Failed to save biometric');
+            setBiometricLoading(true);
+            setBiometricError('');
+            setBiometricSuccess('');
+            
+            const response = await axios.delete(`/api/biometric/members/${editingMember.id}/biometric`);
+            if (response.data.success) {
+                setBiometricSuccess('Biometric enrollment deleted successfully. The member can now be re-enrolled.');
+                // Refresh biometric status
+                openBiometricDialog(editingMember);
+            }
+        } catch (error) {
+            console.error('Error deleting enrollment:', error);
+            setBiometricError(error?.response?.data?.message || 'Failed to delete enrollment');
+        } finally {
+            setBiometricLoading(false);
+        }
+    };
+
+    const reEnroll = async () => {
+        if (!editingMember) return;
+        
+        try {
+            setBiometricLoading(true);
+            setBiometricError('');
+            setBiometricSuccess('');
+            
+            // First delete existing enrollment
+            const deleteResponse = await axios.delete(`/api/biometric/members/${editingMember.id}/biometric`);
+            if (deleteResponse.data.success) {
+                // Then start new enrollment
+                const enrollResponse = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+                if (enrollResponse.data.success) {
+                    setBiometricSuccess('Re-enrollment started successfully. Please ask the member to place their finger on the biometric device.');
+                    // Refresh biometric status
+                    openBiometricDialog(editingMember);
+                }
+            }
+        } catch (error) {
+            console.error('Error starting re-enrollment:', error);
+            setBiometricError(error?.response?.data?.message || 'Failed to start re-enrollment');
+        } finally {
+            setBiometricLoading(false);
         }
     };
 
@@ -253,7 +343,13 @@ const Member = () => {
         }
         if (filter === 'unpaid-this-month') {
             const unpaidIds = new Set(unpaidMembersThisMonth.map(m => String(m.id)));
-            return members.filter(m => unpaidIds.has(String(m.id)));
+            return members.filter(m => unpaidIds.has(String(m.id)) && m.is_admin !== 1);
+        }
+        if (filter === 'admins') {
+            return members.filter(m => m.is_admin === 1);
+        }
+        if (filter === 'members') {
+            return members.filter(m => m.is_admin !== 1);
         }
         return members;
     }, [members, filter, unpaidMembersThisMonth]);
@@ -272,6 +368,8 @@ const Member = () => {
                         <MenuItem value="all">All Members</MenuItem>
                         <MenuItem value="new-this-month">Joined This Month</MenuItem>
                         <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>
+                        <MenuItem value="admins">Admins</MenuItem>
+                        <MenuItem value="members">Regular Members</MenuItem>
                     </Select>
                 </FormControl>
                 <Box sx={{ flex: 1 }} />
@@ -280,21 +378,40 @@ const Member = () => {
                     setName('');
                     setPhone('');
                     setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setIsAdmin(false);
                     setOpenAdd(true);
                 }}>Add Member</Button>
             </Box>
 
             <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Add Member</DialogTitle>
-                <DialogContent>
+                <DialogContent sx={{
+                    ...(isAdmin && {
+                        background: 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)',
+                        border: '2px solid #ffd700',
+                        borderRadius: 1
+                    })
+                }}>
                     {addError && <Alert severity="error" sx={{ mb: 2 }}>{addError}</Alert>}
                     <Box component="form" onSubmit={addMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <TextField
-                            label="Name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TextField
+                                label="Name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                fullWidth
+                            />
+                            {isAdmin && (
+                                <StarIcon 
+                                    sx={{ 
+                                        color: '#ffd700', 
+                                        fontSize: 24,
+                                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                    }} 
+                                />
+                            )}
+                        </Box>
                         <TextField
                             label="Phone"
                             value={phone}
@@ -303,6 +420,17 @@ const Member = () => {
                             inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }}
                             helperText="10–15 digits, optional leading +"
                         />
+                        
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isAdmin}
+                                    onChange={(e) => setIsAdmin(e.target.checked)}
+                                />
+                            }
+                            label="Admin User (can enter multiple times per day)"
+                        />
+                        
                         <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
                         <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -318,7 +446,7 @@ const Member = () => {
                             {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
                         </Box>
                         
-                        <FormControl fullWidth required disabled={plans.length === 0}>
+                        <FormControl fullWidth required disabled={plans.length === 0 || isAdmin}>
                             <InputLabel>Membership Plan</InputLabel>
                             <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
                                 {plans.length > 0 ? (
@@ -331,10 +459,22 @@ const Member = () => {
                                     <MenuItem disabled>Please create a membership plan first</MenuItem>
                                 )}
                             </Select>
+                            {isAdmin && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Admin users are exempt from membership plans
+                                </Typography>
+                            )}
                         </FormControl>
+                        
+                        {isAdmin && (
+                            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', p: 1, bgcolor: '#fff9c4', borderRadius: 1, border: '1px solid #ffd700' }}>
+                                ⭐ Admin users are exempt from payments and membership plans
+                            </Typography>
+                        )}
+                        
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
-                            <Button type="submit" variant="contained" disabled={plans.length === 0}>Add Member</Button>
+                            <Button type="submit" variant="contained" disabled={plans.length === 0 && !isAdmin}>Add Member</Button>
                         </DialogActions>
                     </Box>
                 </DialogContent>
@@ -342,11 +482,83 @@ const Member = () => {
 
             <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Member</DialogTitle>
-                <DialogContent>
+                <DialogContent sx={{
+                    ...(isAdmin && {
+                        background: 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)',
+                        border: '2px solid #ffd700',
+                        borderRadius: 1
+                    })
+                }}>
                     {editError && <Alert severity="error" sx={{ mb: 2 }}>{editError}</Alert>}
                     <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TextField
+                                label="Name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                fullWidth
+                            />
+                            {isAdmin && (
+                                <StarIcon 
+                                    sx={{ 
+                                        color: '#ffd700', 
+                                        fontSize: 24,
+                                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                    }} 
+                                />
+                            )}
+                        </Box>
                         <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }} helperText="10–15 digits, optional leading +" />
+                        
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isAdmin}
+                                    onChange={(e) => setIsAdmin(e.target.checked)}
+                                />
+                            }
+                            label="Admin User (can enter multiple times per day)"
+                        />
+                        
+                        {isAdmin && (
+                            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', p: 1, bgcolor: '#fff9c4', borderRadius: 1, border: '1px solid #ffd700' }}>
+                                ⭐ Admin users are exempt from payments and membership plans
+                            </Typography>
+                        )}
+                        
+                        {editingMember && editingMember.is_admin !== 1 && isAdmin && (
+                            <Typography variant="caption" color="warning.main" sx={{ textAlign: 'center', p: 1, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ff9800' }}>
+                                ⚠️ Changing this member to admin will remove their current membership plan
+                            </Typography>
+                        )}
+                        
+                        {editingMember && editingMember.is_admin === 1 && !isAdmin && (
+                            <Typography variant="caption" color="info.main" sx={{ textAlign: 'center', p: 1, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #2196f3' }}>
+                                ℹ️ Changing this member from admin to regular member will allow them to select a membership plan
+                            </Typography>
+                        )}
+                        
+                        <FormControl fullWidth required disabled={plans.length === 0 || isAdmin}>
+                            <InputLabel>Membership Plan</InputLabel>
+                            <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
+                                {plans.length > 0 ? (
+                                    plans.map(plan => (
+                                        <MenuItem key={plan.id} value={plan.id}>
+                                            {plan.name} - {formatCurrency(plan.price, currency)}
+                                        </MenuItem>
+                                    ))
+                                ) : (
+                                    <MenuItem disabled>Please create a membership plan first</MenuItem>
+                                )}
+                            </Select>
+                            {isAdmin && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Admin users are exempt from membership plans
+                                </Typography>
+                                )}
+                        </FormControl>
+                        
                         <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
                         <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -413,7 +625,10 @@ const Member = () => {
                     ) : (
                         <List>
                             {filteredMembers.map(member => {
-                                const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === new Date().toISOString().slice(5,10);
+                                const today = new Date();
+                                const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+                                const todayDay = String(today.getDate()).padStart(2, '0');
+                                const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === `${todayMonth}-${todayDay}`;
                                 const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
                                 const toggleActive = async () => {
                                     try {
@@ -425,7 +640,16 @@ const Member = () => {
                                     }
                                 };
                                 return (
-                                    <ListItem key={member.id} divider secondaryAction={
+                                    <ListItem 
+                                        key={member.id} 
+                                        divider 
+                                        sx={{
+                                            background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                                            border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
+                                            borderRadius: member.is_admin === 1 ? 2 : 0,
+                                            mb: member.is_admin === 1 ? 1 : 0
+                                        }}
+                                        secondaryAction={
                                         <Box sx={{ display: 'flex', gap: 1 }}>
                                             {whatsappHref && (
                                                 <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
@@ -436,7 +660,7 @@ const Member = () => {
                                                 {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
                                             </Button>
                                             <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
-                                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
+                                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric Data</Button>
                                         </Box>
                                     }>
                                         <ListItemAvatar>
@@ -452,7 +676,22 @@ const Member = () => {
                                             </Avatar>
                                         </ListItemAvatar>
                                         <ListItemText
-                                            primary={<span>{member.name} {isBirthdayToday ? '🎂' : ''} {String(member.is_active) === '0' ? '(Deactivated)' : ''}</span>}
+                                            primary={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <span>{member.name}</span>
+                                                    {member.is_admin === 1 && (
+                                                        <CrownIcon 
+                                                            sx={{ 
+                                                                color: '#ffd700', 
+                                                                fontSize: 20,
+                                                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                            }} 
+                                                        />
+                                                    )}
+                                                    {isBirthdayToday && '🎂'}
+                                                    {String(member.is_active) === '0' && '(Deactivated)'}
+                                                </Box>
+                                            }
                                             secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
                                         />
                                     </ListItem>
@@ -464,17 +703,123 @@ const Member = () => {
             )}
 
             <Dialog open={openBiometric} onClose={() => setOpenBiometric(false)} fullWidth maxWidth="sm">
-                <DialogTitle>Link Biometric to Member</DialogTitle>
+                <DialogTitle>
+                    Biometric data for {editingMember?.name || 'Member'}
+                </DialogTitle>
                 <DialogContent>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <TextField label="Device User ID (Secureye)" value={bioDeviceUserId} onChange={(e)=>setBioDeviceUserId(e.target.value)} helperText="User ID configured on device (if already enrolled)" />
-                        <TextField label="Sensor Member ID" value={bioSensorMemberId} onChange={(e)=>setBioSensorMemberId(e.target.value)} helperText="Member ID sent by the biometric sensor (if different from device user ID)" />
-                        <TextField label="Template (Base64)" value={bioTemplate} onChange={(e)=>setBioTemplate(e.target.value)} multiline minRows={3} placeholder="Paste template string if captured via SDK" />
-                    </Box>
+                    {biometricLoading && (
+                        <Box sx={{ textAlign: 'center', py: 2 }}>
+                            <Typography>Loading biometric status...</Typography>
+                        </Box>
+                    )}
+                    
+                    {biometricError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            {biometricError}
+                        </Alert>
+                    )}
+                    
+                    {biometricSuccess && (
+                        <Alert severity="success" sx={{ mb: 2 }}>
+                            {biometricSuccess}
+                        </Alert>
+                    )}
+                    
+                    {!biometricLoading && memberBiometricStatus && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
+                            {/* Biometric Status Display */}
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Enrollment Status
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {memberBiometricStatus.hasFingerprint ? (
+                                        <Chip 
+                                            icon={<FingerprintIcon />} 
+                                            label="Enrolled" 
+                                            color="success" 
+                                            variant="outlined"
+                                        />
+                                    ) : (
+                                        <Chip 
+                                            icon={<FingerprintIcon />} 
+                                            label="Not Enrolled" 
+                                            color="default" 
+                                            variant="outlined"
+                                        />
+                                    )}
+                                </Box>
+                            </Box>
+                            
+                            {/* Biometric Member ID Field */}
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Biometric Member ID
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    value={memberBiometricStatus.biometricId || 'Not assigned'}
+                                    InputProps={{
+                                        readOnly: true,
+                                        sx: { 
+                                            backgroundColor: memberBiometricStatus.biometricId ? '#f5f5f5' : '#fff3cd',
+                                            '& .MuiInputBase-input': { 
+                                                color: memberBiometricStatus.biometricId ? 'text.primary' : 'text.secondary'
+                                            }
+                                        }
+                                    }}
+                                    helperText={
+                                        memberBiometricStatus.biometricId 
+                                            ? "This ID is automatically assigned when the member is biometrically enrolled"
+                                            : "This field will show the biometric member ID once enrollment is completed"
+                                    }
+                                />
+                            </Box>
+                            
+                            {/* Action Buttons */}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                {!memberBiometricStatus.hasFingerprint ? (
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        onClick={startEnrollment}
+                                        disabled={biometricLoading}
+                                        startIcon={<FingerprintIcon />}
+                                        sx={{ py: 1.5 }}
+                                    >
+                                        Enroll Fingerprints
+                                    </Button>
+                                ) : (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                        <Button
+                                            fullWidth
+                                            variant="outlined"
+                                            color="error"
+                                            onClick={deleteEnrollment}
+                                            disabled={biometricLoading}
+                                            startIcon={<DeleteIcon />}
+                                            sx={{ py: 1.5 }}
+                                        >
+                                            Delete Enrollment
+                                        </Button>
+                                        <Button
+                                            fullWidth
+                                            variant="contained"
+                                            onClick={reEnroll}
+                                            disabled={biometricLoading}
+                                            startIcon={<RefreshIcon />}
+                                            sx={{ py: 1.5 }}
+                                        >
+                                            Re-enroll Now
+                                        </Button>
+                                    </Box>
+                                )}
+                            </Box>
+                        </Box>
+                    )}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={()=>setOpenBiometric(false)}>Cancel</Button>
-                    <Button variant="contained" onClick={saveBiometric}>Save</Button>
+                    <Button onClick={() => setOpenBiometric(false)}>Close</Button>
                 </DialogActions>
             </Dialog>
         </div>

@@ -121,14 +121,14 @@ const Dashboard = () => {
             setRevenueStats(Array.isArray(revenue.data) ? revenue.data : []);
             const bdays = Array.isArray(birthdays.data) ? birthdays.data : [];
             setBirthdaysToday(bdays);
-            setShowBirthdays(bdays.length);
+            setShowBirthdays(false);
             
             // Handle payment reminders
             const overdueInvoices = Array.isArray(reminders.data?.overdue_invoices) ? reminders.data.overdue_invoices : [];
             const upcomingRenewalsData = Array.isArray(renewals.data?.upcoming_renewals) ? renewals.data.upcoming_renewals : [];
             setPaymentReminders(overdueInvoices);
             setUpcomingRenewals(upcomingRenewalsData);
-            setShowPaymentReminders(overdueInvoices.length > 0 || upcomingRenewalsData.length > 0);
+            setShowPaymentReminders(false);
             
             setLoading(false);
         } catch (error) {
