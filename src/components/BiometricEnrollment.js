@@ -1143,8 +1143,8 @@ const BiometricEnrollment = () => {
                       <Grid item xs={12} md={6} lg={4} key={member.id}>
                         <Card variant="outlined" sx={{ 
                           position: 'relative',
-                          background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                          border: member.is_admin === 1 ? '2px solid #ffd700' : undefined,
+                          background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                          border: (member.is_admin === 1 || member.is_admin === true) ? '2px solid #ffd700' : undefined,
                           ...(ongoingEnrollment && ongoingEnrollment.memberId === member.id && {
                             border: '2px solid #2196f3',
                             boxShadow: '0 0 10px rgba(33, 150, 243, 0.3)'
@@ -1183,7 +1183,7 @@ const BiometricEnrollment = () => {
                             <Typography variant="h6" gutterBottom>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 {member.name}
-                                {member.is_admin === 1 && (
+                                {(member.is_admin === 1 || member.is_admin === true) && (
                                   <StarIcon 
                                     sx={{ 
                                       color: '#ffd700', 
@@ -1290,9 +1290,9 @@ const BiometricEnrollment = () => {
                       <Grid item xs={12} md={6} lg={4} key={member.id}>
                         <Card variant="outlined" sx={{ 
                           position: 'relative',
-                          background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                          border: member.is_admin === 1 ? '2px solid #ffd700' : '2px solid #4caf50',
-                          boxShadow: member.is_admin === 1 ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)'
+                          background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                          border: (member.is_admin === 1 || member.is_admin === true) ? '2px solid #ffd700' : '2px solid #4caf50',
+                          boxShadow: (member.is_admin === 1 || member.is_admin === true) ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)'
                         }}>
                           <Box 
                             sx={{ 
@@ -1318,7 +1318,7 @@ const BiometricEnrollment = () => {
                               <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
                                 {member.name}
                               </Typography>
-                              {member.is_admin === 1 && (
+                              {(member.is_admin === 1 || member.is_admin === true) && (
                                 <StarIcon 
                                   sx={{ 
                                     color: '#ffd700', 
@@ -1374,11 +1374,9 @@ const BiometricEnrollment = () => {
             </Card>
           </Grid>
         </Grid>
+              )}
+      </>
       )}
-    </>
-      )}
-
-
 
       {/* Devices Tab */}
       {currentTab === 1 && (

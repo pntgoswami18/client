@@ -156,12 +156,22 @@ const SearchableMemberDropdown = ({
 
         {/* Member options */}
         {filteredMembers.map((member) => (
-          <MenuItem key={member.id} value={member.id}>
+          <MenuItem 
+            key={member.id} 
+            value={member.id}
+            sx={{
+              background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+              border: (member.is_admin === 1 || member.is_admin === true) ? '1px solid #ffd700' : 'none',
+              '&:hover': {
+                background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)' : undefined
+              }
+            }}
+          >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
               <Box sx={{ flex: 1 }}>
                 {getMemberDisplayText(member)}
               </Box>
-              {showAdminIcon && member.is_admin === 1 && (
+              {showAdminIcon && (member.is_admin === 1 || member.is_admin === true) && (
                 <StarIcon 
                   sx={{ 
                     color: '#ffd700', 
