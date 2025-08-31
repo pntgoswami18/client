@@ -1374,7 +1374,6 @@ const BiometricEnrollment = () => {
             </Card>
           </Grid>
         </Grid>
-              )}
       </>
       )}
 
