@@ -25,6 +25,7 @@ import {
   CircularProgress,
   Tooltip
 } from '@mui/material';
+import SearchableMemberDropdown from './SearchableMemberDropdown';
 import {
   LockOpen as LockOpenIcon,
   Fingerprint as FingerprintIcon,
@@ -1183,22 +1184,17 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
           <Typography variant="body2" color="text.secondary" gutterBottom>
             Device: {selectedDevice?.device_id}
           </Typography>
-          <TextField
-            fullWidth
-            select
-            label="Select Member"
+          <SearchableMemberDropdown
             value={enrollMemberId}
             onChange={(e) => setEnrollMemberId(e.target.value)}
+            members={members}
+            label="Select Member"
+            placeholder="Search members by name, ID, or phone..."
+            showId={true}
+            showEmail={false}
+            showAdminIcon={true}
             sx={{ mt: 2 }}
-            SelectProps={{ native: true }}
-          >
-            <option value="">Select a member...</option>
-            {members.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name} (ID: {member.id})
-              </option>
-            ))}
-          </TextField>
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEnrollDialogOpen(false)}>Cancel</Button>

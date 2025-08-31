@@ -29,6 +29,7 @@ import {
     MenuItem,
     Autocomplete
 } from '@mui/material';
+import SearchableMemberDropdown from './SearchableMemberDropdown';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HistoryToggleOffOutlinedIcon from '@mui/icons-material/HistoryToggleOffOutlined';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
@@ -504,17 +505,16 @@ const Financials = () => {
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
                             Note: Admin users are exempt from payments and cannot have invoices created against them.
                         </Typography>
-                        <FormControl fullWidth>
-                            <InputLabel>Member</InputLabel>
-                            <Select value={invMemberId} onChange={(e)=>{ setInvMemberId(e.target.value); }}>
-                                {members.map(m => (
-                                    <MenuItem key={m.id} value={m.id} disabled={m.is_admin === 1}>
-                                        {m.name} - {m.email}
-                                        {m.is_admin === 1 && ' (Admin - No Payments)'}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        <SearchableMemberDropdown
+                            value={invMemberId}
+                            onChange={(e)=>{ setInvMemberId(e.target.value); }}
+                            members={members}
+                            label="Member"
+                            placeholder="Search members by name, ID, or phone..."
+                            showId={false}
+                            showEmail={true}
+                            showAdminIcon={true}
+                        />
                         <FormControl fullWidth>
                             <InputLabel>Plan</InputLabel>
                             <Select value={invPlanId} onChange={(e)=>{
@@ -574,17 +574,16 @@ const Financials = () => {
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
                             Note: Admin users are exempt from payments and cannot have invoices created against them.
                         </Typography>
-                        <FormControl fullWidth>
-                            <InputLabel>Member</InputLabel>
-                            <Select value={editInvMemberId} onChange={(e)=>{ setEditInvMemberId(e.target.value); }}>
-                                {members.map(m => (
-                                    <MenuItem key={m.id} value={m.id} disabled={m.is_admin === 1}>
-                                        {m.name} - {m.email}
-                                        {m.is_admin === 1 && ' (Admin - No Payments)'}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        <SearchableMemberDropdown
+                            value={editInvMemberId}
+                            onChange={(e)=>{ setEditInvMemberId(e.target.value); }}
+                            members={members}
+                            label="Member"
+                            placeholder="Search members by name, ID, or phone..."
+                            showId={false}
+                            showEmail={true}
+                            showAdminIcon={true}
+                        />
                         <FormControl fullWidth>
                             <InputLabel>Plan</InputLabel>
                             <Select value={editInvPlanId} onChange={(e)=>{

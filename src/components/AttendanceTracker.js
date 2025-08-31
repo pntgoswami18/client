@@ -20,6 +20,7 @@ import {
     Paper,
     Alert
 } from '@mui/material';
+import SearchableMemberDropdown from './SearchableMemberDropdown';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { getCurrentDateString, getPreviousDayString } from '../utils/formatting';
 import CrownIcon from '@mui/icons-material/Star';
@@ -146,16 +147,16 @@ const AttendanceTracker = () => {
                         <Alert severity="error" sx={{ mb: 2 }}>{checkInError}</Alert>
                     )}
                     <Box component="form" onSubmit={simulateCheckIn} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px' }}>
-                        <FormControl fullWidth required>
-                            <InputLabel>Select Member to Check In</InputLabel>
-                            <Select value={simulateMemberId} onChange={e => setSimulateMemberId(e.target.value)}>
-                                {members.map(member => (
-                                    <MenuItem key={member.id} value={member.id}>
-                                        {member.name} (ID: {member.id})
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                        <SearchableMemberDropdown
+                            value={simulateMemberId}
+                            onChange={e => setSimulateMemberId(e.target.value)}
+                            members={members}
+                            label="Select Member to Check In"
+                            placeholder="Search members by name, ID, or phone..."
+                            showId={true}
+                            showEmail={false}
+                            showAdminIcon={true}
+                        />
                         <Button type="submit">Simulate Check-in</Button>
                     </Box>
                 </CardContent>
@@ -164,19 +165,19 @@ const AttendanceTracker = () => {
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
             <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
-                <FormControl fullWidth>
-                    <InputLabel>Select member or All users</InputLabel>
-                    <Select value={selectedMemberId} onChange={handleMemberSelect}>
-                        <MenuItem value={'all'}>All users</MenuItem>
-                        {members.length === 0 ? (
-                            <MenuItem disabled>No members available</MenuItem>
-                        ) : members.map(member => (
-                            <MenuItem key={member.id} value={member.id}>
-                                {member.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+                <SearchableMemberDropdown
+                    value={selectedMemberId}
+                    onChange={handleMemberSelect}
+                    members={members}
+                    label="Select member or All users"
+                    placeholder="Search members by name, ID, or phone..."
+                    showId={false}
+                    showEmail={false}
+                    showAdminIcon={true}
+                    includeAllOption={true}
+                    allOptionLabel="All users"
+                    allOptionValue="all"
+                />
                 <FormControl fullWidth>
                     <InputLabel>Member Type</InputLabel>
                     <Select value={memberTypeFilter} onChange={(e) => setMemberTypeFilter(e.target.value)}>

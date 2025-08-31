@@ -33,6 +33,7 @@ import {
   FormControlLabel,
   Checkbox
 } from '@mui/material';
+import SearchableMemberDropdown from './SearchableMemberDropdown';
 import {
   Fingerprint as FingerprintIcon,
   Person as PersonIcon,
@@ -736,35 +737,22 @@ const BiometricEnrollment = () => {
           <StepLabel>{label}</StepLabel>
           <StepContent>
             {index === 0 && (
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Select Member</InputLabel>
-                <Select
-                  value={selectedMember}
-                  onChange={(e) => {
-                    setSelectedMember(e.target.value);
-                    if (e.target.value) {
-                      setActiveStep(1);
-                    }
-                  }}
-                >
-                  {members.map((member) => (
-                    <MenuItem key={member.id} value={member.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {member.name} (ID: {member.id})
-                        {member.is_admin === 1 && (
-                          <StarIcon 
-                            sx={{ 
-                              color: '#ffd700', 
-                              fontSize: 16,
-                              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                            }} 
-                          />
-                        )}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SearchableMemberDropdown
+                value={selectedMember}
+                onChange={(e) => {
+                  setSelectedMember(e.target.value);
+                  if (e.target.value) {
+                    setActiveStep(1);
+                  }
+                }}
+                members={members}
+                label="Select Member"
+                placeholder="Search members by name, ID, or phone..."
+                showId={true}
+                showEmail={false}
+                showAdminIcon={true}
+                sx={{ mb: 2 }}
+              />
             )}
             
             {index === 1 && (
