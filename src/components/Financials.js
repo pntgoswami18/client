@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
@@ -73,6 +73,11 @@ const Financials = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const outstandingRef = useRef(null);
+
+    // Filter out admin users for invoice creation
+    const nonAdminMembers = useMemo(() => {
+        return members.filter(member => !(member.is_admin === 1 || member.is_admin === true));
+    }, [members]);
 
     useEffect(() => {
         fetchPlans();
@@ -397,10 +402,10 @@ const Financials = () => {
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                            Note: Admin users are exempt from payments and will not appear in this list.
+                            Note: Admin users are exempt from payments and cannot have payments recorded against them.
                         </Typography>
                         <Autocomplete
-                            options={members.filter(m => m.is_admin !== 1)}
+                            options={nonAdminMembers}
                             isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
                             getOptionLabel={(option) => option?.name || ''}
                             value={manualMember}
@@ -508,12 +513,12 @@ const Financials = () => {
                         <SearchableMemberDropdown
                             value={invMemberId}
                             onChange={(e)=>{ setInvMemberId(e.target.value); }}
-                            members={members}
+                            members={nonAdminMembers}
                             label="Member"
                             placeholder="Search members by name, ID, or phone..."
                             showId={false}
                             showEmail={true}
-                            showAdminIcon={true}
+                            showAdminIcon={false}
                         />
                         <FormControl fullWidth>
                             <InputLabel>Plan</InputLabel>
@@ -577,12 +582,12 @@ const Financials = () => {
                         <SearchableMemberDropdown
                             value={editInvMemberId}
                             onChange={(e)=>{ setEditInvMemberId(e.target.value); }}
-                            members={members}
+                            members={nonAdminMembers}
                             label="Member"
                             placeholder="Search members by name, ID, or phone..."
                             showId={false}
                             showEmail={true}
-                            showAdminIcon={true}
+                            showAdminIcon={false}
                         />
                         <FormControl fullWidth>
                             <InputLabel>Plan</InputLabel>
