@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
@@ -74,45 +74,61 @@ const Financials = () => {
     const navigate = useNavigate();
     const outstandingRef = useRef(null);
 
-    // Filter out admin users for invoice creation
-    const nonAdminMembers = useMemo(() => {
-        return members.filter(member => !(member.is_admin === 1 || member.is_admin === true));
-    }, [members]);
+    // Date range filters
+    const [dateRange, setDateRange] = useState('last-30-days');
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
 
-    useEffect(() => {
-        fetchPlans();
-        fetchCurrency();
-        fetchMembers();
-        fetchFinancialSummary();
-    }, []);
+    // Calculate date range based on filter selection
+    const getDateRange = () => {
+        const today = new Date();
+        const startDate = new Date();
+        const endDate = new Date();
 
-    useEffect(() => {
-        const qp = new URLSearchParams(location.search);
-        const section = qp.get('section');
-        const editInvoiceParam = qp.get('editInvoice');
-        
-        if (section === 'pending-payments' && outstandingRef.current) {
-            // Scroll to Outstanding Invoices
-            setTimeout(() => {
-                outstandingRef.current.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
+        switch (dateRange) {
+            case 'last-7-days':
+                startDate.setDate(today.getDate() - 7);
+                break;
+            case 'last-30-days':
+                startDate.setDate(today.getDate() - 30);
+                break;
+            case 'last-90-days':
+                startDate.setDate(today.getDate() - 90);
+                break;
+            case 'last-6-months':
+                startDate.setMonth(today.getMonth() - 6);
+                break;
+            case 'last-year':
+                startDate.setFullYear(today.getFullYear() - 1);
+                break;
+            case 'custom':
+                if (customStartDate && customEndDate) {
+                    return {
+                        startDate: new Date(customStartDate).toISOString().split('T')[0],
+                        endDate: new Date(customEndDate).toISOString().split('T')[0]
+                    };
+                }
+                // Fall back to last 30 days if custom dates not set
+                startDate.setDate(today.getDate() - 30);
+                break;
+            default:
+                startDate.setDate(today.getDate() - 30);
         }
-        
-        if (editInvoiceParam) {
-            // Auto-open edit dialog for the specified invoice
-            setTimeout(() => {
-                handleEditInvoice(parseInt(editInvoiceParam, 10));
-                // Clear the URL parameter after opening the dialog
-                const newUrl = new URL(window.location);
-                newUrl.searchParams.delete('editInvoice');
-                window.history.replaceState({}, '', newUrl);
-            }, 500); // Wait for data to load
-        }
-    }, [location.search]);
 
-    const fetchFinancialSummary = async () => {
+        return {
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        };
+    };
+
+    const fetchFinancialSummary = useCallback(async () => {
         try {
-            const response = await axios.get('/api/reports/financial-summary');
+            const { startDate, endDate } = getDateRange();
+            const params = new URLSearchParams({
+                startDate,
+                endDate
+            });
+            const response = await axios.get(`/api/reports/financial-summary?${params}`);
             const def = { outstandingInvoices: [], paymentHistory: [], memberPaymentStatus: [] };
             const d = response?.data || {};
             setFinancialSummary({
@@ -125,7 +141,49 @@ const Financials = () => {
         } catch (error) {
             console.error("Error fetching financial summary", error);
         }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dateRange, customStartDate, customEndDate, getDateRange]);
+
+    // Filter out admin users for invoice creation
+    const nonAdminMembers = useMemo(() => {
+        return members.filter(member => !(member.is_admin === 1 || member.is_admin === true));
+    }, [members]);
+
+    useEffect(() => {
+        fetchPlans();
+        fetchCurrency();
+        fetchMembers();
+        fetchFinancialSummary();
+    }, [fetchFinancialSummary]);
+
+    // Refetch financial summary when date range changes
+    useEffect(() => {
+        fetchFinancialSummary();
+    }, [fetchFinancialSummary]);
+
+    useEffect(() => {
+        const qp = new URLSearchParams(location.search);
+        const section = qp.get('section');
+        const editInvoiceParam = qp.get('editInvoice');
+
+        if (section === 'pending-payments' && outstandingRef.current) {
+            // Scroll to Outstanding Invoices
+            setTimeout(() => {
+                outstandingRef.current.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        if (editInvoiceParam) {
+            // Auto-open edit dialog for the specified invoice
+            setTimeout(() => {
+                handleEditInvoice(parseInt(editInvoiceParam, 10));
+                // Clear the URL parameter after opening the dialog
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.delete('editInvoice');
+                window.history.replaceState({}, '', newUrl);
+            }, 500); // Wait for data to load
+        }
+    }, [location.search]);
 
     const handleEditInvoice = async (invoiceId) => {
         try {
@@ -248,30 +306,338 @@ const Financials = () => {
     return (
         <div>
             <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1 }}>Financials</Typography>
-            
+
+            {/* Financial Summary Section */}
+            <Typography variant="h5" gutterBottom>Financial Summary</Typography>
+
+            {/* Date Range Filter */}
+            <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                    <InputLabel>Date Range</InputLabel>
+                    <Select
+                        value={dateRange}
+                        label="Date Range"
+                        onChange={(e) => setDateRange(e.target.value)}
+                    >
+                        <MenuItem value="last-7-days">Last 7 Days</MenuItem>
+                        <MenuItem value="last-30-days">Last 30 Days</MenuItem>
+                        <MenuItem value="last-90-days">Last 90 Days</MenuItem>
+                        <MenuItem value="last-6-months">Last 6 Months</MenuItem>
+                        <MenuItem value="last-year">Last Year</MenuItem>
+                        <MenuItem value="custom">Custom Range</MenuItem>
+                    </Select>
+                </FormControl>
+
+                {dateRange === 'custom' && (
+                    <>
+                        <TextField
+                            label="Start Date"
+                            type="date"
+                            size="small"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ minWidth: 150 }}
+                        />
+                        <TextField
+                            label="End Date"
+                            type="date"
+                            size="small"
+                            value={customEndDate}
+                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ minWidth: 150 }}
+                        />
+                    </>
+                )}
+
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                    Showing data from {getDateRange().startDate} to {getDateRange().endDate}
+                </Typography>
+            </Box>
+
+            {/* Outstanding Invoices */}
+            <Box ref={outstandingRef} sx={{ marginBottom: '2rem' }}>
+                <Typography variant="h6" gutterBottom>Outstanding Invoices</Typography>
+                {financialSummary.outstandingInvoices.length > 0 ? (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow sx={{
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
+                                    <TableCell>Invoice ID</TableCell>
+                                    <TableCell>Member Name</TableCell>
+                                    <TableCell>Amount</TableCell>
+                                    <TableCell>Due Date</TableCell>
+                                    <TableCell>Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {financialSummary.outstandingInvoices.map(invoice => (
+                                    <TableRow key={invoice.id}>
+                                        <TableCell>{invoice.id}</TableCell>
+                                        <TableCell>{invoice.member_name}</TableCell>
+                                        <TableCell>{formatCurrency(invoice.amount, currency)}</TableCell>
+                                        <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    onClick={() => handleEditInvoice(invoice.id)}
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="error"
+                                                    onClick={() => handleDeleteInvoice(invoice.id)}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
+                        <ReceiptLongOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+                        <Typography>No outstanding invoices.</Typography>
+                    </Box>
+                )}
+            </Box>
+
+            {/* Payment History */}
+            <Box sx={{ marginBottom: '2rem' }}>
+                <Typography variant="h6" gutterBottom>Recent Payment History</Typography>
+                {financialSummary.paymentHistory.length > 0 ? (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow sx={{
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
+                                    <TableCell>Payment ID</TableCell>
+                                    <TableCell>Member Name</TableCell>
+                                    <TableCell>Amount</TableCell>
+                                    <TableCell>Payment Date</TableCell>
+                                    <TableCell>Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {financialSummary.paymentHistory.map(payment => (
+                                    <TableRow key={payment.id} hover>
+                                        <TableCell>{payment.id}</TableCell>
+                                        <TableCell>{payment.member_name}</TableCell>
+                                        <TableCell>{formatCurrency(payment.amount, currency)}</TableCell>
+                                        <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    onClick={() => navigate(`/invoices/${payment.id}`)}
+                                                >
+                                                    View
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="error"
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        if (window.confirm(`Are you sure you want to delete payment #${payment.id}? This will make the associated invoice unpaid.`)) {
+                                                            try {
+                                                                await axios.delete(`/api/payments/${payment.id}`);
+                                                                fetchFinancialSummary(); // Refresh the data
+                                                                alert('Payment deleted successfully. Invoice status updated to unpaid.');
+                                                            } catch (error) {
+                                                                console.error('Error deleting payment:', error);
+                                                                alert(error?.response?.data?.message || 'Error deleting payment.');
+                                                            }
+                                                        }
+                                                    }}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
+                        <HistoryToggleOffOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+                        <Typography>No payment history available.</Typography>
+                    </Box>
+                )}
+            </Box>
+
+            {/* Member Payment Status */}
+            <Box>
+                <Typography variant="h6" gutterBottom>Member Payment Status</Typography>
+                {financialSummary.memberPaymentStatus.length > 0 ? (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow sx={{
+                                    background: 'var(--accent-secondary-bg)',
+                                    '& .MuiTableCell-root': {
+                                        color: '#fff',
+                                        fontWeight: 700
+                                    }
+                                }}>
+                                    <TableCell>Member Name</TableCell>
+                                    <TableCell>Email</TableCell>
+                                    <TableCell>Plan</TableCell>
+                                    <TableCell>Last Payment Date</TableCell>
+                                    <TableCell>Last Invoice Status</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {financialSummary.memberPaymentStatus.map(member => (
+                                    <TableRow
+                                        key={member.id}
+                                        sx={{
+                                            backgroundColor: member.is_admin === 1
+                                                ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)'
+                                                : member.is_overdue_for_plan === 1
+                                                    ? 'rgba(239, 68, 68, 0.08)'
+                                                    : 'transparent',
+                                            borderLeft: member.is_admin === 1
+                                                ? '4px solid #ffd700'
+                                                : member.is_overdue_for_plan === 1
+                                                    ? '4px solid #ef4444'
+                                                    : '4px solid transparent',
+                                            border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
+                                            '&:hover': {
+                                                backgroundColor: member.is_admin === 1
+                                                    ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)'
+                                                    : member.is_overdue_for_plan === 1
+                                                        ? 'rgba(239, 68, 68, 0.12)'
+                                                        : 'rgba(0, 0, 0, 0.04)'
+                                            }
+                                        }}
+                                    >
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {member.name}
+                                                {member.is_admin === 1 && (
+                                                    <StarIcon
+                                                        sx={{
+                                                            color: '#ffd700',
+                                                            fontSize: 16,
+                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                        }}
+                                                    />
+                                                )}
+                                            </Box>
+                                            {member.is_overdue_for_plan === 1 && (
+                                                <span style={{
+                                                    marginLeft: '8px',
+                                                    fontSize: '12px',
+                                                    background: '#ef4444',
+                                                    color: '#fff',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '12px',
+                                                    fontWeight: '500'
+                                                }}>
+                                                    Payment Due
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>{member.email || 'N/A'}</TableCell>
+                                        <TableCell>
+                                            {member.plan_name ? (
+                                                <span>
+                                                    {member.plan_name}
+                                                    {member.duration_days && (
+                                                        <span style={{ opacity: 0.7, fontSize: '12px', display: 'block' }}>
+                                                            ({member.duration_days} days)
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            ) : 'No Plan'}
+                                        </TableCell>
+                                        <TableCell>{member.last_payment_date ? new Date(member.last_payment_date).toLocaleDateString() : 'N/A'}</TableCell>
+                                        <TableCell>
+                                            <span style={{
+                                                padding: '4px 8px',
+                                                borderRadius: '12px',
+                                                fontSize: '12px',
+                                                fontWeight: '500',
+                                                background: member.last_invoice_status === 'paid'
+                                                    ? 'rgba(34, 197, 94, 0.1)'
+                                                    : member.last_invoice_status === 'unpaid'
+                                                        ? 'rgba(239, 68, 68, 0.1)'
+                                                        : 'rgba(156, 163, 175, 0.1)',
+                                                color: member.last_invoice_status === 'paid'
+                                                    ? '#059669'
+                                                    : member.last_invoice_status === 'unpaid'
+                                                        ? '#dc2626'
+                                                        : '#6b7280'
+                                            }}>
+                                                {member.last_invoice_status || 'N/A'}
+                                            </span>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                ) : (
+                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
+                        <PersonSearchOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
+                        <Typography>No member payment status available.</Typography>
+                    </Box>
+                )}
+            </Box>
+
+            <Divider sx={{ marginY: '2rem' }} />
+
+            {/* Payment Processing Section */}
+            <Box sx={{ marginBottom: '3rem' }}>
+                <Typography variant="h5" gutterBottom>Payments</Typography>
+                <Alert severity="info">
+                    <Typography variant="subtitle1" gutterBottom><strong>Note:</strong> Card payments are disabled in this build. Record payments manually.</Typography>
+                </Alert>
+                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                    <Button variant="outlined" onClick={() => setOpenManualPayment(true)}>Record Manual Payment</Button>
+                    <Button variant="outlined" onClick={() => {
+                        setOpenCreateInvoice(true);
+                        // Calculate default due date 30 days from now
+                        const defaultDueDate = new Date();
+                        defaultDueDate.setDate(defaultDueDate.getDate() + 30);
+                        setInvDueDate(formatDateToLocalString(defaultDueDate));
+                    }}>Create Invoice</Button>
+                </Box>
+            </Box>
+
+            <Divider sx={{ marginY: '2rem' }} />
+
             {/* Membership Plans Section */}
             <Box sx={{ marginBottom: '3rem' }}>
                 <Typography variant="h5" gutterBottom>Membership Plans</Typography>
-                
+
                 {/* Create New Plan Form */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
                     <Button onClick={() => setOpenAddPlan(true)}>Add Plan</Button>
                 </Box>
-                <Dialog open={openAddPlan} onClose={() => setOpenAddPlan(false)} fullWidth maxWidth="sm">
-                    <DialogTitle>Create New Membership Plan</DialogTitle>
-                    <DialogContent>
-                        <Box component="form" onSubmit={handleCreatePlan} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                            <TextField label="Plan Name" value={planName} onChange={e => setPlanName(e.target.value)} placeholder="e.g., Monthly Premium" required />
-                            <TextField label="Price" type="number" inputProps={{ step: '0.01' }} value={planPrice} onChange={e => setPlanPrice(e.target.value)} placeholder="e.g., 49.99" required />
-                            <TextField label="Duration (Days)" type="number" value={planDuration} onChange={e => setPlanDuration(e.target.value)} placeholder="e.g., 30" required />
-                            <TextField label="Description" value={planDescription} onChange={e => setPlanDescription(e.target.value)} placeholder="Description (optional)" multiline rows={3} />
-                            <DialogActions sx={{ px: 0 }}>
-                                <Button onClick={() => setOpenAddPlan(false)}>Cancel</Button>
-                                <Button type="submit" variant="contained">Create</Button>
-                            </DialogActions>
-                        </Box>
-                    </DialogContent>
-                </Dialog>
                 <Card sx={{ display: 'none' }}>
                     <CardContent>
                         <Typography variant="h6" gutterBottom>Create New Membership Plan</Typography>
@@ -314,7 +680,7 @@ const Financials = () => {
                 </Card>
 
                 {/* Existing Plans Table */}
-                <Typography variant="h6" gutterBottom sx={{ color: 'var(--accent-secondary-color)' }}>Existing Plans</Typography>
+                <Typography variant="h6" sx={{ color: 'var(--accent-secondary-color)', mb: 1 }}>Existing Plans</Typography>
                     {plans.length > 0 ? (
                     <TableContainer component={Paper} sx={{ overflow: 'hidden' }}>
                         <Table>
@@ -361,6 +727,22 @@ const Financials = () => {
                 )}
             </Box>
 
+            <Dialog open={openAddPlan} onClose={() => setOpenAddPlan(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Create New Membership Plan</DialogTitle>
+                <DialogContent>
+                    <Box component="form" onSubmit={handleCreatePlan} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
+                        <TextField label="Plan Name" value={planName} onChange={e => setPlanName(e.target.value)} placeholder="e.g., Monthly Premium" required />
+                        <TextField label="Price" type="number" inputProps={{ step: '0.01' }} value={planPrice} onChange={e => setPlanPrice(e.target.value)} placeholder="e.g., 49.99" required />
+                        <TextField label="Duration (Days)" type="number" value={planDuration} onChange={e => setPlanDuration(e.target.value)} placeholder="e.g., 30" required />
+                        <TextField label="Description" value={planDescription} onChange={e => setPlanDescription(e.target.value)} placeholder="Description (optional)" multiline rows={3} />
+                        <DialogActions sx={{ px: 0 }}>
+                            <Button onClick={() => setOpenAddPlan(false)}>Cancel</Button>
+                            <Button type="submit" variant="contained">Create</Button>
+                        </DialogActions>
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
             <Dialog open={openEditPlan} onClose={() => setOpenEditPlan(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Membership Plan</DialogTitle>
                 <DialogContent>
@@ -376,26 +758,6 @@ const Financials = () => {
                     </Box>
                 </DialogContent>
             </Dialog>
-
-            <Divider sx={{ marginY: '2rem' }} />
-
-            {/* Payment Processing Section */}
-            <Box sx={{ marginBottom: '3rem' }}>
-                <Typography variant="h5" gutterBottom>Payments</Typography>
-                <Alert severity="info">
-                    <Typography variant="subtitle1" gutterBottom><strong>Note:</strong> Card payments are disabled in this build. Record payments manually.</Typography>
-                </Alert>
-                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                    <Button variant="outlined" onClick={() => setOpenManualPayment(true)}>Record Manual Payment</Button>
-                    <Button variant="outlined" onClick={() => {
-                        setOpenCreateInvoice(true);
-                        // Calculate default due date 30 days from now
-                        const defaultDueDate = new Date();
-                        defaultDueDate.setDate(defaultDueDate.getDate() + 30);
-                        setInvDueDate(formatDateToLocalString(defaultDueDate));
-                    }}>Create Invoice</Button>
-                </Box>
-            </Box>
 
             <Dialog open={openManualPayment} onClose={() => setOpenManualPayment(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Record Manual Payment</DialogTitle>
@@ -642,262 +1004,6 @@ const Financials = () => {
                 </DialogActions>
             </Dialog>
 
-            <Divider sx={{ marginY: '2rem' }} />
-
-            {/* Financial Summary Section */}
-            <Typography variant="h5" gutterBottom>Financial Summary</Typography>
-            
-            {/* Outstanding Invoices */}
-            <Box ref={outstandingRef} sx={{ marginBottom: '2rem' }}>
-                <Typography variant="h6" gutterBottom>Outstanding Invoices</Typography>
-                {financialSummary.outstandingInvoices.length > 0 ? (
-                    <TableContainer component={Paper}>
-                        <Table>
-                            <TableHead>
-                                <TableRow sx={{ 
-                                    background: 'var(--accent-secondary-bg)',
-                                    '& .MuiTableCell-root': {
-                                        color: '#fff',
-                                        fontWeight: 700
-                                    }
-                                }}>
-                                    <TableCell>Invoice ID</TableCell>
-                                    <TableCell>Member Name</TableCell>
-                                    <TableCell>Amount</TableCell>
-                                    <TableCell>Due Date</TableCell>
-                                    <TableCell>Actions</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {financialSummary.outstandingInvoices.map(invoice => (
-                                    <TableRow key={invoice.id}>
-                                        <TableCell>{invoice.id}</TableCell>
-                                        <TableCell>{invoice.member_name}</TableCell>
-                                        <TableCell>{formatCurrency(invoice.amount, currency)}</TableCell>
-                                        <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                                <Button 
-                                                    size="small" 
-                                                    variant="outlined"
-                                                    onClick={() => handleEditInvoice(invoice.id)}
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button 
-                                                    size="small" 
-                                                    variant="outlined"
-                                                    color="error"
-                                                    onClick={() => handleDeleteInvoice(invoice.id)}
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                ) : (
-                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
-                        <ReceiptLongOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
-                        <Typography>No outstanding invoices.</Typography>
-                    </Box>
-                )}
-            </Box>
-
-            {/* Payment History */}
-            <Box sx={{ marginBottom: '2rem' }}>
-                <Typography variant="h6" gutterBottom>Recent Payment History</Typography>
-                {financialSummary.paymentHistory.length > 0 ? (
-                    <TableContainer component={Paper}>
-                        <Table>
-                            <TableHead>
-                                <TableRow sx={{ 
-                                    background: 'var(--accent-secondary-bg)',
-                                    '& .MuiTableCell-root': {
-                                        color: '#fff',
-                                        fontWeight: 700
-                                    }
-                                }}>
-                                    <TableCell>Payment ID</TableCell>
-                                    <TableCell>Member Name</TableCell>
-                                    <TableCell>Amount</TableCell>
-                                    <TableCell>Payment Date</TableCell>
-                                    <TableCell>Actions</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {financialSummary.paymentHistory.map(payment => (
-                                    <TableRow key={payment.id} hover>
-                                        <TableCell>{payment.id}</TableCell>
-                                        <TableCell>{payment.member_name}</TableCell>
-                                        <TableCell>{formatCurrency(payment.amount, currency)}</TableCell>
-                                        <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                                <Button 
-                                                    size="small" 
-                                                    variant="outlined"
-                                                    onClick={() => navigate(`/invoices/${payment.id}`)}
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button 
-                                                    size="small" 
-                                                    variant="outlined"
-                                                    color="error"
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        if (window.confirm(`Are you sure you want to delete payment #${payment.id}? This will make the associated invoice unpaid.`)) {
-                                                            try {
-                                                                await axios.delete(`/api/payments/${payment.id}`);
-                                                                fetchFinancialSummary(); // Refresh the data
-                                                                alert('Payment deleted successfully. Invoice status updated to unpaid.');
-                                                            } catch (error) {
-                                                                console.error('Error deleting payment:', error);
-                                                                alert(error?.response?.data?.message || 'Error deleting payment.');
-                                                            }
-                                                        }
-                                                    }}
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                ) : (
-                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
-                        <HistoryToggleOffOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
-                        <Typography>No payment history available.</Typography>
-                    </Box>
-                )}
-            </Box>
-
-            {/* Member Payment Status */}
-            <Box>
-                <Typography variant="h6" gutterBottom>Member Payment Status</Typography>
-                {financialSummary.memberPaymentStatus.length > 0 ? (
-                    <TableContainer component={Paper}>
-                        <Table>
-                            <TableHead>
-                                <TableRow sx={{ 
-                                    background: 'var(--accent-secondary-bg)',
-                                    '& .MuiTableCell-root': {
-                                        color: '#fff',
-                                        fontWeight: 700
-                                    }
-                                }}>
-                                    <TableCell>Member Name</TableCell>
-                                    <TableCell>Email</TableCell>
-                                    <TableCell>Plan</TableCell>
-                                    <TableCell>Last Payment Date</TableCell>
-                                    <TableCell>Last Invoice Status</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {financialSummary.memberPaymentStatus.map(member => (
-                                    <TableRow 
-                                        key={member.id}
-                                        sx={{
-                                            backgroundColor: member.is_admin === 1 
-                                                ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)'
-                                                : member.is_overdue_for_plan === 1 
-                                                    ? 'rgba(239, 68, 68, 0.08)' 
-                                                    : 'transparent',
-                                            borderLeft: member.is_admin === 1 
-                                                ? '4px solid #ffd700'
-                                                : member.is_overdue_for_plan === 1 
-                                                    ? '4px solid #ef4444' 
-                                                    : '4px solid transparent',
-                                            border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
-                                            '&:hover': {
-                                                backgroundColor: member.is_admin === 1 
-                                                    ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)'
-                                                    : member.is_overdue_for_plan === 1 
-                                                        ? 'rgba(239, 68, 68, 0.12)' 
-                                                        : 'rgba(0, 0, 0, 0.04)'
-                                            }
-                                        }}
-                                    >
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                {member.name}
-                                                {member.is_admin === 1 && (
-                                                    <StarIcon 
-                                                        sx={{ 
-                                                            color: '#ffd700', 
-                                                            fontSize: 16,
-                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                                                        }} 
-                                                    />
-                                                )}
-                                            </Box>
-                                            {member.is_overdue_for_plan === 1 && (
-                                                <span style={{ 
-                                                    marginLeft: '8px', 
-                                                    fontSize: '12px', 
-                                                    background: '#ef4444', 
-                                                    color: '#fff', 
-                                                    padding: '2px 6px', 
-                                                    borderRadius: '12px',
-                                                    fontWeight: '500'
-                                                }}>
-                                                    Payment Due
-                                                </span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{member.email || 'N/A'}</TableCell>
-                                        <TableCell>
-                                            {member.plan_name ? (
-                                                <span>
-                                                    {member.plan_name}
-                                                    {member.duration_days && (
-                                                        <span style={{ opacity: 0.7, fontSize: '12px', display: 'block' }}>
-                                                            ({member.duration_days} days)
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            ) : 'No Plan'}
-                                        </TableCell>
-                                        <TableCell>{member.last_payment_date ? new Date(member.last_payment_date).toLocaleDateString() : 'N/A'}</TableCell>
-                                        <TableCell>
-                                            <span style={{
-                                                padding: '4px 8px',
-                                                borderRadius: '12px',
-                                                fontSize: '12px',
-                                                fontWeight: '500',
-                                                background: member.last_invoice_status === 'paid' 
-                                                    ? 'rgba(34, 197, 94, 0.1)' 
-                                                    : member.last_invoice_status === 'unpaid' 
-                                                        ? 'rgba(239, 68, 68, 0.1)' 
-                                                        : 'rgba(156, 163, 175, 0.1)',
-                                                color: member.last_invoice_status === 'paid' 
-                                                    ? '#059669' 
-                                                    : member.last_invoice_status === 'unpaid' 
-                                                        ? '#dc2626' 
-                                                        : '#6b7280'
-                                            }}>
-                                                {member.last_invoice_status || 'N/A'}
-                                            </span>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                ) : (
-                    <Box sx={{ p: 2, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center' }}>
-                        <PersonSearchOutlinedIcon sx={{ fontSize: 36, color: 'text.secondary', mb: 1 }} />
-                        <Typography>No member payment status available.</Typography>
-                    </Box>
-                )}
-            </Box>
         </div>
     );
 };

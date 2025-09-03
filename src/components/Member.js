@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
@@ -42,6 +42,7 @@ const Member = () => {
     const navigate = useNavigate();
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
+    const [searchTerm, setSearchTerm] = useState('');
     const [plans, setPlans] = useState([]);
     const [name, setName] = useState('');
     
@@ -64,6 +65,15 @@ const Member = () => {
     const [invoiceDueDate, setInvoiceDueDate] = useState('');
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
+
+    // Webcam functionality
+    const [cameraOpen, setCameraOpen] = useState(false);
+    const [stream, setStream] = useState(null);
+    const [capturedImage, setCapturedImage] = useState(null);
+    const [cameraLoading, setCameraLoading] = useState(false);
+    const [cameraError, setCameraError] = useState('');
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
     
     // New state for biometric data
     const [memberBiometricStatus, setMemberBiometricStatus] = useState(null);
@@ -334,25 +344,111 @@ const Member = () => {
         }
     };
 
+    // Webcam functions
+    const openCamera = async () => {
+        try {
+            setCameraLoading(true);
+            setCameraError('');
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user' // Use front camera
+                }
+            });
+            setStream(mediaStream);
+            setCameraOpen(true);
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            setCameraError('Unable to access camera. Please check camera permissions.');
+            alert('Unable to access camera. Please check camera permissions.');
+        } finally {
+            setCameraLoading(false);
+        }
+    };
+
+    // Set video stream when camera opens
+    useEffect(() => {
+        if (cameraOpen && stream && videoRef.current) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [cameraOpen, stream]);
+
+    const closeCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        setCameraOpen(false);
+        setCapturedImage(null);
+        setCameraLoading(false);
+        setCameraError('');
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            setCapturedImage(imageDataUrl);
+
+            // Convert to file
+            canvas.toBlob((blob) => {
+                const file = new File([blob], 'captured-photo.jpg', { type: 'image/jpeg' });
+                setPhotoFile(file);
+                setPhotoUrl(imageDataUrl);
+            }, 'image/jpeg', 0.8);
+        }
+    };
+
+    const retakePhoto = () => {
+        setCapturedImage(null);
+        setPhotoFile(null);
+        setPhotoUrl('');
+        // Restart camera stream
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        openCamera();
+    };
+
     const filteredMembers = useMemo(() => {
+        let filtered = members;
+
+        // Apply category filter first
         if (filter === 'new-this-month') {
             const startOfMonth = new Date();
             startOfMonth.setDate(1);
             startOfMonth.setHours(0,0,0,0);
-            return members.filter(m => m.join_date && new Date(m.join_date) >= startOfMonth);
-        }
-        if (filter === 'unpaid-this-month') {
+            filtered = filtered.filter(m => m.join_date && new Date(m.join_date) >= startOfMonth);
+        } else if (filter === 'unpaid-this-month') {
             const unpaidIds = new Set(unpaidMembersThisMonth.map(m => String(m.id)));
-            return members.filter(m => unpaidIds.has(String(m.id)) && m.is_admin !== 1);
+            filtered = filtered.filter(m => unpaidIds.has(String(m.id)) && m.is_admin !== 1);
+        } else if (filter === 'admins') {
+            filtered = filtered.filter(m => m.is_admin === 1);
+        } else if (filter === 'members') {
+            filtered = filtered.filter(m => m.is_admin !== 1);
         }
-        if (filter === 'admins') {
-            return members.filter(m => m.is_admin === 1);
+
+        // Apply keyword search
+        if (searchTerm.trim()) {
+            const searchLower = searchTerm.toLowerCase().trim();
+            filtered = filtered.filter(member => {
+                const nameMatch = member.name && member.name.toLowerCase().includes(searchLower);
+                const phoneMatch = member.phone && member.phone.toLowerCase().includes(searchLower);
+                return nameMatch || phoneMatch;
+            });
         }
-        if (filter === 'members') {
-            return members.filter(m => m.is_admin !== 1);
-        }
-        return members;
-    }, [members, filter, unpaidMembersThisMonth]);
+
+        return filtered;
+    }, [members, filter, unpaidMembersThisMonth, searchTerm]);
 
     return (
         <div>
@@ -372,6 +468,18 @@ const Member = () => {
                         <MenuItem value="members">Regular Members</MenuItem>
                     </Select>
                 </FormControl>
+                <TextField
+                    size="small"
+                    placeholder="Search by name or phone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    sx={{ minWidth: 250 }}
+                    InputProps={{
+                        startAdornment: (
+                            <Box sx={{ mr: 1, color: 'text.secondary' }}>🔍</Box>
+                        ),
+                    }}
+                />
                 <Box sx={{ flex: 1 }} />
                 <Button onClick={() => {
                     setEditingMember(null);
@@ -439,13 +547,18 @@ const Member = () => {
                             ) : (
                                 <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
                             )}
-                            <Button variant="outlined" component="label">
-                                Upload Photo
-                                <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
-                            </Button>
-                            {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Button variant="outlined" component="label" size="small">
+                                    Upload Photo
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
+                                </Button>
+                                <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
+                                    Take Photo
+                                </Button>
+                                {photoUrl && <Button color="error" size="small" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            </Box>
                         </Box>
-                        
+
                         <FormControl fullWidth required disabled={plans.length === 0 || isAdmin}>
                             <InputLabel>Membership Plan</InputLabel>
                             <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
@@ -567,13 +680,18 @@ const Member = () => {
                             ) : (
                                 <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
                             )}
-                            <Button variant="outlined" component="label">
-                                Upload Photo
-                                <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
-                            </Button>
-                            {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Button variant="outlined" component="label" size="small">
+                                    Upload Photo
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
+                                </Button>
+                                <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
+                                    Take Photo
+                                </Button>
+                                {photoUrl && <Button color="error" size="small" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            </Box>
                         </Box>
-                        
+
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
                             <Button type="submit" variant="contained">Save</Button>
@@ -821,6 +939,110 @@ const Member = () => {
                 <DialogActions>
                     <Button onClick={() => setOpenBiometric(false)}>Close</Button>
                 </DialogActions>
+            </Dialog>
+
+            {/* Camera Dialog */}
+            <Dialog open={cameraOpen} onClose={closeCamera} fullWidth maxWidth="md">
+                <DialogTitle>Take Member Photo</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 1 }}>
+                        {cameraLoading ? (
+                            <Box sx={{ 
+                                width: '100%', 
+                                maxWidth: '400px', 
+                                height: '300px',
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                borderRadius: '8px',
+                                border: '2px solid #ddd',
+                                backgroundColor: '#f5f5f5'
+                            }}>
+                                <Typography>Loading camera...</Typography>
+                            </Box>
+                        ) : cameraError ? (
+                            <Box sx={{ 
+                                width: '100%', 
+                                maxWidth: '400px', 
+                                height: '300px',
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                borderRadius: '8px',
+                                border: '2px solid #ddd',
+                                backgroundColor: '#f5f5f5',
+                                flexDirection: 'column',
+                                gap: 1
+                            }}>
+                                <Typography color="error">{cameraError}</Typography>
+                                <Button variant="outlined" onClick={openCamera}>Retry</Button>
+                            </Box>
+                        ) : !capturedImage ? (
+                            <>
+                                <video
+                                    ref={videoRef}
+                                    autoPlay
+                                    playsInline
+                                    muted
+                                    onLoadedMetadata={() => {
+                                        if (videoRef.current) {
+                                            videoRef.current.play().catch(e => 
+                                                console.error('Error playing video:', e)
+                                            );
+                                        }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        maxWidth: '400px',
+                                        borderRadius: '8px',
+                                        border: '2px solid #ddd',
+                                        backgroundColor: '#f5f5f5'
+                                    }}
+                                />
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                    <Button variant="contained" onClick={capturePhoto} startIcon="📸">
+                                        Capture Photo
+                                    </Button>
+                                    <Button variant="outlined" onClick={closeCamera}>
+                                        Cancel
+                                    </Button>
+                                </Box>
+                            </>
+                        ) : (
+                            <>
+                                <img
+                                    src={capturedImage}
+                                    alt="Captured"
+                                    style={{
+                                        width: '100%',
+                                        maxWidth: '400px',
+                                        borderRadius: '8px',
+                                        border: '2px solid #ddd'
+                                    }}
+                                />
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                    <Button variant="contained" onClick={() => {
+                                        closeCamera();
+                                        if (editingMember) {
+                                            setOpenEdit(true);
+                                        } else {
+                                            setOpenAdd(true);
+                                        }
+                                    }}>
+                                        Use This Photo
+                                    </Button>
+                                    <Button variant="outlined" onClick={retakePhoto}>
+                                        Retake
+                                    </Button>
+                                    <Button variant="outlined" onClick={closeCamera}>
+                                        Cancel
+                                    </Button>
+                                </Box>
+                            </>
+                        )}
+                        <canvas ref={canvasRef} style={{ display: 'none' }} />
+                    </Box>
+                </DialogContent>
             </Dialog>
         </div>
     );
