@@ -1,8 +1,11 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import {
     TextField,
     Button,
@@ -72,8 +75,40 @@ const Member = () => {
     const [capturedImage, setCapturedImage] = useState(null);
     const [cameraLoading, setCameraLoading] = useState(false);
     const [cameraError, setCameraError] = useState('');
+    const [videoReady, setVideoReady] = useState(false);
+    const [videoElementMounted, setVideoElementMounted] = useState(false);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
+
+    // Photo cropping functionality
+    const [cropOpen, setCropOpen] = useState(false);
+    const [imageToCrop, setImageToCrop] = useState(null);
+    const [crop, setCrop] = useState({
+        unit: '%',
+        width: 90,
+        height: 90,
+        x: 5,
+        y: 5
+    });
+    const [croppedImageUrl, setCroppedImageUrl] = useState(null);
+    const cropImageRef = useRef(null);
+
+    // Video ref callback to ensure stream is set when video element is mounted
+    const setVideoRef = (element) => {
+        videoRef.current = element;
+        
+        if (element) {
+            setVideoElementMounted(true);
+            
+            // If we already have a stream, set it immediately
+            if (stream) {
+                element.srcObject = stream;
+                // Don't call play() here - let the useEffect handle it
+            }
+        } else {
+            setVideoElementMounted(false);
+        }
+    };
     
     // New state for biometric data
     const [memberBiometricStatus, setMemberBiometricStatus] = useState(null);
@@ -344,35 +379,119 @@ const Member = () => {
         }
     };
 
-    // Webcam functions
+        // Webcam functions
     const openCamera = async () => {
         try {
             setCameraLoading(true);
             setCameraError('');
+            setVideoReady(false);
+            
+            // Check if getUserMedia is supported
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('getUserMedia is not supported in this browser');
+            }
+
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: { 
                     width: { ideal: 640 },
                     height: { ideal: 480 },
-                    facingMode: 'user' // Use front camera
+                    facingMode: 'user'
                 }
             });
+            
             setStream(mediaStream);
             setCameraOpen(true);
+            
+            // Force stream setup after a short delay to ensure video element is mounted
+            setTimeout(() => {
+                if (videoRef.current && mediaStream) {
+                    videoRef.current.srcObject = mediaStream;
+                    // Don't call play() here - let the useEffect handle it
+                }
+            }, 100);
+            
         } catch (error) {
             console.error('Error accessing camera:', error);
-            setCameraError('Unable to access camera. Please check camera permissions.');
-            alert('Unable to access camera. Please check camera permissions.');
-        } finally {
+            setCameraError(`Camera error: ${error.message}`);
+            alert(`Unable to access camera: ${error.message}`);
             setCameraLoading(false);
         }
     };
 
-    // Set video stream when camera opens
+    // Set video stream when camera opens and ensure it plays
     useEffect(() => {
-        if (cameraOpen && stream && videoRef.current) {
+        if (cameraOpen && stream && videoElementMounted && videoRef.current) {
             videoRef.current.srcObject = stream;
+            
+            // Ensure video plays with proper error handling
+            const playVideo = async () => {
+                try {
+                    // Check if video is already playing
+                    if (videoRef.current && !videoRef.current.paused) {
+                        return; // Already playing
+                    }
+                    
+                    await videoRef.current.play();
+                } catch (playError) {
+                    // Only log non-abort errors
+                    if (playError.name !== 'AbortError') {
+                        console.error('Error playing video:', playError);
+                    }
+                }
+            };
+            
+            playVideo();
         }
-    }, [cameraOpen, stream]);
+    }, [cameraOpen, stream, videoElementMounted]);
+
+    // Polling effect to ensure video element gets stream
+    useEffect(() => {
+        if (cameraOpen && stream && !videoElementMounted) {
+            const pollInterval = setInterval(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    // Don't call play() here - let the main useEffect handle it
+                    setVideoElementMounted(true);
+                    clearInterval(pollInterval);
+                }
+            }, 100);
+
+            // Clear interval after 5 seconds to prevent infinite polling
+            const timeout = setTimeout(() => {
+                clearInterval(pollInterval);
+            }, 5000);
+
+            return () => {
+                clearInterval(pollInterval);
+                clearTimeout(timeout);
+            };
+        }
+    }, [cameraOpen, stream, videoElementMounted]);
+
+    // Handle loading state when video is ready
+    useEffect(() => {
+        if (videoReady && cameraLoading) {
+            setCameraLoading(false);
+        }
+    }, [videoReady, cameraLoading]);
+
+    // Timeout fallback for loading state
+    useEffect(() => {
+        if (cameraLoading && cameraOpen) {
+            const timeout = setTimeout(() => {
+                setCameraLoading(false);
+                // Don't set error if we have a stream - just force the video to render
+                if (!videoReady && stream) {
+                    // Force video element to render by clearing error
+                    setCameraError('');
+                } else if (!videoReady && !stream) {
+                    setCameraError('Camera took too long to load. Please try again.');
+                }
+            }, 10000); // 10 second timeout
+
+            return () => clearTimeout(timeout);
+        }
+    }, [cameraLoading, cameraOpen, videoReady, stream]);
 
     const closeCamera = () => {
         if (stream) {
@@ -383,13 +502,31 @@ const Member = () => {
         setCapturedImage(null);
         setCameraLoading(false);
         setCameraError('');
+        setVideoReady(false);
+        setVideoElementMounted(false);
+        
+        // Ensure focus is properly managed when closing
+        setTimeout(() => {
+            // Focus back to the document body to prevent focus trap
+            document.body.focus();
+        }, 0);
     };
 
     const capturePhoto = () => {
+        if (!videoReady) {
+            alert('Camera not ready. Please wait a moment and try again.');
+            return;
+        }
+        
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
             const context = canvas.getContext('2d');
+
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                alert('Camera not ready. Please wait a moment and try again.');
+                return;
+            }
 
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -397,13 +534,12 @@ const Member = () => {
 
             const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
             setCapturedImage(imageDataUrl);
-
-            // Convert to file
-            canvas.toBlob((blob) => {
-                const file = new File([blob], 'captured-photo.jpg', { type: 'image/jpeg' });
-                setPhotoFile(file);
-                setPhotoUrl(imageDataUrl);
-            }, 'image/jpeg', 0.8);
+            
+            // Open crop dialog with the captured image
+            closeCamera();
+            openCropDialog(imageDataUrl);
+        } else {
+            alert('Camera not available for capture');
         }
     };
 
@@ -411,12 +547,98 @@ const Member = () => {
         setCapturedImage(null);
         setPhotoFile(null);
         setPhotoUrl('');
+        setVideoReady(false);
         // Restart camera stream
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
         }
         openCamera();
+    };
+
+    // Photo cropping functions
+    const openCropDialog = (imageUrl) => {
+        setImageToCrop(imageUrl);
+        setCropOpen(true);
+        setCrop({
+            unit: '%',
+            width: 90,
+            height: 90,
+            x: 5,
+            y: 5
+        });
+    };
+
+    const getCroppedImg = (image, crop, fileName) => {
+        const canvas = document.createElement('canvas');
+        const scaleX = image.naturalWidth / image.width;
+        const scaleY = image.naturalHeight / image.height;
+        canvas.width = crop.width;
+        canvas.height = crop.height;
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(
+            image,
+            crop.x * scaleX,
+            crop.y * scaleY,
+            crop.width * scaleX,
+            crop.height * scaleY,
+            0,
+            0,
+            crop.width,
+            crop.height
+        );
+
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    console.error('Canvas is empty');
+                    return;
+                }
+                blob.name = fileName;
+                const fileUrl = window.URL.createObjectURL(blob);
+                resolve({ file: blob, url: fileUrl });
+            }, 'image/jpeg', 0.8);
+        });
+    };
+
+    const onCropComplete = async () => {
+        if (!cropImageRef.current || !crop.width || !crop.height) {
+            return;
+        }
+
+        try {
+            const croppedImageData = await getCroppedImg(
+                cropImageRef.current,
+                crop,
+                'cropped-photo.jpg'
+            );
+            setCroppedImageUrl(croppedImageData.url);
+        } catch (error) {
+            console.error('Error cropping image:', error);
+        }
+    };
+
+    const applyCrop = () => {
+        if (croppedImageUrl) {
+            setPhotoUrl(croppedImageUrl);
+            // Convert URL to File object
+            fetch(croppedImageUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], 'cropped-photo.jpg', { type: 'image/jpeg' });
+                    setPhotoFile(file);
+                });
+        }
+        setCropOpen(false);
+        setImageToCrop(null);
+        setCroppedImageUrl(null);
+    };
+
+    const cancelCrop = () => {
+        setCropOpen(false);
+        setImageToCrop(null);
+        setCroppedImageUrl(null);
     };
 
     const filteredMembers = useMemo(() => {
@@ -491,7 +713,14 @@ const Member = () => {
                 }}>Add Member</Button>
             </Box>
 
-            <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
+            <Dialog 
+                open={openAdd} 
+                onClose={() => setOpenAdd(false)} 
+                fullWidth 
+                maxWidth="sm"
+                disableRestoreFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Add Member</DialogTitle>
                 <DialogContent sx={{
                     ...(isAdmin && {
@@ -550,7 +779,7 @@ const Member = () => {
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 <Button variant="outlined" component="label" size="small">
                                     Upload Photo
-                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { const url = URL.createObjectURL(f); openCropDialog(url) } }} />
                                 </Button>
                                 <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
                                     Take Photo
@@ -593,7 +822,14 @@ const Member = () => {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
+            <Dialog 
+                open={openEdit} 
+                onClose={() => setOpenEdit(false)} 
+                fullWidth 
+                maxWidth="sm"
+                disableRestoreFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Edit Member</DialogTitle>
                 <DialogContent sx={{
                     ...(isAdmin && {
@@ -683,7 +919,7 @@ const Member = () => {
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 <Button variant="outlined" component="label" size="small">
                                     Upload Photo
-                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { const url = URL.createObjectURL(f); openCropDialog(url) } }} />
                                 </Button>
                                 <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
                                     Take Photo
@@ -700,7 +936,14 @@ const Member = () => {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={openInvoice} onClose={() => setOpenInvoice(false)} fullWidth maxWidth="sm">
+            <Dialog 
+                open={openInvoice} 
+                onClose={() => setOpenInvoice(false)} 
+                fullWidth 
+                maxWidth="sm"
+                disableRestoreFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Create Invoice for New Member</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
@@ -942,7 +1185,14 @@ const Member = () => {
             </Dialog>
 
             {/* Camera Dialog */}
-            <Dialog open={cameraOpen} onClose={closeCamera} fullWidth maxWidth="md">
+            <Dialog 
+                open={cameraOpen} 
+                onClose={closeCamera} 
+                fullWidth 
+                maxWidth="md"
+                disableRestoreFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Take Member Photo</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 1 }}>
@@ -960,7 +1210,7 @@ const Member = () => {
                             }}>
                                 <Typography>Loading camera...</Typography>
                             </Box>
-                        ) : cameraError ? (
+                        ) : cameraError && !stream ? (
                             <Box sx={{ 
                                 width: '100%', 
                                 maxWidth: '400px', 
@@ -980,28 +1230,51 @@ const Member = () => {
                         ) : !capturedImage ? (
                             <>
                                 <video
-                                    ref={videoRef}
+                                    ref={setVideoRef}
                                     autoPlay
                                     playsInline
                                     muted
+                                    onLoadStart={() => {
+                                        console.log('Video load started');
+                                    }}
                                     onLoadedMetadata={() => {
                                         if (videoRef.current) {
-                                            videoRef.current.play().catch(e => 
-                                                console.error('Error playing video:', e)
-                                            );
+                                            // Don't call play() here - let the useEffect handle it
                                         }
+                                    }}
+                                    onCanPlay={() => {
+                                        setVideoReady(true);
+                                    }}
+                                    onCanPlayThrough={() => {
+                                        console.log('Video can play through');
+                                    }}
+                                    onError={(e) => {
+                                        console.error('Video error:', e);
+                                        setCameraError('Video playback error');
+                                        setVideoReady(false);
                                     }}
                                     style={{
                                         width: '100%',
                                         maxWidth: '400px',
                                         borderRadius: '8px',
-                                        border: '2px solid #ddd',
-                                        backgroundColor: '#f5f5f5'
+                                        border: videoReady ? '2px solid #4caf50' : '2px solid #ddd',
+                                        backgroundColor: '#f5f5f5',
+                                        transform: 'scaleX(-1)' // Mirror the video horizontally
                                     }}
                                 />
+                                {videoReady && (
+                                    <Typography variant="body2" color="success.main" sx={{ textAlign: 'center' }}>
+                                        ✅ Camera ready for capture
+                                    </Typography>
+                                )}
                                 <Box sx={{ display: 'flex', gap: 2 }}>
-                                    <Button variant="contained" onClick={capturePhoto} startIcon="📸">
-                                        Capture Photo
+                                    <Button 
+                                        variant="contained" 
+                                        onClick={capturePhoto} 
+                                        startIcon="📸"
+                                        disabled={!videoReady}
+                                    >
+                                        {videoReady ? 'Capture Photo' : 'Camera Loading...'}
                                     </Button>
                                     <Button variant="outlined" onClick={closeCamera}>
                                         Cancel
@@ -1043,6 +1316,60 @@ const Member = () => {
                         <canvas ref={canvasRef} style={{ display: 'none' }} />
                     </Box>
                 </DialogContent>
+            </Dialog>
+
+            {/* Photo Crop Dialog */}
+            <Dialog 
+                open={cropOpen} 
+                onClose={cancelCrop} 
+                fullWidth 
+                maxWidth="md"
+                disableRestoreFocus
+                keepMounted={false}
+            >
+                <DialogTitle>Crop Photo</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 1 }}>
+                        {imageToCrop && (
+                            <ReactCrop
+                                crop={crop}
+                                onChange={(c) => setCrop(c)}
+                                onComplete={onCropComplete}
+                                aspect={1}
+                                circularCrop
+                            >
+                                <img
+                                    ref={cropImageRef}
+                                    src={imageToCrop}
+                                    alt="Crop preview"
+                                    style={{
+                                        maxWidth: '100%',
+                                        maxHeight: '400px',
+                                        borderRadius: '8px'
+                                    }}
+                                />
+                            </ReactCrop>
+                        )}
+                        
+                        {croppedImageUrl && (
+                            <Box sx={{ mt: 2, textAlign: 'center' }}>
+                                <Typography variant="body2" color="success.main">
+                                    ✅ Cropped preview ready
+                                </Typography>
+                            </Box>
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={cancelCrop}>Cancel</Button>
+                    <Button 
+                        onClick={applyCrop} 
+                        variant="contained" 
+                        disabled={!croppedImageUrl}
+                    >
+                        Apply Crop
+                    </Button>
+                </DialogActions>
             </Dialog>
         </div>
     );
