@@ -1138,7 +1138,7 @@ const BiometricEnrollment = () => {
                   <Box sx={{ overflowX: 'auto' }}>
                     <Box sx={{ 
                       display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                      gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
                       gap: 1,
                       alignItems: 'center',
                       p: 1,
@@ -1160,7 +1160,7 @@ const BiometricEnrollment = () => {
                         key={member.id}
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                          gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
                           gap: 1,
                           alignItems: 'center',
                           p: 1,
@@ -1212,7 +1212,7 @@ const BiometricEnrollment = () => {
                             <Chip label="Not Enrolled" color="default" size="small" />
                           )}
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
                           {ongoingEnrollment && ongoingEnrollment.memberId === member.id ? (
                             <>
                               <Button
@@ -1220,6 +1220,7 @@ const BiometricEnrollment = () => {
                                 disabled
                                 startIcon={<FingerprintIcon />}
                                 size="small"
+                                sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                               >
                                 Enrolling...
                               </Button>
@@ -1230,6 +1231,7 @@ const BiometricEnrollment = () => {
                                 disabled={loading}
                                 startIcon={<CloseIcon />}
                                 size="small"
+                                sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                               >
                                 Cancel
                               </Button>
@@ -1242,6 +1244,7 @@ const BiometricEnrollment = () => {
                                 disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
                                 startIcon={<FingerprintIcon />}
                                 size="small"
+                                sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                               >
                                 Enroll
                               </Button>
@@ -1251,6 +1254,7 @@ const BiometricEnrollment = () => {
                                 disabled={loading || !!ongoingEnrollment}
                                 startIcon={<SettingsIcon />}
                                 size="small"
+                                sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                               >
                                 Manual
                               </Button>
@@ -1292,7 +1296,7 @@ const BiometricEnrollment = () => {
                   <Box sx={{ overflowX: 'auto' }}>
                     <Box sx={{ 
                       display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                      gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
                       gap: 1,
                       alignItems: 'center',
                       p: 1,
@@ -1315,7 +1319,7 @@ const BiometricEnrollment = () => {
                         key={member.id}
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                          gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
                           gap: 1,
                           alignItems: 'center',
                           p: 1,
@@ -1351,7 +1355,7 @@ const BiometricEnrollment = () => {
                             icon={<FingerprintIcon sx={{ fontSize: '1rem' }} />}
                           />
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
                           <Button
                             variant="outlined"
                             color="error"
@@ -1359,6 +1363,7 @@ const BiometricEnrollment = () => {
                             disabled={loading || !!ongoingEnrollment}
                             startIcon={<DeleteIcon />}
                             size="small"
+                            sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                           >
                             Delete
                           </Button>
@@ -1368,6 +1373,7 @@ const BiometricEnrollment = () => {
                             disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
                             startIcon={<RefreshIcon />}
                             size="small"
+                            sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                           >
                             Re-enroll
                           </Button>
