@@ -27,8 +27,6 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    FormControlLabel,
-    Checkbox,
     Autocomplete
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
@@ -61,7 +59,6 @@ const Financials = () => {
     const [invAmount, setInvAmount] = useState('');
     const [invDueDate, setInvDueDate] = useState('');
     const [invJoinDate, setInvJoinDate] = useState('');
-    const [allowBackdatedInvoices, setAllowBackdatedInvoices] = useState(false);
     // Edit invoice state
     const [openEditInvoice, setOpenEditInvoice] = useState(false);
     const [editInvoiceId, setEditInvoiceId] = useState('');
@@ -69,7 +66,6 @@ const Financials = () => {
     const [editInvPlanId, setEditInvPlanId] = useState('');
     const [editInvAmount, setEditInvAmount] = useState('');
     const [editInvDueDate, setEditInvDueDate] = useState('');
-    const [allowEditBackdatedInvoices, setAllowEditBackdatedInvoices] = useState(false);
     const [financialSummary, setFinancialSummary] = useState({
         outstandingInvoices: [],
         paymentHistory: [],
@@ -630,7 +626,6 @@ const Financials = () => {
                         defaultDueDate.setDate(defaultDueDate.getDate() + 30);
                         setInvDueDate(formatDateToLocalString(defaultDueDate));
                         setInvJoinDate('');
-                        setAllowBackdatedInvoices(false);
                     }}>Create Invoice</Button>
                 </Box>
             </Box>
@@ -875,7 +870,6 @@ const Financials = () => {
             <Dialog open={openCreateInvoice} onClose={() => {
                 setOpenCreateInvoice(false);
                 setInvJoinDate('');
-                setAllowBackdatedInvoices(false);
             }} fullWidth maxWidth="sm">
                 <DialogTitle>Create Invoice</DialogTitle>
                 <DialogContent>
@@ -937,26 +931,14 @@ const Financials = () => {
                             value={invDueDate} 
                             onChange={(e)=>setInvDueDate(e.target.value)} 
                             InputLabelProps={{ shrink: true }}
-                            inputProps={allowBackdatedInvoices ? {} : { min: new Date().toISOString().split('T')[0] }}
-                            helperText={allowBackdatedInvoices ? "Backdated invoices are allowed" : "Due date cannot be in the past"}
                         />
                         <TextField label="Join Date" type="date" value={invJoinDate} onChange={(e)=>setInvJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} helperText="Member's joining date for due date calculation" />
-                        <FormControlLabel
-                            control={
-                                <Checkbox
-                                    checked={allowBackdatedInvoices}
-                                    onChange={(e) => setAllowBackdatedInvoices(e.target.checked)}
-                                />
-                            }
-                            label="Allow backdated invoices (due date in the past)"
-                        />
                 </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={()=>{
                         setOpenCreateInvoice(false);
                         setInvJoinDate('');
-                        setAllowBackdatedInvoices(false);
                     }}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
@@ -984,7 +966,6 @@ const Financials = () => {
                             });
                             setOpenCreateInvoice(false);
                             setInvJoinDate('');
-                            setAllowBackdatedInvoices(false);
                             fetchFinancialSummary();
                         } catch (e) { 
                             console.error(e);
@@ -997,7 +978,6 @@ const Financials = () => {
             {/* Edit Invoice Dialog */}
             <Dialog open={openEditInvoice} onClose={() => {
                 setOpenEditInvoice(false);
-                setAllowEditBackdatedInvoices(false);
             }} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Invoice #{editInvoiceId}</DialogTitle>
                 <DialogContent>
@@ -1035,24 +1015,12 @@ const Financials = () => {
                             value={editInvDueDate} 
                             onChange={(e)=>setEditInvDueDate(e.target.value)} 
                             InputLabelProps={{ shrink: true }}
-                            inputProps={allowEditBackdatedInvoices ? {} : { min: new Date().toISOString().split('T')[0] }}
-                            helperText={allowEditBackdatedInvoices ? "Backdated invoices are allowed" : "Due date cannot be in the past"}
-                        />
-                        <FormControlLabel
-                            control={
-                                <Checkbox
-                                    checked={allowEditBackdatedInvoices}
-                                    onChange={(e) => setAllowEditBackdatedInvoices(e.target.checked)}
-                                />
-                            }
-                            label="Allow backdated invoices (due date in the past)"
                         />
                 </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={()=>{
                         setOpenEditInvoice(false);
-                        setAllowEditBackdatedInvoices(false);
                     }}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
@@ -1078,7 +1046,6 @@ const Financials = () => {
                                 due_date: editInvDueDate
                             });
                             setOpenEditInvoice(false);
-                            setAllowEditBackdatedInvoices(false);
                             fetchFinancialSummary();
                             alert('Invoice updated successfully');
                         } catch (e) {

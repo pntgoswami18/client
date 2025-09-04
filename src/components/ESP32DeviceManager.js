@@ -92,6 +92,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [unlockReason, setUnlockReason] = useState('');
   const [enrollMemberId, setEnrollMemberId] = useState('');
   const [members, setMembers] = useState([]);
+  const [askUnlockReason, setAskUnlockReason] = useState(true);
   const [editDevice, setEditDevice] = useState({
     device_id: '',
     location: '',
@@ -140,13 +141,14 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const fetchEsp32Settings = async () => {
     try {
       const response = await axios.get('/api/settings');
-      const { esp32_host, esp32_port, local_listen_host, local_listen_port, main_server_port, biometric_port_env, biometric_host_env } = response.data;
+      const { esp32_host, esp32_port, local_listen_host, local_listen_port, main_server_port, biometric_port_env, biometric_host_env, ask_unlock_reason } = response.data;
       
       if (esp32_host) { setEsp32Host(esp32_host); }
       if (esp32_port !== undefined) { setEsp32Port(String(esp32_port)); }
       if (local_listen_host) { setLocalListenHost(local_listen_host); }
       if (local_listen_port) { setLocalListenPort(String(local_listen_port)); }
       if (main_server_port) { setMainServerPort(String(main_server_port)); }
+      if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
       
       // Store initial values for change tracking (including environment values for reference)
       setTimeout(() => {
@@ -598,22 +600,25 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     return 'Poor';
   };
 
-  const handleUnlockDevice = async () => {
-    if (!selectedDevice) { return; }
+  const handleUnlockDevice = async (device = null) => {
+    const targetDevice = device || selectedDevice;
+    if (!targetDevice) { return; }
     
     try {
       setLoading(true);
-      const response = await fetch(`/api/biometric/devices/${selectedDevice.device_id}/unlock`, {
+      const response = await fetch(`/api/biometric/devices/${targetDevice.device_id}/unlock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: unlockReason || 'Admin unlock' })
+        body: JSON.stringify({ reason: askUnlockReason ? (unlockReason || 'Admin unlock') : 'Admin unlock' })
       });
       
       const data = await response.json();
       if (data.success) {
-        setSuccess(`Door ${selectedDevice.device_id} unlocked successfully`);
-        setUnlockDialogOpen(false);
-        setUnlockReason('');
+        setSuccess(`Door ${targetDevice.device_id} unlocked successfully`);
+        if (!device) { // Only close dialog if called from dialog
+          setUnlockDialogOpen(false);
+          setUnlockReason('');
+        }
       } else {
         setError(data.message);
       }
@@ -732,8 +737,12 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
               size="small" 
               startIcon={<LockOpenIcon />}
               onClick={() => {
-                setSelectedDevice(device);
-                setUnlockDialogOpen(true);
+                if (askUnlockReason) {
+                  setSelectedDevice(device);
+                  setUnlockDialogOpen(true);
+                } else {
+                  handleUnlockDevice(device);
+                }
               }}
               disabled={device.status !== 'online'}
             >
@@ -1155,14 +1164,16 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
           <Typography variant="body2" color="text.secondary" gutterBottom>
             Device: {selectedDevice?.device_id}
           </Typography>
-          <TextField
-            fullWidth
-            label="Unlock Reason"
-            value={unlockReason}
-            onChange={(e) => setUnlockReason(e.target.value)}
-            placeholder="e.g., Emergency access, Maintenance, Admin override"
-            sx={{ mt: 2 }}
-          />
+          {askUnlockReason && (
+            <TextField
+              fullWidth
+              label="Unlock Reason"
+              value={unlockReason}
+              onChange={(e) => setUnlockReason(e.target.value)}
+              placeholder="e.g., Emergency access, Maintenance, Admin override"
+              sx={{ mt: 2 }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setUnlockDialogOpen(false)}>Cancel</Button>

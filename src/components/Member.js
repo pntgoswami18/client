@@ -69,7 +69,6 @@ const Member = () => {
     const [invoiceDueDate, setInvoiceDueDate] = useState('');
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [allowBackdatedInvoices, setAllowBackdatedInvoices] = useState(false);
     const [calculatedDueDate, setCalculatedDueDate] = useState('');
 
     // Webcam functionality
@@ -422,7 +421,6 @@ const Member = () => {
     const handleCreateInvoice = async () => {
         if (!lastCreatedMemberId) { 
             setOpenInvoice(false); 
-            setAllowBackdatedInvoices(false);
             return; 
         }
         try {
@@ -434,7 +432,6 @@ const Member = () => {
                 join_date: joinDate
             });
             setOpenInvoice(false);
-            setAllowBackdatedInvoices(false);
         } catch (error) {
             console.error('Error creating invoice', error);
         }
@@ -1093,7 +1090,6 @@ const Member = () => {
                 open={openInvoice} 
                 onClose={() => {
                     setOpenInvoice(false);
-                    setAllowBackdatedInvoices(false);
                 }} 
                 fullWidth 
                 maxWidth="sm"
@@ -1122,24 +1118,12 @@ const Member = () => {
                             value={invoiceDueDate} 
                             onChange={(e)=>setInvoiceDueDate(e.target.value)} 
                             InputLabelProps={{ shrink: true }}
-                            inputProps={allowBackdatedInvoices ? {} : { min: new Date().toISOString().split('T')[0] }}
-                            helperText={allowBackdatedInvoices ? "Backdated invoices are allowed" : "Due date cannot be in the past"}
-                        />
-                        <FormControlLabel
-                            control={
-                                <Checkbox
-                                    checked={allowBackdatedInvoices}
-                                    onChange={(e) => setAllowBackdatedInvoices(e.target.checked)}
-                                />
-                            }
-                            label="Allow backdated invoices (due date in the past)"
                         />
                     </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => {
                         setOpenInvoice(false);
-                        setAllowBackdatedInvoices(false);
                     }}>Skip</Button>
                     <Button onClick={handleCreateInvoice} variant="contained">Create Invoice</Button>
                 </DialogActions>

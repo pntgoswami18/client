@@ -900,23 +900,94 @@ const BiometricEnrollment = () => {
         <Typography variant="h4" component="h1">
           Biometric Management
         </Typography>
-        <Box>
-          <Button
-            variant="outlined"
-            onClick={() => setManualDialogOpen(true)}
-            sx={{ mr: 2 }}
-          >
-            Manual Assignment
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => setEnrollDialogOpen(true)}
-            startIcon={<FingerprintIcon />}
-          >
-            New Enrollment
-          </Button>
-        </Box>
       </Box>
+
+      {/* Status Cards */}
+      <Grid container spacing={3} mb={3}>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ minHeight: 'auto' }}>
+            <CardContent sx={{ py: 2, px: 2 }}>
+              <Box display="flex" alignItems="center" mb={1}>
+                <MonitorIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  Service Status
+                </Typography>
+              </Box>
+              <Chip
+                label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
+                color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
+                size="small"
+                sx={{ mb: 1 }}
+              />
+              <Chip
+                label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
+                color={wsConnected ? 'success' : 'warning'}
+                size="small"
+                icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
+                sx={{ mb: 1 }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                Devices: {systemStatus?.connectedDevices || 0}
+              </Typography>
+              <Box mt={1}>
+                <Button
+                  variant="outlined"
+                  onClick={testConnection}
+                  disabled={loading || !systemStatus?.biometricServiceAvailable}
+                  startIcon={<RefreshIcon />}
+                  size="small"
+                >
+                  Test
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Card sx={{ minHeight: 'auto' }}>
+            <CardContent sx={{ py: 2, px: 2 }}>
+              <Box display="flex" alignItems="center" mb={1}>
+                <FingerprintIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                  Enrollment Status
+                </Typography>
+              </Box>
+              <Chip
+                label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
+                color={enrollmentStatus?.active ? 'warning' : 'default'}
+                size="small"
+                sx={{ mb: 1 }}
+              />
+              {enrollmentStatus?.active && (
+                <>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {enrollmentStatus.enrollmentMode?.memberName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {formatDateTime(enrollmentStatus.enrollmentMode?.startTime)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3} attempts
+                  </Typography>
+                  <Box mt={1}>
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      onClick={stopEnrollment}
+                      disabled={loading}
+                      startIcon={<CloseIcon />}
+                      size="small"
+                    >
+                      Stop
+                    </Button>
+                  </Box>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Alerts */}
       {error && (
@@ -951,92 +1022,6 @@ const BiometricEnrollment = () => {
           Please place your finger on the biometric device and follow the prompts.
         </Alert>
       )}
-
-      {/* Status Cards */}
-      <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" mb={2}>
-                <MonitorIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="h6">
-                  Service Status
-                </Typography>
-              </Box>
-              <Chip
-                label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
-                color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
-                sx={{ mb: 1 }}
-              />
-              <Box display="flex" alignItems="center" mb={1}>
-                <Chip
-                  label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
-                  color={wsConnected ? 'success' : 'warning'}
-                  size="small"
-                  icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
-                />
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                Connected Devices: {systemStatus?.connectedDevices || 0}
-              </Typography>
-              <Box mt={2}>
-                <Button
-                  variant="outlined"
-                  onClick={testConnection}
-                  disabled={loading || !systemStatus?.biometricServiceAvailable}
-                  startIcon={<RefreshIcon />}
-                  size="small"
-                >
-                  Test Connection
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center" mb={2}>
-                <FingerprintIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="h6">
-                  Enrollment Status
-                </Typography>
-              </Box>
-              <Chip
-                label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
-                color={enrollmentStatus?.active ? 'warning' : 'default'}
-                sx={{ mb: 1 }}
-              />
-              {enrollmentStatus?.active && (
-                <>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Member: {enrollmentStatus.enrollmentMode?.memberName}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Started: {formatDateTime(enrollmentStatus.enrollmentMode?.startTime)}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Attempts: {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3}
-                  </Typography>
-                  <Box mt={2}>
-                    <Button
-                      variant="outlined"
-                      color="warning"
-                      onClick={stopEnrollment}
-                      disabled={loading}
-                      startIcon={<CloseIcon />}
-                      size="small"
-                    >
-                      Stop Enrollment
-                    </Button>
-                  </Box>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
 
       {/* Active Enrollment Instructions */}
       {enrollmentStatus?.active && (
@@ -1138,124 +1123,131 @@ const BiometricEnrollment = () => {
             </Alert>
           )
         ) : filteredMembersWithoutBiometric && filteredMembersWithoutBiometric.length > 0 ? (
-                  <Grid container spacing={2}>
-            {filteredMembersWithoutBiometric.map(member => (
-                      <Grid item xs={12} md={6} lg={4} key={member.id}>
-                        <Card variant="outlined" sx={{ 
-                          position: 'relative',
+                  <Box sx={{ overflowX: 'auto' }}>
+                    <Box sx={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                      gap: 1,
+                      alignItems: 'center',
+                      p: 1,
+                      bgcolor: 'grey.100',
+                      borderRadius: 1,
+                      mb: 1,
+                      fontWeight: 'bold',
+                      fontSize: '0.875rem'
+                    }}>
+                      <Box>Name</Box>
+                      <Box>Email</Box>
+                      <Box>Phone</Box>
+                      <Box>Joined</Box>
+                      <Box>Status</Box>
+                      <Box>Actions</Box>
+                    </Box>
+                    {filteredMembersWithoutBiometric.map(member => (
+                      <Box
+                        key={member.id}
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                          gap: 1,
+                          alignItems: 'center',
+                          p: 1,
+                          border: '1px solid',
+                          borderColor: 'grey.300',
+                          borderRadius: 1,
+                          mb: 1,
                           background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                          border: (member.is_admin === 1 || member.is_admin === true) ? '2px solid #ffd700' : undefined,
                           ...(ongoingEnrollment && ongoingEnrollment.memberId === member.id && {
                             border: '2px solid #2196f3',
                             boxShadow: '0 0 10px rgba(33, 150, 243, 0.3)'
                           })
-                        }}>
-                          {ongoingEnrollment && ongoingEnrollment.memberId === member.id && (
-                            <Box 
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {member.name}
+                          {(member.is_admin === 1 || member.is_admin === true) && (
+                            <StarIcon 
                               sx={{ 
-                                position: 'absolute', 
-                                top: 8, 
-                                right: 8, 
-                                bgcolor: 'primary.main', 
-                                color: 'white', 
-                                px: 1, 
-                                py: 0.5, 
-                                borderRadius: 1,
-                                fontSize: '0.75rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 0.5
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: '50%',
-                                  bgcolor: 'white',
-                                  animation: 'pulse 1.5s ease-in-out infinite'
-                                }}
-                              />
-                              Enrolling
-                            </Box>
+                                color: '#ffd700', 
+                                fontSize: 16,
+                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                              }} 
+                            />
                           )}
-                          <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {member.name}
-                                {(member.is_admin === 1 || member.is_admin === true) && (
-                                  <StarIcon 
-                                    sx={{ 
-                                      color: '#ffd700', 
-                                      fontSize: 20,
-                                      filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                                    }} 
-                                  />
-                                )}
-                              </Box>
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {member.email}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {member.phone}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Joined: {formatDateTime(member.join_date)}
-                            </Typography>
-                          </CardContent>
-                          <Box p={2} pt={0}>
-                            {ongoingEnrollment && ongoingEnrollment.memberId === member.id ? (
-                              <>
-                                <Button
-                                  fullWidth
-                                  variant="contained"
-                                  disabled
-                                  startIcon={<FingerprintIcon />}
-                                  sx={{ mb: 1 }}
-                                >
-                                  Enrolling...
-                                </Button>
-                                <Button
-                                  fullWidth
-                                  variant="outlined"
-                                  color="warning"
-                                  onClick={cancelOngoingEnrollment}
-                                  disabled={loading}
-                                  startIcon={<CloseIcon />}
-                                  sx={{ mb: 1 }}
-                                >
-                                  Cancel Enrollment
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  fullWidth
-                                  variant="contained"
-                                  onClick={() => startEnrollment(member.id)}
-                                  disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                                  startIcon={<FingerprintIcon />}
-                                  sx={{ mb: 1 }}
-                                >
-                                  Enroll Fingerprint
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              fullWidth
-                              variant="outlined"
-                              onClick={() => openManualEnrollment(member)}
-                              disabled={loading || !!ongoingEnrollment}
-                              startIcon={<SettingsIcon />}
-                            >
-                              Manual Assignment
-                            </Button>
-                          </Box>
-                        </Card>
-                      </Grid>
+                        </Box>
+                        <Box sx={{ fontSize: '0.875rem' }}>{member.email}</Box>
+                        <Box sx={{ fontSize: '0.875rem' }}>{member.phone}</Box>
+                        <Box sx={{ fontSize: '0.875rem' }}>{formatDateTime(member.join_date)}</Box>
+                        <Box>
+                          {ongoingEnrollment && ongoingEnrollment.memberId === member.id ? (
+                            <Chip
+                              label="Enrolling"
+                              color="primary"
+                              size="small"
+                              icon={
+                                <Box
+                                  sx={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    bgcolor: 'white',
+                                    animation: 'pulse 1.5s ease-in-out infinite'
+                                  }}
+                                />
+                              }
+                            />
+                          ) : (
+                            <Chip label="Not Enrolled" color="default" size="small" />
+                          )}
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          {ongoingEnrollment && ongoingEnrollment.memberId === member.id ? (
+                            <>
+                              <Button
+                                variant="contained"
+                                disabled
+                                startIcon={<FingerprintIcon />}
+                                size="small"
+                              >
+                                Enrolling...
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                color="warning"
+                                onClick={cancelOngoingEnrollment}
+                                disabled={loading}
+                                startIcon={<CloseIcon />}
+                                size="small"
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="contained"
+                                onClick={() => startEnrollment(member.id)}
+                                disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                                startIcon={<FingerprintIcon />}
+                                size="small"
+                              >
+                                Enroll
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                onClick={() => openManualEnrollment(member)}
+                                disabled={loading || !!ongoingEnrollment}
+                                startIcon={<SettingsIcon />}
+                                size="small"
+                              >
+                                Manual
+                              </Button>
+                            </>
+                          )}
+                        </Box>
+                      </Box>
                     ))}
-                  </Grid>
+                  </Box>
                 ) : (
                   <Typography>Loading member data...</Typography>
                 )}
@@ -1285,88 +1277,92 @@ const BiometricEnrollment = () => {
                     </Alert>
                   )
                 ) : filteredMembersWithBiometric && filteredMembersWithBiometric.length > 0 ? (
-                  <Grid container spacing={2}>
+                  <Box sx={{ overflowX: 'auto' }}>
+                    <Box sx={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                      gap: 1,
+                      alignItems: 'center',
+                      p: 1,
+                      bgcolor: 'grey.100',
+                      borderRadius: 1,
+                      mb: 1,
+                      fontWeight: 'bold',
+                      fontSize: '0.875rem'
+                    }}>
+                      <Box>Name</Box>
+                      <Box>Email</Box>
+                      <Box>Phone</Box>
+                      <Box>Biometric ID</Box>
+                      <Box>Joined</Box>
+                      <Box>Status</Box>
+                      <Box>Actions</Box>
+                    </Box>
                     {filteredMembersWithBiometric.map(member => (
-                      <Grid item xs={12} md={6} lg={4} key={member.id}>
-                        <Card variant="outlined" sx={{ 
-                          position: 'relative',
+                      <Box
+                        key={member.id}
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr',
+                          gap: 1,
+                          alignItems: 'center',
+                          p: 1,
+                          border: '1px solid',
+                          borderColor: (member.is_admin === 1 || member.is_admin === true) ? '#ffd700' : '#4caf50',
+                          borderRadius: 1,
+                          mb: 1,
                           background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                          border: (member.is_admin === 1 || member.is_admin === true) ? '2px solid #ffd700' : '2px solid #4caf50',
                           boxShadow: (member.is_admin === 1 || member.is_admin === true) ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)'
-                        }}>
-                          <Box 
-                            sx={{ 
-                              position: 'absolute', 
-                              top: 8, 
-                              right: 8, 
-                              bgcolor: 'success.main', 
-                              color: 'white', 
-                              px: 1, 
-                              py: 0.5, 
-                              borderRadius: 1,
-                              fontSize: '0.75rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.5
-                            }}
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          {member.name}
+                          {(member.is_admin === 1 || member.is_admin === true) && (
+                            <StarIcon 
+                              sx={{ 
+                                color: '#ffd700', 
+                                fontSize: 16,
+                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                              }} 
+                            />
+                          )}
+                        </Box>
+                        <Box sx={{ fontSize: '0.875rem' }}>{member.email}</Box>
+                        <Box sx={{ fontSize: '0.875rem' }}>{member.phone}</Box>
+                        <Box sx={{ fontSize: '0.875rem' }}>{member.biometric_id}</Box>
+                        <Box sx={{ fontSize: '0.875rem' }}>{formatDateTime(member.join_date)}</Box>
+                        <Box>
+                          <Chip
+                            label="Enrolled"
+                            color="success"
+                            size="small"
+                            icon={<FingerprintIcon sx={{ fontSize: '1rem' }} />}
+                          />
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={() => openDeleteConfirmDialog(member.id, member.name)}
+                            disabled={loading || !!ongoingEnrollment}
+                            startIcon={<DeleteIcon />}
+                            size="small"
                           >
-                            <FingerprintIcon sx={{ fontSize: '1rem' }} />
-                            Enrolled
-                          </Box>
-                          <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                              <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-                                {member.name}
-                              </Typography>
-                              {(member.is_admin === 1 || member.is_admin === true) && (
-                                <StarIcon 
-                                  sx={{ 
-                                    color: '#ffd700', 
-                                    fontSize: 20,
-                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                                  }} 
-                                />
-                              )}
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {member.email}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {member.phone}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Biometric ID: {member.biometric_id}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Joined: {formatDateTime(member.join_date)}
-                            </Typography>
-                          </CardContent>
-                          <Box p={2} pt={0}>
-                            <Button
-                              fullWidth
-                              variant="outlined"
-                              color="error"
-                              onClick={() => openDeleteConfirmDialog(member.id, member.name)}
-                              disabled={loading || !!ongoingEnrollment}
-                              startIcon={<DeleteIcon />}
-                              sx={{ mb: 1 }}
-                            >
-                              Delete Enrollment
-                            </Button>
-                            <Button
-                              fullWidth
-                              variant="outlined"
-                              onClick={() => startEnrollment(member.id)}
-                              disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                              startIcon={<RefreshIcon />}
-                            >
-                              Re-enroll Now
-                            </Button>
-                          </Box>
-                        </Card>
-                      </Grid>
+                            Delete
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            onClick={() => startEnrollment(member.id)}
+                            disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                            startIcon={<RefreshIcon />}
+                            size="small"
+                          >
+                            Re-enroll
+                          </Button>
+                        </Box>
+                      </Box>
                     ))}
-                  </Grid>
+                  </Box>
                 ) : (
                   <Typography>Loading member data...</Typography>
                 )}

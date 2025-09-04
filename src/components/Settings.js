@@ -17,15 +17,35 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert
+  Alert,
+  Divider
 } from '@mui/material';
 import {
   Settings as SettingsIcon,
   DeviceHub as DeviceHubIcon,
   Monitor as MonitorIcon,
   Analytics as AnalyticsIcon,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  DragIndicator as DragIndicatorIcon
 } from '@mui/icons-material';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import GradientEditor from './GradientEditor';
 import ESP32DeviceManager from './ESP32DeviceManager';
 import ESP32Monitor from './ESP32Monitor';
@@ -52,6 +72,14 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [showNewMembersThisMonth, setShowNewMembersThisMonth] = useState(true);
     const [showUnpaidMembersThisMonth, setShowUnpaidMembersThisMonth] = useState(true);
     const [showActiveSchedules, setShowActiveSchedules] = useState(true);
+    const [askUnlockReason, setAskUnlockReason] = useState(true);
+    const [cardOrder, setCardOrder] = useState([
+        'total_members',
+        'total_revenue', 
+        'new_members_this_month',
+        'unpaid_members_this_month',
+        'active_schedules'
+    ]);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const initialValues = useRef({});
     
@@ -60,7 +88,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const fetchSettings = useCallback(async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules } = response.data;
+            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason } = response.data;
             if (currency) { setCurrency(currency); }
             if (gym_name) { setGymName(gym_name); }
             if (gym_logo) { setGymLogo(gym_logo); }
@@ -80,6 +108,12 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (show_card_new_members_this_month !== undefined) { setShowNewMembersThisMonth(String(show_card_new_members_this_month) !== 'false'); }
             if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(String(show_card_unpaid_members_this_month) !== 'false'); }
             if (show_card_active_schedules !== undefined) { setShowActiveSchedules(String(show_card_active_schedules) !== 'false'); }
+            if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
+            
+            // Fetch card order
+            if (response.data.card_order && Array.isArray(response.data.card_order)) {
+                setCardOrder(response.data.card_order);
+            }
 
             // Store initial values after loading with the actual fetched values
             setTimeout(() => {
@@ -102,7 +136,15 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     showTotalRevenue: String(show_card_total_revenue) !== 'false',
                     showNewMembersThisMonth: String(show_card_new_members_this_month) !== 'false',
                     showUnpaidMembersThisMonth: String(show_card_unpaid_members_this_month) !== 'false',
-                    showActiveSchedules: String(show_card_active_schedules) !== 'false'
+                    showActiveSchedules: String(show_card_active_schedules) !== 'false',
+                    askUnlockReason: String(ask_unlock_reason) !== 'false',
+                    cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
+                        'total_members',
+                        'total_revenue', 
+                        'new_members_this_month',
+                        'unpaid_members_this_month',
+                        'active_schedules'
+                    ]
                 };
             }, 100);
 
@@ -150,7 +192,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 show_card_total_revenue: showTotalRevenue,
                 show_card_new_members_this_month: showNewMembersThisMonth,
                 show_card_unpaid_members_this_month: showUnpaidMembersThisMonth,
-                show_card_active_schedules: showActiveSchedules
+                show_card_active_schedules: showActiveSchedules,
+                ask_unlock_reason: askUnlockReason,
+                card_order: cardOrder
             };
 
             await axios.put('/api/settings', settingsToUpdate);
@@ -193,7 +237,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             showTotalRevenue,
             showNewMembersThisMonth,
             showUnpaidMembersThisMonth,
-            showActiveSchedules
+            showActiveSchedules,
+            askUnlockReason,
+            cardOrder
         };
 
         const hasChanges = JSON.stringify(currentValues) !== JSON.stringify(initialValues.current) || logoFile !== null;
@@ -207,7 +253,74 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     }, [currency, gymName, gymLogo, primaryColor, secondaryColor, primaryColorMode, secondaryColorMode, 
         primaryGradient, secondaryGradient, paymentReminderDays, morningStart, morningEnd, eveningStart, 
         eveningEnd, showTotalMembers, showTotalRevenue, showNewMembersThisMonth, showUnpaidMembersThisMonth, 
-        showActiveSchedules, logoFile, hasUnsavedChanges, onUnsavedChanges]);
+        showActiveSchedules, askUnlockReason, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
+
+    // Sortable card component
+    const SortableCard = ({ id, title, checked, onChange }) => {
+        const {
+            attributes,
+            listeners,
+            setNodeRef,
+            transform,
+            transition,
+            isDragging,
+        } = useSortable({ id });
+
+        const style = {
+            transform: CSS.Transform.toString(transform),
+            transition,
+            opacity: isDragging ? 0.5 : 1,
+        };
+
+        return (
+            <div
+                ref={setNodeRef}
+                style={{
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px',
+                    margin: '8px 0',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    border: '1px solid #e9ecef',
+                    cursor: 'grab',
+                    userSelect: 'none',
+                    gap: '12px'
+                }}
+                {...attributes}
+                {...listeners}
+            >
+                <DragIndicatorIcon style={{ color: '#6c757d', cursor: 'grab' }} />
+                <FormControlLabel
+                    control={<Checkbox checked={checked} onChange={onChange} />}
+                    label={title}
+                    style={{ flex: 1, margin: 0 }}
+                />
+            </div>
+        );
+    };
+
+    // Handle drag end
+    const handleDragEnd = (event) => {
+        const { active, over } = event;
+
+        if (active.id !== over.id) {
+            setCardOrder((items) => {
+                const oldIndex = items.indexOf(active.id);
+                const newIndex = items.indexOf(over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    };
+
+    // Sensors for drag and drop
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     // Track changes in form values
     useEffect(() => {
@@ -278,17 +391,85 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     </TextField>
                 </form>
 
+                <Divider sx={{ my: 3 }} />
+
                 <div style={{ marginTop: '30px' }}>
                     <label>Dashboard Cards</label>
-                    <FormGroup sx={{ mt: 1 }}>
-                        <FormControlLabel control={<Checkbox checked={showTotalMembers} onChange={(e)=>setShowTotalMembers(e.target.checked)} />} label="Total Members" />
-                        <FormControlLabel control={<Checkbox checked={showTotalRevenue} onChange={(e)=>setShowTotalRevenue(e.target.checked)} />} label="Total Revenue" />
-                        <FormControlLabel control={<Checkbox checked={showNewMembersThisMonth} onChange={(e)=>setShowNewMembersThisMonth(e.target.checked)} />} label="New Members This Month" />
-                        <FormControlLabel control={<Checkbox checked={showUnpaidMembersThisMonth} onChange={(e)=>setShowUnpaidMembersThisMonth(e.target.checked)} />} label="Unpaid Members This Month" />
-                        <FormControlLabel control={<Checkbox checked={showActiveSchedules} onChange={(e)=>setShowActiveSchedules(e.target.checked)} />} label="Active Schedules" />
-                    </FormGroup>
-                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>Choose which summary cards show on the dashboard.</Typography>
+                    <Typography variant="caption" display="block" sx={{ mb: 2 }}>
+                        Drag and drop to reorder cards. Check/uncheck to show/hide cards on the dashboard.
+                    </Typography>
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={cardOrder}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            {cardOrder.map((cardId) => {
+                                const cardConfigs = {
+                                    total_members: {
+                                        title: "Total Members",
+                                        checked: showTotalMembers,
+                                        onChange: (e) => setShowTotalMembers(e.target.checked)
+                                    },
+                                    total_revenue: {
+                                        title: "Total Revenue",
+                                        checked: showTotalRevenue,
+                                        onChange: (e) => setShowTotalRevenue(e.target.checked)
+                                    },
+                                    new_members_this_month: {
+                                        title: "New Members This Month",
+                                        checked: showNewMembersThisMonth,
+                                        onChange: (e) => setShowNewMembersThisMonth(e.target.checked)
+                                    },
+                                    unpaid_members_this_month: {
+                                        title: "Unpaid Members This Month",
+                                        checked: showUnpaidMembersThisMonth,
+                                        onChange: (e) => setShowUnpaidMembersThisMonth(e.target.checked)
+                                    },
+                                    active_schedules: {
+                                        title: "Active Schedules",
+                                        checked: showActiveSchedules,
+                                        onChange: (e) => setShowActiveSchedules(e.target.checked)
+                                    }
+                                };
+
+                                const config = cardConfigs[cardId];
+                                if (!config) return null;
+
+                                return (
+                                    <SortableCard
+                                        key={cardId}
+                                        id={cardId}
+                                        title={config.title}
+                                        checked={config.checked}
+                                        onChange={config.onChange}
+                                    />
+                                );
+                            })}
+                        </SortableContext>
+                    </DndContext>
                 </div>
+
+                <Divider sx={{ my: 3 }} />
+
+                <div style={{ marginTop: '30px' }}>
+                    <label>Door Unlock Settings</label>
+                    <FormGroup sx={{ mt: 1 }}>
+                        <FormControlLabel 
+                            control={<Checkbox checked={askUnlockReason} onChange={(e)=>setAskUnlockReason(e.target.checked)} />} 
+                            label="Ask for reason when unlocking doors" 
+                        />
+                    </FormGroup>
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        When enabled, users will be prompted to provide a reason when unlocking doors remotely.
+                    </Typography>
+                </div>
+
+                <Divider sx={{ my: 3 }} />
+
                 <div style={{ marginTop: '30px' }}>
                     <label>Working Hours</label>
                     <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -337,6 +518,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                         These values control check-in allowed hours used by Attendance.
                     </Typography>
                 </div>
+
+                <Divider sx={{ my: 3 }} />
+
                 <div style={{ marginTop: '30px' }}>
                     <label>Accent Colors</label>
                     <Box sx={{ display: 'flex', gap: 2, mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -407,6 +591,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     </Box>
                 </div>
 
+                <Divider sx={{ my: 3 }} />
+
                 <div style={{ marginTop: '30px' }}>
                     <TextField
                         label="Payment Reminder (days before due date)"
@@ -419,6 +605,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     />
                 </div>
 
+                <Divider sx={{ my: 3 }} />
 
                 <Button variant="contained" color="primary" onClick={handleSaveAllSettings} style={{marginTop: '20px'}}>Save All Settings</Button>
             </div>
