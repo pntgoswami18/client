@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
@@ -52,6 +52,7 @@ const Member = () => {
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [birthday, setBirthday] = useState('');
+    const [joinDate, setJoinDate] = useState(new Date().toISOString().split('T')[0]);
     const [photoFile, setPhotoFile] = useState(null);
     const [photoUrl, setPhotoUrl] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
@@ -68,6 +69,8 @@ const Member = () => {
     const [invoiceDueDate, setInvoiceDueDate] = useState('');
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [allowBackdatedInvoices, setAllowBackdatedInvoices] = useState(false);
+    const [calculatedDueDate, setCalculatedDueDate] = useState('');
 
     // Webcam functionality
     const [cameraOpen, setCameraOpen] = useState(false);
@@ -121,6 +124,38 @@ const Member = () => {
         fetchPlans();
         fetchCurrency();
     }, []);
+
+    const calculateDueDate = useCallback(() => {
+        if (!joinDate || !membershipPlanId || isAdmin) {
+            setCalculatedDueDate('');
+            return;
+        }
+
+        const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId));
+        if (!selectedPlan || !selectedPlan.duration_days) {
+            setCalculatedDueDate('');
+            return;
+        }
+
+        const joinDateObj = new Date(joinDate);
+        const dueDate = new Date(joinDateObj);
+        
+        if (selectedPlan.duration_days === 30) {
+            // For monthly plans, use normalized month calculation
+            const dayOfMonth = joinDateObj.getDate();
+            dueDate.setMonth(dueDate.getMonth() + 1);
+            dueDate.setDate(dayOfMonth);
+        } else {
+            // For other durations, use simple day addition
+            dueDate.setDate(dueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+        }
+        
+        setCalculatedDueDate(formatDateToLocalString(dueDate));
+    }, [joinDate, membershipPlanId, isAdmin, plans]);
+
+    useEffect(() => {
+        calculateDueDate();
+    }, [calculateDueDate]);
 
     useEffect(() => {
         const qp = new URLSearchParams(location.search);
@@ -180,7 +215,8 @@ const Member = () => {
                 address: address || null,
                 birthday: birthday || null,
                 photo_url: photoUrl || null,
-                is_admin: isAdmin
+                is_admin: isAdmin,
+                join_date: joinDate
             };
             const res = await axios.post('/api/members', newMember);
             if (res?.data?.id && photoFile) {
@@ -195,6 +231,8 @@ const Member = () => {
             setPhone('');
             setAddress('');
             setBirthday('');
+            setJoinDate(new Date().toISOString().split('T')[0]);
+            setCalculatedDueDate('');
             setPhotoFile(null);
             setPhotoUrl('');
             if (plans.length > 0) { setMembershipPlanId(plans[0].id); }
@@ -206,14 +244,28 @@ const Member = () => {
                 setInvoiceAmount(selectedPlan ? String(selectedPlan.price) : '');
                 
                 // Calculate due date based on plan duration from join date
-                const joinDate = new Date();
-                const dueDate = new Date(joinDate);
                 if (selectedPlan && selectedPlan.duration_days) {
-                    dueDate.setDate(joinDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+                    // Use normalized due date calculation
+                    const joinDateObj = new Date(joinDate);
+                    const dueDate = new Date(joinDateObj);
+                    
+                    if (selectedPlan.duration_days === 30) {
+                        // For monthly plans, use normalized month calculation
+                        const dayOfMonth = joinDateObj.getDate();
+                        dueDate.setMonth(dueDate.getMonth() + 1);
+                        dueDate.setDate(dayOfMonth);
+                    } else {
+                        // For other durations, use simple day addition
+                        dueDate.setDate(dueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+                    }
+                    setInvoiceDueDate(formatDateToLocalString(dueDate));
                 } else {
-                    dueDate.setDate(joinDate.getDate() + 30); // Default 30 days
+                    // Default 30 days if no plan selected
+                    const joinDateObj = new Date(joinDate);
+                    const dueDate = new Date(joinDateObj);
+                    dueDate.setMonth(dueDate.getMonth() + 1);
+                    setInvoiceDueDate(formatDateToLocalString(dueDate));
                 }
-                setInvoiceDueDate(formatDateToLocalString(dueDate));
                 setOpenInvoice(true);
             }
         } catch (error) {
@@ -234,6 +286,7 @@ const Member = () => {
                 phone,
                 address: address || null,
                 birthday: birthday || null,
+                join_date: joinDate,
                 photo_url: photoUrl || null,
                 is_admin: isAdmin,
                 membership_plan_id: isAdmin ? null : (membershipPlanId ? parseInt(membershipPlanId, 10) : null)
@@ -261,6 +314,8 @@ const Member = () => {
         setPhone(member.phone ? String(member.phone) : '');
         setAddress(member.address || '');
         setBirthday(member.birthday || '');
+        setJoinDate(member.join_date || new Date().toISOString().split('T')[0]);
+        setCalculatedDueDate('');
         setPhotoUrl(member.photo_url || '');
         setIsAdmin(member.is_admin === 1);
         setMembershipPlanId(member.membership_plan_id ? String(member.membership_plan_id) : '');
@@ -365,15 +420,21 @@ const Member = () => {
     };
 
     const handleCreateInvoice = async () => {
-        if (!lastCreatedMemberId) { setOpenInvoice(false); return; }
+        if (!lastCreatedMemberId) { 
+            setOpenInvoice(false); 
+            setAllowBackdatedInvoices(false);
+            return; 
+        }
         try {
             await axios.post('/api/payments/invoice', {
                 member_id: lastCreatedMemberId,
                 plan_id: invoicePlanId ? parseInt(invoicePlanId,10) : null,
                 amount: parseFloat(invoiceAmount),
-                due_date: invoiceDueDate
+                due_date: invoiceDueDate,
+                join_date: joinDate
             });
             setOpenInvoice(false);
+            setAllowBackdatedInvoices(false);
         } catch (error) {
             console.error('Error creating invoice', error);
         }
@@ -707,6 +768,12 @@ const Member = () => {
                     setEditingMember(null);
                     setName('');
                     setPhone('');
+                    setAddress('');
+                    setBirthday('');
+                    setJoinDate(new Date().toISOString().split('T')[0]);
+                    setCalculatedDueDate('');
+                    setPhotoFile(null);
+                    setPhotoUrl('');
                     setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
                     setIsAdmin(false);
                     setOpenAdd(true);
@@ -715,7 +782,20 @@ const Member = () => {
 
             <Dialog 
                 open={openAdd} 
-                onClose={() => setOpenAdd(false)} 
+                onClose={() => {
+                    setOpenAdd(false);
+                    setEditingMember(null);
+                    setName('');
+                    setPhone('');
+                    setAddress('');
+                    setBirthday('');
+                    setJoinDate(new Date().toISOString().split('T')[0]);
+                    setCalculatedDueDate('');
+                    setPhotoFile(null);
+                    setPhotoUrl('');
+                    setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setIsAdmin(false);
+                }} 
                 fullWidth 
                 maxWidth="sm"
                 disableRestoreFocus
@@ -770,6 +850,7 @@ const Member = () => {
                         
                         <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
                         <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField label="Joining Date" type="date" value={joinDate} onChange={(e)=>setJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} required />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             {photoUrl ? (
                                 <img src={photoUrl} alt="member" style={{ height: 64, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
@@ -808,6 +889,22 @@ const Member = () => {
                             )}
                         </FormControl>
                         
+                        {calculatedDueDate && !isAdmin && (
+                            <TextField 
+                                label="Due Date" 
+                                value={calculatedDueDate} 
+                                InputProps={{ readOnly: true }}
+                                InputLabelProps={{ shrink: true }}
+                                helperText="Auto-calculated based on joining date and membership plan"
+                                sx={{ 
+                                    '& .MuiInputBase-input': { 
+                                        backgroundColor: '#f5f5f5',
+                                        color: '#666'
+                                    }
+                                }}
+                            />
+                        )}
+                        
                         {isAdmin && (
                             <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', p: 1, bgcolor: '#fff9c4', borderRadius: 1, border: '1px solid #ffd700' }}>
                                 ⭐ Admin users are exempt from payments and membership plans
@@ -815,7 +912,20 @@ const Member = () => {
                         )}
                         
                         <DialogActions sx={{ px: 0 }}>
-                            <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
+                            <Button onClick={() => {
+                                setOpenAdd(false);
+                                setEditingMember(null);
+                                setName('');
+                                setPhone('');
+                                setAddress('');
+                                setBirthday('');
+                                setJoinDate(new Date().toISOString().split('T')[0]);
+                                setCalculatedDueDate('');
+                                setPhotoFile(null);
+                                setPhotoUrl('');
+                                setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                                setIsAdmin(false);
+                            }}>Cancel</Button>
                             <Button type="submit" variant="contained" disabled={plans.length === 0 && !isAdmin}>Add Member</Button>
                         </DialogActions>
                     </Box>
@@ -824,7 +934,20 @@ const Member = () => {
 
             <Dialog 
                 open={openEdit} 
-                onClose={() => setOpenEdit(false)} 
+                onClose={() => {
+                    setOpenEdit(false);
+                    setEditingMember(null);
+                    setName('');
+                    setPhone('');
+                    setAddress('');
+                    setBirthday('');
+                    setJoinDate(new Date().toISOString().split('T')[0]);
+                    setCalculatedDueDate('');
+                    setPhotoFile(null);
+                    setPhotoUrl('');
+                    setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setIsAdmin(false);
+                }} 
                 fullWidth 
                 maxWidth="sm"
                 disableRestoreFocus
@@ -910,6 +1033,7 @@ const Member = () => {
                         
                         <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
                         <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField label="Joining Date" type="date" value={joinDate} onChange={(e)=>setJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} required />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             {photoUrl ? (
                                 <img src={photoUrl} alt="member" style={{ height: 64, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
@@ -928,8 +1052,37 @@ const Member = () => {
                             </Box>
                         </Box>
 
+                        {calculatedDueDate && !isAdmin && (
+                            <TextField 
+                                label="Due Date" 
+                                value={calculatedDueDate} 
+                                InputProps={{ readOnly: true }}
+                                InputLabelProps={{ shrink: true }}
+                                helperText="Auto-calculated based on joining date and membership plan"
+                                sx={{ 
+                                    '& .MuiInputBase-input': { 
+                                        backgroundColor: '#f5f5f5',
+                                        color: '#666'
+                                    }
+                                }}
+                            />
+                        )}
+
                         <DialogActions sx={{ px: 0 }}>
-                            <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
+                            <Button onClick={() => {
+                                setOpenEdit(false);
+                                setEditingMember(null);
+                                setName('');
+                                setPhone('');
+                                setAddress('');
+                                setBirthday('');
+                                setJoinDate(new Date().toISOString().split('T')[0]);
+                                setCalculatedDueDate('');
+                                setPhotoFile(null);
+                                setPhotoUrl('');
+                                setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                                setIsAdmin(false);
+                            }}>Cancel</Button>
                             <Button type="submit" variant="contained">Save</Button>
                         </DialogActions>
                     </Box>
@@ -938,7 +1091,10 @@ const Member = () => {
 
             <Dialog 
                 open={openInvoice} 
-                onClose={() => setOpenInvoice(false)} 
+                onClose={() => {
+                    setOpenInvoice(false);
+                    setAllowBackdatedInvoices(false);
+                }} 
                 fullWidth 
                 maxWidth="sm"
                 disableRestoreFocus
@@ -960,11 +1116,31 @@ const Member = () => {
                             </Select>
                         </FormControl>
                         <TextField label="Amount" type="number" value={invoiceAmount} onChange={(e)=>setInvoiceAmount(e.target.value)} />
-                        <TextField label="Due Date" type="date" value={invoiceDueDate} onChange={(e)=>setInvoiceDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField 
+                            label="Due Date" 
+                            type="date" 
+                            value={invoiceDueDate} 
+                            onChange={(e)=>setInvoiceDueDate(e.target.value)} 
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={allowBackdatedInvoices ? {} : { min: new Date().toISOString().split('T')[0] }}
+                            helperText={allowBackdatedInvoices ? "Backdated invoices are allowed" : "Due date cannot be in the past"}
+                        />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={allowBackdatedInvoices}
+                                    onChange={(e) => setAllowBackdatedInvoices(e.target.checked)}
+                                />
+                            }
+                            label="Allow backdated invoices (due date in the past)"
+                        />
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setOpenInvoice(false)}>Skip</Button>
+                    <Button onClick={() => {
+                        setOpenInvoice(false);
+                        setAllowBackdatedInvoices(false);
+                    }}>Skip</Button>
                     <Button onClick={handleCreateInvoice} variant="contained">Create Invoice</Button>
                 </DialogActions>
             </Dialog>

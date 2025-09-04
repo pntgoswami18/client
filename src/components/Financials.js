@@ -27,6 +27,8 @@ import {
     InputLabel,
     Select,
     MenuItem,
+    FormControlLabel,
+    Checkbox,
     Autocomplete
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
@@ -58,6 +60,8 @@ const Financials = () => {
     const [invPlanId, setInvPlanId] = useState('');
     const [invAmount, setInvAmount] = useState('');
     const [invDueDate, setInvDueDate] = useState('');
+    const [invJoinDate, setInvJoinDate] = useState('');
+    const [allowBackdatedInvoices, setAllowBackdatedInvoices] = useState(false);
     // Edit invoice state
     const [openEditInvoice, setOpenEditInvoice] = useState(false);
     const [editInvoiceId, setEditInvoiceId] = useState('');
@@ -65,6 +69,7 @@ const Financials = () => {
     const [editInvPlanId, setEditInvPlanId] = useState('');
     const [editInvAmount, setEditInvAmount] = useState('');
     const [editInvDueDate, setEditInvDueDate] = useState('');
+    const [allowEditBackdatedInvoices, setAllowEditBackdatedInvoices] = useState(false);
     const [financialSummary, setFinancialSummary] = useState({
         outstandingInvoices: [],
         paymentHistory: [],
@@ -624,6 +629,8 @@ const Financials = () => {
                         const defaultDueDate = new Date();
                         defaultDueDate.setDate(defaultDueDate.getDate() + 30);
                         setInvDueDate(formatDateToLocalString(defaultDueDate));
+                        setInvJoinDate('');
+                        setAllowBackdatedInvoices(false);
                     }}>Create Invoice</Button>
                 </Box>
             </Box>
@@ -865,7 +872,11 @@ const Financials = () => {
                 </DialogActions>
             </Dialog>
 
-            <Dialog open={openCreateInvoice} onClose={() => setOpenCreateInvoice(false)} fullWidth maxWidth="sm">
+            <Dialog open={openCreateInvoice} onClose={() => {
+                setOpenCreateInvoice(false);
+                setInvJoinDate('');
+                setAllowBackdatedInvoices(false);
+            }} fullWidth maxWidth="sm">
                 <DialogTitle>Create Invoice</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
@@ -874,7 +885,14 @@ const Financials = () => {
                         </Typography>
                         <SearchableMemberDropdown
                             value={invMemberId}
-                            onChange={(e)=>{ setInvMemberId(e.target.value); }}
+                            onChange={(e)=>{ 
+                                setInvMemberId(e.target.value); 
+                                // Set join_date when member is selected
+                                const selectedMember = members.find(m => String(m.id) === String(e.target.value));
+                                if (selectedMember && selectedMember.join_date) {
+                                    setInvJoinDate(selectedMember.join_date);
+                                }
+                            }}
                             members={nonAdminMembers}
                             label="Member"
                             placeholder="Search members by name, ID, or phone..."
@@ -887,7 +905,25 @@ const Financials = () => {
                             <Select value={invPlanId} onChange={(e)=>{
                                 setInvPlanId(e.target.value);
                                 const p = plans.find(pl => String(pl.id) === String(e.target.value));
-                                if (p) { setInvAmount(String(p.price)); }
+                                if (p) { 
+                                    setInvAmount(String(p.price)); 
+                                    // Calculate due date based on join_date and plan duration
+                                    if (invJoinDate && p.duration_days) {
+                                        const joinDateObj = new Date(invJoinDate);
+                                        const dueDate = new Date(joinDateObj);
+                                        
+                                        if (p.duration_days === 30) {
+                                            // For monthly plans, use normalized month calculation
+                                            const dayOfMonth = joinDateObj.getDate();
+                                            dueDate.setMonth(dueDate.getMonth() + 1);
+                                            dueDate.setDate(dayOfMonth);
+                                        } else {
+                                            // For other durations, use simple day addition
+                                            dueDate.setDate(dueDate.getDate() + parseInt(p.duration_days, 10));
+                                        }
+                                        setInvDueDate(formatDateToLocalString(dueDate));
+                                    }
+                                }
                             }}>
                                 {plans.map(p => (
                                     <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>
@@ -895,11 +931,33 @@ const Financials = () => {
                             </Select>
                         </FormControl>
                         <TextField label="Amount" type="number" value={invAmount} onChange={(e)=>setInvAmount(e.target.value)} />
-                        <TextField label="Due Date" type="date" value={invDueDate} onChange={(e)=>setInvDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField 
+                            label="Due Date" 
+                            type="date" 
+                            value={invDueDate} 
+                            onChange={(e)=>setInvDueDate(e.target.value)} 
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={allowBackdatedInvoices ? {} : { min: new Date().toISOString().split('T')[0] }}
+                            helperText={allowBackdatedInvoices ? "Backdated invoices are allowed" : "Due date cannot be in the past"}
+                        />
+                        <TextField label="Join Date" type="date" value={invJoinDate} onChange={(e)=>setInvJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} helperText="Member's joining date for due date calculation" />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={allowBackdatedInvoices}
+                                    onChange={(e) => setAllowBackdatedInvoices(e.target.checked)}
+                                />
+                            }
+                            label="Allow backdated invoices (due date in the past)"
+                        />
                 </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={()=>setOpenCreateInvoice(false)}>Cancel</Button>
+                    <Button onClick={()=>{
+                        setOpenCreateInvoice(false);
+                        setInvJoinDate('');
+                        setAllowBackdatedInvoices(false);
+                    }}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
                             // Check if selected member is an admin user
@@ -921,9 +979,12 @@ const Financials = () => {
                                 member_id: parseInt(invMemberId,10),
                                 plan_id: finalPlanId,
                                 amount: parseFloat(invAmount),
-                                due_date: invDueDate
+                                due_date: invDueDate,
+                                join_date: invJoinDate
                             });
                             setOpenCreateInvoice(false);
+                            setInvJoinDate('');
+                            setAllowBackdatedInvoices(false);
                             fetchFinancialSummary();
                         } catch (e) { 
                             console.error(e);
@@ -934,7 +995,10 @@ const Financials = () => {
             </Dialog>
 
             {/* Edit Invoice Dialog */}
-            <Dialog open={openEditInvoice} onClose={() => setOpenEditInvoice(false)} fullWidth maxWidth="sm">
+            <Dialog open={openEditInvoice} onClose={() => {
+                setOpenEditInvoice(false);
+                setAllowEditBackdatedInvoices(false);
+            }} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Invoice #{editInvoiceId}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
@@ -965,11 +1029,31 @@ const Financials = () => {
                             </Select>
                         </FormControl>
                         <TextField label="Amount" type="number" value={editInvAmount} onChange={(e)=>setEditInvAmount(e.target.value)} />
-                        <TextField label="Due Date" type="date" value={editInvDueDate} onChange={(e)=>setEditInvDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField 
+                            label="Due Date" 
+                            type="date" 
+                            value={editInvDueDate} 
+                            onChange={(e)=>setEditInvDueDate(e.target.value)} 
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={allowEditBackdatedInvoices ? {} : { min: new Date().toISOString().split('T')[0] }}
+                            helperText={allowEditBackdatedInvoices ? "Backdated invoices are allowed" : "Due date cannot be in the past"}
+                        />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={allowEditBackdatedInvoices}
+                                    onChange={(e) => setAllowEditBackdatedInvoices(e.target.checked)}
+                                />
+                            }
+                            label="Allow backdated invoices (due date in the past)"
+                        />
                 </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={()=>setOpenEditInvoice(false)}>Cancel</Button>
+                    <Button onClick={()=>{
+                        setOpenEditInvoice(false);
+                        setAllowEditBackdatedInvoices(false);
+                    }}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
                             // Check if selected member is an admin user
@@ -994,6 +1078,7 @@ const Financials = () => {
                                 due_date: editInvDueDate
                             });
                             setOpenEditInvoice(false);
+                            setAllowEditBackdatedInvoices(false);
                             fetchFinancialSummary();
                             alert('Invoice updated successfully');
                         } catch (e) {
