@@ -116,37 +116,35 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             }
 
             // Store initial values after loading with the actual fetched values
-            setTimeout(() => {
-                initialValues.current = {
-                    currency: currency || 'INR',
-                    gymName: gym_name || '',
-                    gymLogo: gym_logo || '',
-                    primaryColor: primary_color || '#3f51b5',
-                    secondaryColor: secondary_color || '#f50057',
-                    primaryColorMode: primary_color_mode || 'solid',
-                    secondaryColorMode: secondary_color_mode || 'solid',
-                    primaryGradient: primary_color_gradient || '',
-                    secondaryGradient: secondary_color_gradient || '',
-                    paymentReminderDays: String(payment_reminder_days || '7'),
-                    morningStart: morning_session_start || '05:00',
-                    morningEnd: morning_session_end || '11:00',
-                    eveningStart: evening_session_start || '16:00',
-                    eveningEnd: evening_session_end || '22:00',
-                    showTotalMembers: String(show_card_total_members) !== 'false',
-                    showTotalRevenue: String(show_card_total_revenue) !== 'false',
-                    showNewMembersThisMonth: String(show_card_new_members_this_month) !== 'false',
-                    showUnpaidMembersThisMonth: String(show_card_unpaid_members_this_month) !== 'false',
-                    showActiveSchedules: String(show_card_active_schedules) !== 'false',
-                    askUnlockReason: String(ask_unlock_reason) !== 'false',
-                    cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
-                        'total_members',
-                        'total_revenue', 
-                        'new_members_this_month',
-                        'unpaid_members_this_month',
-                        'active_schedules'
-                    ]
-                };
-            }, 100);
+            initialValues.current = {
+                currency: currency || 'INR',
+                gymName: gym_name || '',
+                gymLogo: gym_logo || '',
+                primaryColor: primary_color || '#3f51b5',
+                secondaryColor: secondary_color || '#f50057',
+                primaryColorMode: primary_color_mode || 'solid',
+                secondaryColorMode: secondary_color_mode || 'solid',
+                primaryGradient: primary_color_gradient || '',
+                secondaryGradient: secondary_color_gradient || '',
+                paymentReminderDays: String(payment_reminder_days || '7'),
+                morningStart: morning_session_start || '05:00',
+                morningEnd: morning_session_end || '11:00',
+                eveningStart: evening_session_start || '16:00',
+                eveningEnd: evening_session_end || '22:00',
+                showTotalMembers: String(show_card_total_members) !== 'false',
+                showTotalRevenue: String(show_card_total_revenue) !== 'false',
+                showNewMembersThisMonth: String(show_card_new_members_this_month) !== 'false',
+                showUnpaidMembersThisMonth: String(show_card_unpaid_members_this_month) !== 'false',
+                showActiveSchedules: String(show_card_active_schedules) !== 'false',
+                askUnlockReason: String(ask_unlock_reason) !== 'false',
+                cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
+                    'total_members',
+                    'total_revenue', 
+                    'new_members_this_month',
+                    'unpaid_members_this_month',
+                    'active_schedules'
+                ]
+            };
 
         } catch (error) {
             console.error("Error fetching settings", error);
@@ -196,6 +194,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 ask_unlock_reason: askUnlockReason,
                 card_order: cardOrder
             };
+
+            console.log('Saving settings with card order:', cardOrder);
 
             await axios.put('/api/settings', settingsToUpdate);
 

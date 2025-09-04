@@ -895,82 +895,103 @@ const BiometricEnrollment = () => {
 
   return (
     <Box>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
+      {/* Header with Tabs and Status Cards */}
+      <Box sx={{ mb: 3 }}>
+        {/* Title */}
+        <Typography variant="h4" component="h1" sx={{ mb: 2 }}>
           Biometric Management
         </Typography>
-      </Box>
-
-      {/* Status Cards */}
-      <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} md={6}>
-          <Card sx={{ minHeight: 'auto' }}>
-            <CardContent sx={{ py: 2, px: 2 }}>
-              <Box display="flex" alignItems="center" mb={1}>
-                <MonitorIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                  Service Status
-                </Typography>
-              </Box>
-              <Chip
-                label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
-                color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
-                size="small"
-                sx={{ mb: 1 }}
-              />
-              <Chip
-                label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
-                color={wsConnected ? 'success' : 'warning'}
-                size="small"
-                icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
-                sx={{ mb: 1 }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                Devices: {systemStatus?.connectedDevices || 0}
-              </Typography>
-              <Box mt={1}>
-                <Button
-                  variant="outlined"
-                  onClick={testConnection}
-                  disabled={loading || !systemStatus?.biometricServiceAvailable}
-                  startIcon={<RefreshIcon />}
-                  size="small"
-                >
-                  Test
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
         
-        <Grid item xs={12} md={6}>
-          <Card sx={{ minHeight: 'auto' }}>
-            <CardContent sx={{ py: 2, px: 2 }}>
-              <Box display="flex" alignItems="center" mb={1}>
-                <FingerprintIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                  Enrollment Status
-                </Typography>
-              </Box>
-              <Chip
-                label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
-                color={enrollmentStatus?.active ? 'warning' : 'default'}
-                size="small"
-                sx={{ mb: 1 }}
-              />
-              {enrollmentStatus?.active && (
-                <>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {enrollmentStatus.enrollmentMode?.memberName}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {formatDateTime(enrollmentStatus.enrollmentMode?.startTime)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3} attempts
-                  </Typography>
-                  <Box mt={1}>
+        {/* Combined Tabs and Status Cards Row */}
+        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+          {/* Tabs Section */}
+          <Box sx={{ flex: 1 }}>
+            <Paper>
+              <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
+                <Tab icon={<PersonIcon />} label="Members" />
+                <Tab icon={<DeviceIcon />} label="Devices" />
+                <Tab icon={<HistoryIcon />} label="Events" />
+              </Tabs>
+            </Paper>
+          </Box>
+          
+          {/* Status Cards Section */}
+          <Box sx={{ display: 'flex', gap: 2, minWidth: '700px' }}>
+            {/* Service Status Card */}
+            <Card sx={{ minHeight: '48px', flex: 1, minWidth: '320px' }}>
+              <CardContent sx={{ py: 1.5, px: 3, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                  <Box display="flex" alignItems="center">
+                    <MonitorIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                      Service Status
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
+                    color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
+                    size="small"
+                  />
+                </Box>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Chip
+                      label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
+                      color={wsConnected ? 'success' : 'warning'}
+                      size="small"
+                      icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: '80px' }}>
+                      Devices: {systemStatus?.connectedDevices || 0}
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    onClick={testConnection}
+                    disabled={loading || !systemStatus?.biometricServiceAvailable}
+                    startIcon={<RefreshIcon />}
+                    size="small"
+                  >
+                    Test
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+            
+            {/* Enrollment Status Card */}
+            <Card sx={{ minHeight: '48px', flex: 1, minWidth: '320px' }}>
+              <CardContent sx={{ py: 1.5, px: 3, '&:last-child': { pb: 1.5 } }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                  <Box display="flex" alignItems="center">
+                    <FingerprintIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                      Enrollment Status
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
+                    color={enrollmentStatus?.active ? 'warning' : 'default'}
+                    size="small"
+                  />
+                </Box>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box display="flex" flexDirection="column" gap={0.5} sx={{ minWidth: '200px' }}>
+                    {enrollmentStatus?.active ? (
+                      <>
+                        <Typography variant="caption" color="text.secondary">
+                          {enrollmentStatus.enrollmentMode?.memberName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3} attempts
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        No active enrollment
+                      </Typography>
+                    )}
+                  </Box>
+                  {enrollmentStatus?.active && (
                     <Button
                       variant="outlined"
                       color="warning"
@@ -981,13 +1002,13 @@ const BiometricEnrollment = () => {
                     >
                       Stop
                     </Button>
-                  </Box>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Alerts */}
       {error && (
@@ -1050,15 +1071,6 @@ const BiometricEnrollment = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Main Content Tabs */}
-      <Paper sx={{ mb: 3 }}>
-        <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
-          <Tab icon={<PersonIcon />} label="Members" />
-          <Tab icon={<DeviceIcon />} label="Devices" />
-          <Tab icon={<HistoryIcon />} label="Events" />
-        </Tabs>
-      </Paper>
 
       {/* Tab Content */}
       {currentTab === 0 && (

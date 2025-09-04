@@ -176,11 +176,32 @@ const Dashboard = () => {
                 show_active_schedules: String(res.data.show_card_active_schedules) !== 'false',
             });
             
-            // Fetch card order
+            // Fetch card order with fallback to default
             if (res.data.card_order && Array.isArray(res.data.card_order)) {
+                console.log('Loading saved card order:', res.data.card_order);
                 setCardOrder(res.data.card_order);
+            } else {
+                // Set default order if no saved order exists
+                console.log('No saved card order found, using default');
+                setCardOrder([
+                    'total_members',
+                    'total_revenue', 
+                    'new_members_this_month',
+                    'unpaid_members_this_month',
+                    'active_schedules'
+                ]);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) { 
+            console.error('Error fetching card preferences:', e);
+            // Set default order on error
+            setCardOrder([
+                'total_members',
+                'total_revenue', 
+                'new_members_this_month',
+                'unpaid_members_this_month',
+                'active_schedules'
+            ]);
+        }
     };
 
     const fetchESP32Devices = async () => {
