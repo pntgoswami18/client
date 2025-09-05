@@ -62,6 +62,29 @@ const Dashboard = () => {
         fetchUnlockSettings();
     }, []);
 
+    // Listen for settings updates from localStorage
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const settingsUpdated = localStorage.getItem('settingsUpdated');
+            if (settingsUpdated) {
+                // Clear the flag and refresh card preferences
+                localStorage.removeItem('settingsUpdated');
+                fetchCardPrefs();
+            }
+        };
+
+        // Check for updates every 1 second
+        const interval = setInterval(handleStorageChange, 1000);
+
+        // Also listen for storage events (in case settings are saved in another tab)
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, []);
+
     const fetchCurrency = async () => {
         try {
             const response = await axios.get('/api/settings');
@@ -207,8 +230,8 @@ const Dashboard = () => {
     const fetchESP32Devices = async () => {
         try {
             const response = await axios.get('/api/biometric/devices');
-            if (response.data && Array.isArray(response.data)) {
-                setEsp32Devices(response.data.filter(device => device.status === 'online'));
+            if (response.data && response.data.success && Array.isArray(response.data.devices)) {
+                setEsp32Devices(response.data.devices.filter(device => device.status === 'online'));
             }
         } catch (error) {
             console.error('Error fetching ESP32 devices:', error);
@@ -225,7 +248,9 @@ const Dashboard = () => {
     };
 
     const handleQuickUnlock = async (device) => {
-        if (!device) return;
+        if (!device) {
+            return;
+        }
         
         try {
             setUnlockLoading(true);

@@ -204,6 +204,10 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             setHasUnsavedChanges(false);
             if (onSave) { onSave(); }
             if (onUnsavedChanges) { onUnsavedChanges(false); }
+            
+            // Notify Dashboard component that settings have been updated
+            localStorage.setItem('settingsUpdated', Date.now().toString());
+            
             alert('Settings updated successfully!');
             fetchSettings();
         } catch (error) {
@@ -437,7 +441,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                                 };
 
                                 const config = cardConfigs[cardId];
-                                if (!config) return null;
+                                if (!config) {
+                                    return null;
+                                }
 
                                 return (
                                     <SortableCard
