@@ -37,6 +37,7 @@ import StarIcon from '@mui/icons-material/Star';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import SearchableMemberDropdown from './SearchableMemberDropdown';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -51,6 +52,8 @@ const Member = () => {
     const [address, setAddress] = useState('');
     const [birthday, setBirthday] = useState('');
     const [joinDate, setJoinDate] = useState(new Date().toISOString().split('T')[0]);
+    const [referralMemberId, setReferralMemberId] = useState('');
+    const [referralSystemEnabled, setReferralSystemEnabled] = useState(false);
     const [photoFile, setPhotoFile] = useState(null);
     const [photoUrl, setPhotoUrl] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
@@ -229,6 +232,8 @@ const Member = () => {
             const response = await axios.get('/api/settings');
             const currentCurrency = response.data.currency || 'INR';
             setCurrency(currentCurrency);
+            const referralEnabled = response.data.referral_system_enabled === 'true' || response.data.referral_system_enabled === true;
+            setReferralSystemEnabled(referralEnabled);
         } catch (error) {
             console.error("Error fetching currency", error);
         }
@@ -256,6 +261,19 @@ const Member = () => {
                 const up = await axios.post(`/api/members/${res.data.id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
                 setPhotoUrl(up?.data?.photo_url || '');
             }
+            
+            // Handle referral if specified
+            if (referralMemberId && res?.data?.id) {
+                try {
+                    await axios.post('/api/referrals', {
+                        referrer_id: parseInt(referralMemberId, 10),
+                        referred_id: res.data.id
+                    });
+                } catch (referralError) {
+                    console.error('Error creating referral:', referralError);
+                    // Don't fail the member creation if referral fails
+                }
+            }
             fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
             setName('');
             setPhone('');
@@ -265,6 +283,7 @@ const Member = () => {
             setCalculatedDueDate('');
             setPhotoFile(null);
             setPhotoUrl('');
+            setReferralMemberId('');
             if (plans.length > 0) { setMembershipPlanId(plans[0].id); }
             setOpenAdd(false);
             if (res && res.data && res.data.id) {
@@ -841,6 +860,19 @@ const Member = () => {
                             }
                             label="Admin User (can enter multiple times per day)"
                         />
+                        
+                        {referralSystemEnabled && (
+                            <SearchableMemberDropdown
+                                value={referralMemberId}
+                                onChange={(e) => setReferralMemberId(e.target.value)}
+                                members={members.filter(member => member.id !== parseInt(referralMemberId))} // Exclude self
+                                label="Referred By (Optional)"
+                                placeholder="Search members by name, ID, or phone..."
+                                showId={false}
+                                showEmail={false}
+                                showAdminIcon={false}
+                            />
+                        )}
                         
                         <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
                         <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />

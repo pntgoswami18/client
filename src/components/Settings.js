@@ -73,6 +73,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [showUnpaidMembersThisMonth, setShowUnpaidMembersThisMonth] = useState(true);
     const [showActiveSchedules, setShowActiveSchedules] = useState(true);
     const [askUnlockReason, setAskUnlockReason] = useState(true);
+    const [referralSystemEnabled, setReferralSystemEnabled] = useState(false);
+    const [referralDiscountAmount, setReferralDiscountAmount] = useState('100');
     const [cardOrder, setCardOrder] = useState([
         'total_members',
         'total_revenue', 
@@ -88,7 +90,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const fetchSettings = useCallback(async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason } = response.data;
+            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
             if (currency) { setCurrency(currency); }
             if (gym_name) { setGymName(gym_name); }
             if (gym_logo) { setGymLogo(gym_logo); }
@@ -109,6 +111,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(String(show_card_unpaid_members_this_month) !== 'false'); }
             if (show_card_active_schedules !== undefined) { setShowActiveSchedules(String(show_card_active_schedules) !== 'false'); }
             if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
+            if (referral_system_enabled !== undefined) { setReferralSystemEnabled(String(referral_system_enabled) !== 'false'); }
+            if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
             
             // Fetch card order
             if (response.data.card_order && Array.isArray(response.data.card_order)) {
@@ -137,6 +141,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 showUnpaidMembersThisMonth: String(show_card_unpaid_members_this_month) !== 'false',
                 showActiveSchedules: String(show_card_active_schedules) !== 'false',
                 askUnlockReason: String(ask_unlock_reason) !== 'false',
+                referralSystemEnabled: String(referral_system_enabled) !== 'false',
+                referralDiscountAmount: String(referral_discount_amount || '100'),
                 cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
                     'total_members',
                     'total_revenue', 
@@ -192,6 +198,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 show_card_unpaid_members_this_month: showUnpaidMembersThisMonth,
                 show_card_active_schedules: showActiveSchedules,
                 ask_unlock_reason: askUnlockReason,
+                referral_system_enabled: referralSystemEnabled,
+                referral_discount_amount: referralDiscountAmount,
                 card_order: cardOrder
             };
 
@@ -225,6 +233,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 showUnpaidMembersThisMonth: showUnpaidMembersThisMonth,
                 showActiveSchedules: showActiveSchedules,
                 askUnlockReason: askUnlockReason,
+                referralSystemEnabled: referralSystemEnabled,
+                referralDiscountAmount: referralDiscountAmount,
                 cardOrder: cardOrder
             };
             
@@ -267,6 +277,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             showUnpaidMembersThisMonth,
             showActiveSchedules,
             askUnlockReason,
+            referralSystemEnabled,
+            referralDiscountAmount,
             cardOrder
         };
 
@@ -281,7 +293,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     }, [currency, gymName, gymLogo, primaryColor, secondaryColor, primaryColorMode, secondaryColorMode, 
         primaryGradient, secondaryGradient, paymentReminderDays, morningStart, morningEnd, eveningStart, 
         eveningEnd, showTotalMembers, showTotalRevenue, showNewMembersThisMonth, showUnpaidMembersThisMonth, 
-        showActiveSchedules, askUnlockReason, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
+        showActiveSchedules, askUnlockReason, referralSystemEnabled, referralDiscountAmount, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
 
     // Sortable card component
     const SortableCard = ({ id, title, checked, onChange }) => {
@@ -497,6 +509,35 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                         When enabled, users will be prompted to provide a reason when unlocking doors remotely.
                     </Typography>
+                </div>
+
+                <Divider sx={{ my: 3 }} />
+
+                <div style={{ marginTop: '30px' }}>
+                    <label>Referral System Settings</label>
+                    <FormGroup sx={{ mt: 1 }}>
+                        <FormControlLabel 
+                            control={<Checkbox checked={referralSystemEnabled} onChange={(e)=>setReferralSystemEnabled(e.target.checked)} />} 
+                            label="Enable referral system" 
+                        />
+                    </FormGroup>
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        When enabled, existing members can refer new members and receive discounts.
+                    </Typography>
+                    
+                    {referralSystemEnabled && (
+                        <Box sx={{ mt: 2 }}>
+                            <TextField
+                                label="Referral Discount Amount"
+                                type="number"
+                                value={referralDiscountAmount}
+                                onChange={(e) => setReferralDiscountAmount(e.target.value)}
+                                inputProps={{ min: 0, step: 0.01 }}
+                                helperText="Amount to be deducted from referrer's next payment"
+                                sx={{ width: '300px' }}
+                            />
+                        </Box>
+                    )}
                 </div>
 
                 <Divider sx={{ my: 3 }} />

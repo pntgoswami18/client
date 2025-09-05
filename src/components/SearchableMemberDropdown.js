@@ -33,12 +33,15 @@ const SearchableMemberDropdown = ({
 
   // Filter members based on search term (index-based searching)
   const filteredMembers = useMemo(() => {
+    // Ensure members is an array and filter out any null/undefined members
+    const validMembers = Array.isArray(members) ? members.filter(member => member && typeof member === 'object') : [];
+    
     if (!searchTerm.trim()) {
-      return members;
+      return validMembers;
     }
 
     const searchLower = searchTerm.toLowerCase();
-    return members.filter(member => {
+    return validMembers.filter(member => {
       // Search by name (primary search)
       if (member.name && member.name.toLowerCase().includes(searchLower)) {
         return true;
@@ -78,9 +81,13 @@ const SearchableMemberDropdown = ({
   };
 
   const getMemberDisplayText = (member) => {
-    let displayText = member.name;
+    if (!member || typeof member !== 'object') {
+      return 'Unknown Member';
+    }
     
-    if (showId) {
+    let displayText = member.name || 'Unknown Name';
+    
+    if (showId && member.id) {
       displayText += ` (ID: ${member.id})`;
     }
     
@@ -155,34 +162,41 @@ const SearchableMemberDropdown = ({
         )}
 
         {/* Member options */}
-        {filteredMembers.map((member) => (
-          <MenuItem 
-            key={member.id} 
-            value={member.id}
-            sx={{
-              background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-              border: (member.is_admin === 1 || member.is_admin === true) ? '1px solid #ffd700' : 'none',
-              '&:hover': {
-                background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)' : undefined
-              }
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-              <Box sx={{ flex: 1 }}>
-                {getMemberDisplayText(member)}
+        {filteredMembers.map((member) => {
+          // Ensure member is valid before rendering
+          if (!member || typeof member !== 'object' || !member.id) {
+            return null;
+          }
+          
+          return (
+            <MenuItem 
+              key={member.id} 
+              value={member.id}
+              sx={{
+                background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                border: (member.is_admin === 1 || member.is_admin === true) ? '1px solid #ffd700' : 'none',
+                '&:hover': {
+                  background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)' : undefined
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                <Box sx={{ flex: 1 }}>
+                  {getMemberDisplayText(member)}
+                </Box>
+                {showAdminIcon && (member.is_admin === 1 || member.is_admin === true) && (
+                  <StarIcon 
+                    sx={{ 
+                      color: '#ffd700', 
+                      fontSize: 16,
+                      filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                    }} 
+                  />
+                )}
               </Box>
-              {showAdminIcon && (member.is_admin === 1 || member.is_admin === true) && (
-                <StarIcon 
-                  sx={{ 
-                    color: '#ffd700', 
-                    fontSize: 16,
-                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                  }} 
-                />
-              )}
-            </Box>
-          </MenuItem>
-        ))}
+            </MenuItem>
+          );
+        })}
       </Select>
     </FormControl>
   );

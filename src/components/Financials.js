@@ -60,6 +60,7 @@ const Financials = () => {
     const [invAmount, setInvAmount] = useState('');
     const [invDueDate, setInvDueDate] = useState('');
     const [invJoinDate, setInvJoinDate] = useState('');
+    const [createInvoiceError, setCreateInvoiceError] = useState('');
     // Edit invoice state
     const [openEditInvoice, setOpenEditInvoice] = useState(false);
     const [editInvoiceId, setEditInvoiceId] = useState('');
@@ -187,7 +188,15 @@ const Financials = () => {
 
     // Filter out admin users for invoice creation
     const nonAdminMembers = useMemo(() => {
-        return members.filter(member => !(member.is_admin === 1 || member.is_admin === true));
+        if (!Array.isArray(members)) {
+            return [];
+        }
+        return members.filter(member => 
+            member && 
+            typeof member === 'object' && 
+            member.id && 
+            !(member.is_admin === 1 || member.is_admin === true)
+        );
     }, [members]);
 
     // Pagination handlers
@@ -257,10 +266,15 @@ const Financials = () => {
             const response = await axios.get(`/api/payments/invoices/${invoiceId}`);
             const invoice = response.data;
             
-            // Populate edit form
+            // Validate invoice data
+            if (!invoice || typeof invoice !== 'object') {
+                throw new Error('Invalid invoice data received');
+            }
+            
+            // Populate edit form with defensive programming
             setEditInvoiceId(invoiceId);
-            setEditInvMemberId(invoice.member_id || '');
-            setEditInvPlanId(invoice.plan_id || '');
+            setEditInvMemberId(invoice.member_id ? String(invoice.member_id) : '');
+            setEditInvPlanId(invoice.plan_id ? String(invoice.plan_id) : '');
             setEditInvAmount(String(invoice.invoice_amount || ''));
             setEditInvDueDate(invoice.due_date ? invoice.due_date.split('T')[0] : '');
             setOpenEditInvoice(true);
@@ -295,18 +309,27 @@ const Financials = () => {
     const fetchPlans = async () => {
         try {
             const response = await axios.get('/api/plans');
-            setPlans(Array.isArray(response.data) ? response.data : []);
+            const plansData = Array.isArray(response.data) ? response.data : [];
+            // Filter out any null/undefined plans
+            const validPlans = plansData.filter(plan => plan && typeof plan === 'object' && plan.id);
+            setPlans(validPlans);
         } catch (error) {
             console.error("Error fetching plans", error);
+            setPlans([]); // Set empty array as fallback
         }
     };
 
     const fetchMembers = async () => {
         try {
             const res = await axios.get('/api/members');
-            setMembers(Array.isArray(res.data) ? res.data : []);
+            // The API returns {members: [...]}, so we need to access res.data.members
+            const membersData = Array.isArray(res.data.members) ? res.data.members : [];
+            // Filter out any null/undefined members
+            const validMembers = membersData.filter(member => member && typeof member === 'object' && member.id);
+            setMembers(validMembers);
         } catch (e) {
             console.error('Error fetching members', e);
+            setMembers([]); // Set empty array as fallback
         }
     };
 
@@ -371,7 +394,26 @@ const Financials = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1 }}>Financials</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1, mb: 0 }}>
+                    Financials
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button variant="outlined" onClick={() => setOpenManualPayment(true)}>
+                        Record Manual Payment
+                    </Button>
+                    <Button variant="outlined" onClick={() => {
+                        setOpenCreateInvoice(true);
+                        // Calculate default due date 30 days from now
+                        const defaultDueDate = new Date();
+                        defaultDueDate.setDate(defaultDueDate.getDate() + 30);
+                        setInvDueDate(formatDateToLocalString(defaultDueDate));
+                        setInvJoinDate('');
+                    }}>
+                        Create Invoice
+                    </Button>
+                </Box>
+            </Box>
 
             {/* Financial Summary Section */}
             <Typography variant="h5" gutterBottom>Financial Summary</Typography>
@@ -465,33 +507,39 @@ const Financials = () => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {financialSummary.outstandingInvoices.map(invoice => (
-                                        <TableRow key={invoice.id}>
-                                            <TableCell>{invoice.id}</TableCell>
-                                            <TableCell>{invoice.member_name}</TableCell>
-                                            <TableCell>{formatCurrency(invoice.amount, currency)}</TableCell>
-                                            <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', gap: 1 }}>
-                                                    <Button
-                                                        size="small"
-                                                        variant="outlined"
-                                                        onClick={() => handleEditInvoice(invoice.id)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        size="small"
-                                                        variant="outlined"
-                                                        color="error"
-                                                        onClick={() => handleDeleteInvoice(invoice.id)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {financialSummary.outstandingInvoices.map(invoice => {
+                                        // Ensure invoice is valid before rendering
+                                        if (!invoice || typeof invoice !== 'object' || !invoice.id) {
+                                            return null;
+                                        }
+                                        return (
+                                            <TableRow key={invoice.id}>
+                                                <TableCell>{invoice.id}</TableCell>
+                                                <TableCell>{invoice.member_name}</TableCell>
+                                                <TableCell>{formatCurrency(invoice.amount, currency)}</TableCell>
+                                                <TableCell>{new Date(invoice.due_date).toLocaleDateString()}</TableCell>
+                                                <TableCell>
+                                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            onClick={() => handleEditInvoice(invoice.id)}
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            color="error"
+                                                            onClick={() => handleDeleteInvoice(invoice.id)}
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    </Box>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </TableContainer>
@@ -748,27 +796,6 @@ const Financials = () => {
 
             <Divider sx={{ marginY: '2rem' }} />
 
-            {/* Payment Processing Section */}
-            <Box sx={{ marginBottom: '3rem' }}>
-                <Typography variant="h5" gutterBottom>Payments</Typography>
-                <Alert severity="info">
-                    <Typography variant="subtitle1" gutterBottom><strong>Note:</strong> Card payments are disabled in this build. Record payments manually.</Typography>
-                </Alert>
-                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                    <Button variant="outlined" onClick={() => setOpenManualPayment(true)}>Record Manual Payment</Button>
-                    <Button variant="outlined" onClick={() => {
-                        setOpenCreateInvoice(true);
-                        // Calculate default due date 30 days from now
-                        const defaultDueDate = new Date();
-                        defaultDueDate.setDate(defaultDueDate.getDate() + 30);
-                        setInvDueDate(formatDateToLocalString(defaultDueDate));
-                        setInvJoinDate('');
-                    }}>Create Invoice</Button>
-                </Box>
-            </Box>
-
-            <Divider sx={{ marginY: '2rem' }} />
-
             {/* Membership Plans Section */}
             <Box sx={{ marginBottom: '3rem' }}>
                 <Typography variant="h5" gutterBottom>Membership Plans</Typography>
@@ -839,25 +866,31 @@ const Financials = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {plans.map(plan => (
-                                    <TableRow key={plan.id} hover>
-                                        <TableCell>{plan.name}</TableCell>
-                                        <TableCell>{formatCurrency(plan.price, currency)}</TableCell>
-                                        <TableCell>{plan.duration_days}</TableCell>
-                                        <TableCell>{plan.description || 'No description'}</TableCell>
-                                        <TableCell>
-                                            <Button size="small" variant="outlined" onClick={() => {
-                                                setEditingPlan(plan);
-                                                setPlanName(plan.name);
-                                                setPlanPrice(String(plan.price));
-                                                setPlanDuration(String(plan.duration_days));
-                                                setPlanDescription(plan.description || '');
-                                                setOpenEditPlan(true);
-                                            }}>Edit</Button>
-                                            <Button size="small" color="error" variant="outlined" onClick={() => handleDeletePlan(plan.id)} sx={{ ml: 1 }}>Delete</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {plans.map(plan => {
+                                    // Ensure plan is valid before rendering
+                                    if (!plan || typeof plan !== 'object' || !plan.id) {
+                                        return null;
+                                    }
+                                    return (
+                                        <TableRow key={plan.id} hover>
+                                            <TableCell>{plan.name}</TableCell>
+                                            <TableCell>{formatCurrency(plan.price, currency)}</TableCell>
+                                            <TableCell>{plan.duration_days}</TableCell>
+                                            <TableCell>{plan.description || 'No description'}</TableCell>
+                                            <TableCell>
+                                                <Button size="small" variant="outlined" onClick={() => {
+                                                    setEditingPlan(plan);
+                                                    setPlanName(plan.name);
+                                                    setPlanPrice(String(plan.price));
+                                                    setPlanDuration(String(plan.duration_days));
+                                                    setPlanDescription(plan.description || '');
+                                                    setOpenEditPlan(true);
+                                                }}>Edit</Button>
+                                                <Button size="small" color="error" variant="outlined" onClick={() => handleDeletePlan(plan.id)} sx={{ ml: 1 }}>Delete</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </TableContainer>
@@ -950,11 +983,17 @@ const Financials = () => {
                                         if (inv) { setManualAmount(String(inv.amount)); }
                                     }}
                                 >
-                                    {unpaidInvoices.map(inv => (
-                                        <MenuItem key={inv.id} value={inv.id}>
-                                            #{inv.id} — {formatCurrency(inv.amount, currency)} — Due {new Date(inv.due_date).toLocaleDateString()}
-                                        </MenuItem>
-                                    ))}
+                                    {unpaidInvoices.map(inv => {
+                                        // Ensure invoice is valid before rendering
+                                        if (!inv || typeof inv !== 'object' || !inv.id) {
+                                            return null;
+                                        }
+                                        return (
+                                            <MenuItem key={inv.id} value={inv.id}>
+                                                #{inv.id} — {formatCurrency(inv.amount, currency)} — Due {new Date(inv.due_date).toLocaleDateString()}
+                                            </MenuItem>
+                                        );
+                                    })}
                                 </Select>
                             </FormControl>
                         )}
@@ -1007,6 +1046,7 @@ const Financials = () => {
             <Dialog open={openCreateInvoice} onClose={() => {
                 setOpenCreateInvoice(false);
                 setInvJoinDate('');
+                setCreateInvoiceError('');
             }} fullWidth maxWidth="sm">
                 <DialogTitle>Create Invoice</DialogTitle>
                 <DialogContent>
@@ -1018,6 +1058,7 @@ const Financials = () => {
                             value={invMemberId}
                             onChange={(e)=>{ 
                                 setInvMemberId(e.target.value); 
+                                setCreateInvoiceError(''); // Clear error when user selects
                                 // Set join_date when member is selected
                                 const selectedMember = members.find(m => String(m.id) === String(e.target.value));
                                 if (selectedMember && selectedMember.join_date) {
@@ -1056,17 +1097,41 @@ const Financials = () => {
                                     }
                                 }
                             }}>
-                                {plans.map(p => (
-                                    <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>
-                                ))}
+                                {plans.map(p => {
+                                    // Ensure plan is valid before rendering
+                                    if (!p || typeof p !== 'object' || !p.id) {
+                                        return null;
+                                    }
+                                    return (
+                                        <MenuItem key={p.id} value={p.id}>
+                                            {p.name} - {formatCurrency(p.price, currency)}
+                                        </MenuItem>
+                                    );
+                                })}
                             </Select>
                         </FormControl>
-                        <TextField label="Amount" type="number" value={invAmount} onChange={(e)=>setInvAmount(e.target.value)} />
+                        <TextField 
+                            label="Amount" 
+                            type="number" 
+                            value={invAmount} 
+                            onChange={(e)=>{
+                                setInvAmount(e.target.value);
+                                setCreateInvoiceError(''); // Clear error when user types
+                            }}
+                            required
+                            error={!!createInvoiceError}
+                            helperText={createInvoiceError || 'Enter the invoice amount'}
+                            inputProps={{ min: 0, step: 0.01 }}
+                        />
                         <TextField 
                             label="Due Date" 
                             type="date" 
                             value={invDueDate} 
-                            onChange={(e)=>setInvDueDate(e.target.value)} 
+                            onChange={(e)=>{
+                                setInvDueDate(e.target.value);
+                                setCreateInvoiceError(''); // Clear error when user selects
+                            }}
+                            required
                             InputLabelProps={{ shrink: true }}
                         />
                         <TextField label="Join Date" type="date" value={invJoinDate} onChange={(e)=>setInvJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} helperText="Member's joining date for due date calculation" />
@@ -1076,13 +1141,39 @@ const Financials = () => {
                     <Button onClick={()=>{
                         setOpenCreateInvoice(false);
                         setInvJoinDate('');
+                        setCreateInvoiceError('');
                     }}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
+                            // Clear previous errors
+                            setCreateInvoiceError('');
+                            
+                            // Client-side validation
+                            if (!invMemberId) {
+                                setCreateInvoiceError('Please select a member');
+                                return;
+                            }
+                            
+                            if (!invAmount || invAmount.trim() === '') {
+                                setCreateInvoiceError('Please enter an amount');
+                                return;
+                            }
+                            
+                            const amountValue = parseFloat(invAmount);
+                            if (isNaN(amountValue) || amountValue <= 0) {
+                                setCreateInvoiceError('Please enter a valid amount greater than 0');
+                                return;
+                            }
+                            
+                            if (!invDueDate) {
+                                setCreateInvoiceError('Please select a due date');
+                                return;
+                            }
+                            
                             // Check if selected member is an admin user
                             const selectedMember = members.find(m => String(m.id) === String(invMemberId));
                             if (selectedMember && selectedMember.is_admin === 1) {
-                                alert('Admin users are exempt from payments and cannot have invoices created against them.');
+                                setCreateInvoiceError('Admin users are exempt from payments and cannot have invoices created against them');
                                 return;
                             }
                             
@@ -1097,16 +1188,29 @@ const Financials = () => {
                             await axios.post('/api/payments/invoice', {
                                 member_id: parseInt(invMemberId,10),
                                 plan_id: finalPlanId,
-                                amount: parseFloat(invAmount),
+                                amount: amountValue,
                                 due_date: invDueDate,
                                 join_date: invJoinDate
                             });
                             setOpenCreateInvoice(false);
                             setInvJoinDate('');
+                            setCreateInvoiceError('');
                             fetchFinancialSummary();
                         } catch (e) { 
                             console.error(e);
-                            alert(e?.response?.data?.message || 'Error creating invoice.');
+                            // Handle specific error messages
+                            if (e?.response?.data?.message) {
+                                const errorMessage = e.response.data.message;
+                                if (errorMessage.includes('NOT NULL constraint failed: invoices.amount')) {
+                                    setCreateInvoiceError('Please enter a valid amount');
+                                } else if (errorMessage.includes('NOT NULL constraint failed')) {
+                                    setCreateInvoiceError('Please fill in all required fields');
+                                } else {
+                                    setCreateInvoiceError(errorMessage);
+                                }
+                            } else {
+                                setCreateInvoiceError('Error creating invoice. Please try again.');
+                            }
                         }
                     }}>Create</Button>
                 </DialogActions>
@@ -1140,9 +1244,17 @@ const Financials = () => {
                                 if (p) { setEditInvAmount(String(p.price)); }
                             }}>
                                 <MenuItem value="">No Plan</MenuItem>
-                                {plans.map(p => (
-                                    <MenuItem key={p.id} value={p.id}>{p.name} - {formatCurrency(p.price, currency)}</MenuItem>
-                                ))}
+                                {plans.map(p => {
+                                    // Ensure plan is valid before rendering
+                                    if (!p || typeof p !== 'object' || !p.id) {
+                                        return null;
+                                    }
+                                    return (
+                                        <MenuItem key={p.id} value={p.id}>
+                                            {p.name} - {formatCurrency(p.price, currency)}
+                                        </MenuItem>
+                                    );
+                                })}
                             </Select>
                         </FormControl>
                         <TextField label="Amount" type="number" value={editInvAmount} onChange={(e)=>setEditInvAmount(e.target.value)} />
