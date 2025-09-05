@@ -144,73 +144,8 @@ const BiometricEnrollment = () => {
     'Complete Enrollment'
   ];
 
-  // Filter members based on search term
-  const filteredMembersWithoutBiometric = useMemo(() => {
-    if (!memberSearchTerm.trim()) {
-      return members;
-    }
-
-    const searchLower = memberSearchTerm.toLowerCase();
-    return members.filter(member => {
-      // Search by name (primary search)
-      if (member.name && member.name.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      
-      // Search by ID
-      if (member.id && member.id.toString().includes(searchLower)) {
-        return true;
-      }
-      
-      // Search by email
-      if (member.email && member.email.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      
-      // Search by phone
-      if (member.phone && member.phone.includes(searchLower)) {
-        return true;
-      }
-      
-      return false;
-    });
-  }, [members, memberSearchTerm]);
-
-  const filteredMembersWithBiometric = useMemo(() => {
-    if (!memberSearchTerm.trim()) {
-      return membersWithBiometric;
-    }
-
-    const searchLower = memberSearchTerm.toLowerCase();
-    return membersWithBiometric.filter(member => {
-      // Search by name (primary search)
-      if (member.name && member.name.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      
-      // Search by ID
-      if (member.id && member.id.toString().includes(searchLower)) {
-        return true;
-      }
-      
-      // Search by email
-      if (member.email && member.email.toLowerCase().includes(searchLower)) {
-        return true;
-      }
-      
-      // Search by phone
-      if (member.phone && member.phone.includes(searchLower)) {
-        return true;
-      }
-      
-      // Search by biometric ID
-      if (member.biometric_id && member.biometric_id.toString().includes(searchLower)) {
-        return true;
-      }
-      
-      return false;
-    });
-  }, [membersWithBiometric, memberSearchTerm]);
+  // Note: Client-side filtering removed - now using backend search with pagination
+  // The backend handles all filtering and search functionality
 
   // Define callback functions first
   const fetchMembersWithoutBiometric = useCallback(async (page = membersWithoutBiometricPage, limit = itemsPerPage, search = memberSearchTerm) => {
@@ -221,7 +156,7 @@ const BiometricEnrollment = () => {
         search: search || ''
       });
       
-      const response = await fetch(`/api/biometric/members-without-biometric?${params.toString()}`);
+      const response = await fetch(`/api/biometric/members/without-biometric?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -256,7 +191,7 @@ const BiometricEnrollment = () => {
         search: search || ''
       });
       
-      const response = await fetch(`/api/biometric/members-with-biometric?${params.toString()}`);
+      const response = await fetch(`/api/biometric/members/with-biometric?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -506,13 +441,31 @@ const BiometricEnrollment = () => {
     fetchBiometricEvents(1, newItemsPerPage, eventSearchTerm);
   };
 
+  // Debounced search for members to improve performance
+  const [debouncedMemberSearchTerm, setDebouncedMemberSearchTerm] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMemberSearchTerm(memberSearchTerm);
+    }, 300); // 300ms delay
+    
+    return () => clearTimeout(timer);
+  }, [memberSearchTerm]);
+  
+  // Update members when debounced search term changes
+  useEffect(() => {
+    if (debouncedMemberSearchTerm !== memberSearchTerm) {
+      setMembersWithoutBiometricPage(1);
+      setMembersWithBiometricPage(1);
+      fetchMembersWithoutBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
+      fetchMembersWithBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
+    }
+  }, [debouncedMemberSearchTerm, itemsPerPage, fetchMembersWithoutBiometric, fetchMembersWithBiometric, memberSearchTerm]);
+
   const handleMemberSearchChange = (event) => {
     const newSearchTerm = event.target.value;
     setMemberSearchTerm(newSearchTerm);
-    setMembersWithoutBiometricPage(1);
-    setMembersWithBiometricPage(1);
-    fetchMembersWithoutBiometric(1, itemsPerPage, newSearchTerm);
-    fetchMembersWithBiometric(1, itemsPerPage, newSearchTerm);
+    // API calls will be triggered by debounced effect
   };
 
   // Debounced search for better performance
@@ -1310,7 +1263,7 @@ const BiometricEnrollment = () => {
               </Box>
               {memberSearchTerm && (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Showing {filteredMembersWithoutBiometric.length} members without biometric data and {filteredMembersWithBiometric.length} members with biometric data matching "{memberSearchTerm}"
+                  Showing {paginationMeta.membersWithoutBiometric.total} members without biometric data and {paginationMeta.membersWithBiometric.total} members with biometric data
                 </Typography>
               )}
             </CardContent>
@@ -1351,7 +1304,7 @@ const BiometricEnrollment = () => {
                   </Alert>
         )}
         
-        {filteredMembersWithoutBiometric && filteredMembersWithoutBiometric.length === 0 ? (
+        {members && members.length === 0 ? (
           memberSearchTerm ? (
             <Alert severity="info">
               No members without biometric data found matching "{memberSearchTerm}"
@@ -1361,7 +1314,7 @@ const BiometricEnrollment = () => {
               🎉 All members have biometric data enrolled!
             </Alert>
           )
-        ) : filteredMembersWithoutBiometric && filteredMembersWithoutBiometric.length > 0 ? (
+        ) : members && members.length > 0 ? (
                   <Box sx={{ overflowX: 'auto' }}>
                     <Box sx={{ 
                       display: 'grid', 
@@ -1382,7 +1335,7 @@ const BiometricEnrollment = () => {
                       <Box>Status</Box>
                       <Box>Actions</Box>
                     </Box>
-            {filteredMembersWithoutBiometric.map(member => (
+            {members.map(member => (
                       <Box
                         key={member.id}
                         sx={{
@@ -1543,7 +1496,7 @@ const BiometricEnrollment = () => {
                   </FormControl>
                 </Box>
                 
-                {filteredMembersWithBiometric && filteredMembersWithBiometric.length === 0 ? (
+                {membersWithBiometric && membersWithBiometric.length === 0 ? (
                   memberSearchTerm ? (
                     <Alert severity="info">
                       No members with biometric data found matching "{memberSearchTerm}"
@@ -1553,7 +1506,7 @@ const BiometricEnrollment = () => {
                       📝 No members have biometric data enrolled yet.
                     </Alert>
                   )
-                ) : filteredMembersWithBiometric && filteredMembersWithBiometric.length > 0 ? (
+                ) : membersWithBiometric && membersWithBiometric.length > 0 ? (
                   <Box sx={{ overflowX: 'auto' }}>
                     <Box sx={{ 
                       display: 'grid', 
@@ -1575,7 +1528,7 @@ const BiometricEnrollment = () => {
                       <Box>Status</Box>
                       <Box>Actions</Box>
                     </Box>
-                    {filteredMembersWithBiometric.map(member => (
+                    {membersWithBiometric.map(member => (
                       <Box
                         key={member.id}
                             sx={{ 
