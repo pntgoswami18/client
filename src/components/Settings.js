@@ -195,8 +195,6 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 card_order: cardOrder
             };
 
-            console.log('Saving settings with card order:', cardOrder);
-
             await axios.put('/api/settings', settingsToUpdate);
 
             // Reset the logo file state since it was successfully uploaded
@@ -205,11 +203,37 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (onSave) { onSave(); }
             if (onUnsavedChanges) { onUnsavedChanges(false); }
             
+            // Update initial values to reflect the current state after successful save
+            initialValues.current = {
+                currency: currency || 'INR',
+                gymName: gymName || '',
+                gymLogo: logoUrl || '',
+                primaryColor: primaryColor || '#3f51b5',
+                secondaryColor: secondaryColor || '#f50057',
+                primaryColorMode: primaryColorMode || 'solid',
+                secondaryColorMode: secondaryColorMode || 'solid',
+                primaryGradient: primaryGradient || '',
+                secondaryGradient: secondaryGradient || '',
+                paymentReminderDays: paymentReminderDays || '7',
+                morningStart: morningStart || '05:00',
+                morningEnd: morningEnd || '11:00',
+                eveningStart: eveningStart || '16:00',
+                eveningEnd: eveningEnd || '22:00',
+                showTotalMembers: showTotalMembers,
+                showTotalRevenue: showTotalRevenue,
+                showNewMembersThisMonth: showNewMembersThisMonth,
+                showUnpaidMembersThisMonth: showUnpaidMembersThisMonth,
+                showActiveSchedules: showActiveSchedules,
+                askUnlockReason: askUnlockReason,
+                cardOrder: cardOrder
+            };
+            
             // Notify Dashboard component that settings have been updated
             localStorage.setItem('settingsUpdated', Date.now().toString());
             
             alert('Settings updated successfully!');
-            fetchSettings();
+            // Don't call fetchSettings() here as it would reset the state
+            // The settings are already saved and the state is correct
         } catch (error) {
             console.error("Error updating settings", error);
             alert('Error updating settings. Please try again.');
@@ -293,9 +317,10 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     gap: '12px'
                 }}
                 {...attributes}
-                {...listeners}
             >
-                <DragIndicatorIcon style={{ color: '#6c757d', cursor: 'grab' }} />
+                <div {...listeners} style={{ cursor: 'grab' }}>
+                    <DragIndicatorIcon style={{ color: '#6c757d', cursor: 'grab' }} />
+                </div>
                 <FormControlLabel
                     control={<Checkbox checked={checked} onChange={onChange} />}
                     label={title}
