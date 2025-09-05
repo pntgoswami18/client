@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { List as VirtualList } from 'react-window';
 import {
   Box,
   Typography,
@@ -33,7 +34,8 @@ import {
   FormControlLabel,
   Checkbox,
   InputAdornment,
-  IconButton
+  IconButton,
+  Pagination
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import {
@@ -97,6 +99,21 @@ const BiometricEnrollment = () => {
   const [ongoingEnrollment, setOngoingEnrollment] = useState(null); // { memberId, memberName, startTime }
   const [lastCheckedEventId, setLastCheckedEventId] = useState(null);
   
+  // Pagination state
+  const [membersWithoutBiometricPage, setMembersWithoutBiometricPage] = useState(1);
+  const [membersWithBiometricPage, setMembersWithBiometricPage] = useState(1);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [paginationMeta, setPaginationMeta] = useState({
+    membersWithoutBiometric: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    membersWithBiometric: { total: 0, page: 1, limit: 10, totalPages: 0 },
+    events: { total: 0, page: 1, limit: 10, totalPages: 0 }
+  });
+  
+  // Event caching for performance
+  const [eventCache, setEventCache] = useState(new Map());
+  const [lastFetchParams, setLastFetchParams] = useState(null);
+  
   // WebSocket connection for real-time updates
   const [wsConnected, setWsConnected] = useState(false);
   const wsRef = useRef(null);
@@ -116,6 +133,7 @@ const BiometricEnrollment = () => {
 
   // Member search state
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  const [eventSearchTerm, setEventSearchTerm] = useState('');
   
   // Stepper state
   const [activeStep, setActiveStep] = useState(0);
@@ -195,9 +213,15 @@ const BiometricEnrollment = () => {
   }, [membersWithBiometric, memberSearchTerm]);
 
   // Define callback functions first
-  const fetchMembersWithoutBiometric = useCallback(async () => {
+  const fetchMembersWithoutBiometric = useCallback(async (page = membersWithoutBiometricPage, limit = itemsPerPage, search = memberSearchTerm) => {
     try {
-      const response = await fetch('/api/biometric/members/without-biometric');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: search || ''
+      });
+      
+      const response = await fetch(`/api/biometric/members-without-biometric?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -206,7 +230,11 @@ const BiometricEnrollment = () => {
       const data = await response.json();
       if (data.success) {
         setMembers(data.data || []);
-        console.log(`Loaded ${data.data?.length || 0} members without biometric data`);
+        setPaginationMeta(prev => ({
+          ...prev,
+          membersWithoutBiometric: data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 }
+        }));
+        console.log(`Loaded ${data.data?.length || 0} members without biometric data (page ${page})`);
       } else {
         console.error('API returned error:', data.message);
         setError(`Failed to load members: ${data.message}`);
@@ -217,12 +245,18 @@ const BiometricEnrollment = () => {
       setError(`Network error: ${error.message}`);
       setMembers([]); // Set empty array as fallback
     }
-  }, []);
+  }, [membersWithoutBiometricPage, itemsPerPage, memberSearchTerm]);
 
   // Fetch members with biometric data
-  const fetchMembersWithBiometric = useCallback(async () => {
+  const fetchMembersWithBiometric = useCallback(async (page = membersWithBiometricPage, limit = itemsPerPage, search = memberSearchTerm) => {
     try {
-      const response = await fetch('/api/biometric/members/with-biometric');
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: search || ''
+      });
+      
+      const response = await fetch(`/api/biometric/members-with-biometric?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -231,7 +265,11 @@ const BiometricEnrollment = () => {
       const data = await response.json();
       if (data.success) {
         setMembersWithBiometric(data.data || []);
-        console.log(`Loaded ${data.data?.length || 0} members with biometric data`);
+        setPaginationMeta(prev => ({
+          ...prev,
+          membersWithBiometric: data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 }
+        }));
+        console.log(`Loaded ${data.data?.length || 0} members with biometric data (page ${page})`);
       } else {
         console.error('API returned error:', data.message);
         setError(`Failed to load members with biometric: ${data.message}`);
@@ -242,7 +280,7 @@ const BiometricEnrollment = () => {
       setError(`Network error: ${error.message}`);
       setMembersWithBiometric([]); // Set empty array as fallback
     }
-  }, []);
+  }, [membersWithBiometricPage, itemsPerPage, memberSearchTerm]);
 
   const checkEnrollmentProgress = useCallback(async () => {
     if (!enrollmentProgress && !ongoingEnrollment) {
@@ -387,12 +425,51 @@ const BiometricEnrollment = () => {
     }
   }, []);
 
-  const fetchBiometricEvents = useCallback(async () => {
+  const fetchBiometricEvents = useCallback(async (page = eventsPage, limit = itemsPerPage, search = eventSearchTerm) => {
     try {
-      const response = await fetch('/api/biometric/events?limit=20');
+      const cacheKey = `${page}-${limit}-${search || ''}`;
+      
+      // Check cache first
+      if (eventCache.has(cacheKey) && lastFetchParams === cacheKey) {
+        const cachedData = eventCache.get(cacheKey);
+        setBiometricEvents(cachedData.events);
+        setPaginationMeta(prev => ({
+          ...prev,
+          events: cachedData.pagination
+        }));
+        return;
+      }
+      
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: search || ''
+      });
+      
+      const response = await fetch(`/api/biometric/events?${params.toString()}`);
       const data = await response.json();
       if (data.success) {
-        setBiometricEvents(data.data.events || []);
+        const events = data.data || [];
+        const pagination = data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 };
+        
+        setBiometricEvents(events);
+        setPaginationMeta(prev => ({
+          ...prev,
+          events: pagination
+        }));
+        
+        // Cache the results
+        setEventCache(prev => {
+          const newCache = new Map(prev);
+          newCache.set(cacheKey, { events, pagination });
+          // Limit cache size to prevent memory issues
+          if (newCache.size > 10) {
+            const firstKey = newCache.keys().next().value;
+            newCache.delete(firstKey);
+          }
+          return newCache;
+        });
+        setLastFetchParams(cacheKey);
       } else {
         setBiometricEvents([]);
       }
@@ -400,7 +477,133 @@ const BiometricEnrollment = () => {
       console.error('Error fetching biometric events:', error);
       setBiometricEvents([]);
     }
+  }, [eventsPage, itemsPerPage, eventSearchTerm, eventCache, lastFetchParams]);
+
+  // Pagination handlers
+  const handleMembersWithoutBiometricPageChange = (event, page) => {
+    setMembersWithoutBiometricPage(page);
+    fetchMembersWithoutBiometric(page, itemsPerPage, memberSearchTerm);
+  };
+
+  const handleMembersWithBiometricPageChange = (event, page) => {
+    setMembersWithBiometricPage(page);
+    fetchMembersWithBiometric(page, itemsPerPage, memberSearchTerm);
+  };
+
+  const handleEventsPageChange = (event, page) => {
+    setEventsPage(page);
+    fetchBiometricEvents(page, itemsPerPage, eventSearchTerm);
+  };
+
+  const handleItemsPerPageChange = (event) => {
+    const newItemsPerPage = parseInt(event.target.value, 10);
+    setItemsPerPage(newItemsPerPage);
+    setMembersWithoutBiometricPage(1);
+    setMembersWithBiometricPage(1);
+    setEventsPage(1);
+    fetchMembersWithoutBiometric(1, newItemsPerPage, memberSearchTerm);
+    fetchMembersWithBiometric(1, newItemsPerPage, memberSearchTerm);
+    fetchBiometricEvents(1, newItemsPerPage, eventSearchTerm);
+  };
+
+  const handleMemberSearchChange = (event) => {
+    const newSearchTerm = event.target.value;
+    setMemberSearchTerm(newSearchTerm);
+    setMembersWithoutBiometricPage(1);
+    setMembersWithBiometricPage(1);
+    fetchMembersWithoutBiometric(1, itemsPerPage, newSearchTerm);
+    fetchMembersWithBiometric(1, itemsPerPage, newSearchTerm);
+  };
+
+  // Debounced search for better performance
+  const [debouncedEventSearchTerm, setDebouncedEventSearchTerm] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedEventSearchTerm(eventSearchTerm);
+    }, 300); // 300ms delay
+    
+    return () => clearTimeout(timer);
+  }, [eventSearchTerm]);
+  
+  // Update events when debounced search term changes
+  useEffect(() => {
+    if (debouncedEventSearchTerm !== eventSearchTerm) {
+      setEventsPage(1);
+      fetchBiometricEvents(1, itemsPerPage, debouncedEventSearchTerm);
+    }
+  }, [debouncedEventSearchTerm, itemsPerPage, fetchBiometricEvents, eventSearchTerm]);
+
+  const handleEventSearchChange = (event) => {
+    const newSearchTerm = event.target.value;
+    setEventSearchTerm(newSearchTerm);
+    // API call will be triggered by debounced effect
+  };
+
+  // Memoized event type filter options for performance
+  const eventTypeFilterOptions = useMemo(() => {
+    return Object.entries(eventTypeFilters).map(([eventType, isChecked]) => ({
+      eventType,
+      isChecked,
+      label: eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    }));
+  }, [eventTypeFilters]);
+
+  // Memoized formatDateTime function for performance
+  const formatDateTime = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateStr;
+    }
   }, []);
+
+  // Memoized event item component for virtual scrolling performance
+  const EventItem = useCallback(({ index, style, data }) => {
+    const event = data[index];
+    if (!event) return null;
+    
+    return (
+      <div style={style}>
+        <ListItem divider>
+          <ListItemIcon>
+            <Chip
+              size="small"
+              label={event.success ? 'Success' : 'Error'}
+              color={event.success ? 'success' : 'error'}
+            />
+          </ListItemIcon>
+          <ListItemText
+            primary={`${event.event_type} - ${event.member_name || 'Unknown'}`}
+            secondary={
+              <Box>
+                <Typography variant="caption" display="block">
+                  {formatDateTime(event.timestamp)}
+                </Typography>
+                {event.device_id && (
+                  <Typography variant="caption" display="block">
+                    Device: {event.device_id}
+                  </Typography>
+                )}
+                {event.biometric_id && (
+                  <Typography variant="caption" display="block">
+                    Device ID: {event.biometric_id}
+                  </Typography>
+                )}
+                {event.error_message && (
+                  <Typography variant="caption" color="error" display="block">
+                    Error: {event.error_message}
+                  </Typography>
+                )}
+              </Box>
+            }
+          />
+        </ListItem>
+      </div>
+    );
+  }, [formatDateTime]);
 
   // Event filter handling
   const handleEventFilterChange = (eventType, checked) => {
@@ -410,10 +613,12 @@ const BiometricEnrollment = () => {
     }));
   };
 
-  // Filter events based on selected event types
-  const filteredBiometricEvents = biometricEvents.filter(event => {
+  // Filter events based on selected event types - Memoized for performance
+  const filteredBiometricEvents = useMemo(() => {
+    return biometricEvents.filter(event => {
     return eventTypeFilters[event.event_type] !== false;
   });
+  }, [biometricEvents, eventTypeFilters]);
 
   // Fetch data on component mount
   useEffect(() => {
@@ -724,10 +929,6 @@ const BiometricEnrollment = () => {
     }
   };
 
-  const formatDateTime = (dateStr) => {
-    return new Date(dateStr).toLocaleString();
-  };
-
   const openManualEnrollment = (member) => {
     setManualMember(member.id);
     setDeviceUserId('');
@@ -913,8 +1114,8 @@ const BiometricEnrollment = () => {
                 <Tab icon={<HistoryIcon />} label="Events" />
               </Tabs>
             </Paper>
-          </Box>
-          
+      </Box>
+
           {/* Status Cards Section */}
           <Box sx={{ display: 'flex', gap: 2, minWidth: '700px' }}>
             {/* Service Status Card */}
@@ -924,39 +1125,39 @@ const BiometricEnrollment = () => {
                   <Box display="flex" alignItems="center">
                     <MonitorIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                      Service Status
-                    </Typography>
-                  </Box>
-                  <Chip
-                    label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
-                    color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
+                  Service Status
+                </Typography>
+              </Box>
+              <Chip
+                label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
+                color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
                     size="small"
-                  />
+              />
                 </Box>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box display="flex" alignItems="center" gap={2}>
-                    <Chip
-                      label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
-                      color={wsConnected ? 'success' : 'warning'}
-                      size="small"
-                      icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
-                    />
+                <Chip
+                  label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
+                  color={wsConnected ? 'success' : 'warning'}
+                  size="small"
+                  icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
+                />
                     <Typography variant="caption" color="text.secondary" sx={{ minWidth: '80px' }}>
                       Devices: {systemStatus?.connectedDevices || 0}
-                    </Typography>
+              </Typography>
                   </Box>
-                  <Button
-                    variant="outlined"
-                    onClick={testConnection}
-                    disabled={loading || !systemStatus?.biometricServiceAvailable}
-                    startIcon={<RefreshIcon />}
-                    size="small"
-                  >
+                <Button
+                  variant="outlined"
+                  onClick={testConnection}
+                  disabled={loading || !systemStatus?.biometricServiceAvailable}
+                  startIcon={<RefreshIcon />}
+                  size="small"
+                >
                     Test
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
             
             {/* Enrollment Status Card */}
             <Card sx={{ minHeight: '48px', flex: 1, minWidth: '320px' }}>
@@ -965,30 +1166,30 @@ const BiometricEnrollment = () => {
                   <Box display="flex" alignItems="center">
                     <FingerprintIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
                     <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                      Enrollment Status
-                    </Typography>
-                  </Box>
-                  <Chip
-                    label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
-                    color={enrollmentStatus?.active ? 'warning' : 'default'}
+                  Enrollment Status
+                </Typography>
+              </Box>
+              <Chip
+                label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
+                color={enrollmentStatus?.active ? 'warning' : 'default'}
                     size="small"
-                  />
+              />
                 </Box>
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box display="flex" flexDirection="column" gap={0.5} sx={{ minWidth: '200px' }}>
                     {enrollmentStatus?.active ? (
-                      <>
+                <>
                         <Typography variant="caption" color="text.secondary">
                           {enrollmentStatus.enrollmentMode?.memberName}
-                        </Typography>
+                  </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3} attempts
-                        </Typography>
+                  </Typography>
                       </>
                     ) : (
                       <Typography variant="caption" color="text.secondary">
                         No active enrollment
-                      </Typography>
+                  </Typography>
                     )}
                   </Box>
                   {enrollmentStatus?.active && (
@@ -1002,10 +1203,10 @@ const BiometricEnrollment = () => {
                     >
                       Stop
                     </Button>
-                  )}
+              )}
                 </Box>
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
           </Box>
         </Box>
       </Box>
@@ -1084,7 +1285,7 @@ const BiometricEnrollment = () => {
                   label="Search Members"
                   placeholder="Search by name, ID, email, phone, or biometric ID..."
                   value={memberSearchTerm}
-                  onChange={(e) => setMemberSearchTerm(e.target.value)}
+                  onChange={handleMemberSearchChange}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -1093,7 +1294,13 @@ const BiometricEnrollment = () => {
                     ),
                     endAdornment: memberSearchTerm && (
                       <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => setMemberSearchTerm('')}>
+                        <IconButton size="small" onClick={() => {
+                          setMemberSearchTerm('');
+                          setMembersWithoutBiometricPage(1);
+                          setMembersWithBiometricPage(1);
+                          fetchMembersWithoutBiometric(1, itemsPerPage, '');
+                          fetchMembersWithBiometric(1, itemsPerPage, '');
+                        }}>
                           <ClearIcon />
                         </IconButton>
                       </InputAdornment>
@@ -1115,8 +1322,28 @@ const BiometricEnrollment = () => {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Members Without Biometric Data ({filteredMembersWithoutBiometric ? filteredMembersWithoutBiometric.length : '?'})
+                    Members Without Biometric Data ({paginationMeta.membersWithoutBiometric.total})
                   </Typography>
+                  
+                  {/* Pagination Controls */}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Showing {((membersWithoutBiometricPage - 1) * itemsPerPage) + 1} to {Math.min(membersWithoutBiometricPage * itemsPerPage, paginationMeta.membersWithoutBiometric.total)} of {paginationMeta.membersWithoutBiometric.total} members
+                    </Typography>
+                    <FormControl size="small" sx={{ minWidth: 80 }}>
+                      <InputLabel>Per Page</InputLabel>
+                      <Select
+                        value={itemsPerPage}
+                        onChange={handleItemsPerPageChange}
+                        label="Per Page"
+                      >
+                        <MenuItem value={5}>5</MenuItem>
+                        <MenuItem value={10}>10</MenuItem>
+                        <MenuItem value={25}>25</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Box>
         
         {!systemStatus?.biometricServiceAvailable && (
                   <Alert severity="warning" sx={{ mb: 2 }}>
@@ -1155,7 +1382,7 @@ const BiometricEnrollment = () => {
                       <Box>Status</Box>
                       <Box>Actions</Box>
                     </Box>
-                    {filteredMembersWithoutBiometric.map(member => (
+            {filteredMembersWithoutBiometric.map(member => (
                       <Box
                         key={member.id}
                         sx={{
@@ -1197,75 +1424,89 @@ const BiometricEnrollment = () => {
                               color="primary"
                               size="small"
                               icon={
-                                <Box
-                                  sx={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: '50%',
-                                    bgcolor: 'white',
-                                    animation: 'pulse 1.5s ease-in-out infinite'
-                                  }}
-                                />
+                              <Box
+                                sx={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  bgcolor: 'white',
+                                  animation: 'pulse 1.5s ease-in-out infinite'
+                                }}
+                              />
                               }
                             />
                           ) : (
                             <Chip label="Not Enrolled" color="default" size="small" />
-                          )}
-                        </Box>
+                                )}
+                              </Box>
                         <Box sx={{ display: 'flex', gap: 1 }}>
-                          {ongoingEnrollment && ongoingEnrollment.memberId === member.id ? (
-                            <>
-                              <Button
-                                variant="contained"
-                                disabled
-                                startIcon={<FingerprintIcon />}
+                            {ongoingEnrollment && ongoingEnrollment.memberId === member.id ? (
+                              <>
+                                <Button
+                                  variant="contained"
+                                  disabled
+                                  startIcon={<FingerprintIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
-                              >
-                                Enrolling...
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                color="warning"
-                                onClick={cancelOngoingEnrollment}
-                                disabled={loading}
-                                startIcon={<CloseIcon />}
+                                >
+                                  Enrolling...
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  color="warning"
+                                  onClick={cancelOngoingEnrollment}
+                                  disabled={loading}
+                                  startIcon={<CloseIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
-                              >
+                                >
                                 Cancel
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                variant="contained"
-                                onClick={() => startEnrollment(member.id)}
-                                disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                                startIcon={<FingerprintIcon />}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="contained"
+                                  onClick={() => startEnrollment(member.id)}
+                                  disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                                  startIcon={<FingerprintIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
-                              >
+                                >
                                 Enroll
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                onClick={() => openManualEnrollment(member)}
-                                disabled={loading || !!ongoingEnrollment}
-                                startIcon={<SettingsIcon />}
+                                </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => openManualEnrollment(member)}
+                              disabled={loading || !!ongoingEnrollment}
+                              startIcon={<SettingsIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
-                              >
+                            >
                                 Manual
-                              </Button>
+                            </Button>
                             </>
                           )}
-                        </Box>
+                          </Box>
                       </Box>
                     ))}
                   </Box>
                 ) : (
                   <Typography>Loading member data...</Typography>
+                )}
+                
+                {/* Members Without Biometric Data Pagination */}
+                {paginationMeta.membersWithoutBiometric.totalPages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                      count={paginationMeta.membersWithoutBiometric.totalPages}
+                      page={membersWithoutBiometricPage}
+                      onChange={handleMembersWithoutBiometricPageChange}
+                      color="primary"
+                      showFirstButton
+                      showLastButton
+                    />
+                  </Box>
                 )}
               </CardContent>
             </Card>
@@ -1278,8 +1519,28 @@ const BiometricEnrollment = () => {
                 <Box display="flex" alignItems="center" mb={2}>
                   <FingerprintIcon color="success" sx={{ mr: 1 }} />
                   <Typography variant="h6">
-                    Members With Biometric Data ({filteredMembersWithBiometric ? filteredMembersWithBiometric.length : '?'})
+                    Members With Biometric Data ({paginationMeta.membersWithBiometric.total})
                   </Typography>
+                </Box>
+                
+                {/* Pagination Controls */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Showing {((membersWithBiometricPage - 1) * itemsPerPage) + 1} to {Math.min(membersWithBiometricPage * itemsPerPage, paginationMeta.membersWithBiometric.total)} of {paginationMeta.membersWithBiometric.total} members
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: 80 }}>
+                    <InputLabel>Per Page</InputLabel>
+                    <Select
+                      value={itemsPerPage}
+                      onChange={handleItemsPerPageChange}
+                      label="Per Page"
+                    >
+                      <MenuItem value={5}>5</MenuItem>
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={25}>25</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Box>
                 
                 {filteredMembersWithBiometric && filteredMembersWithBiometric.length === 0 ? (
@@ -1317,11 +1578,11 @@ const BiometricEnrollment = () => {
                     {filteredMembersWithBiometric.map(member => (
                       <Box
                         key={member.id}
-                        sx={{
+                            sx={{ 
                           display: 'grid',
                           gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
                           gap: 1,
-                          alignItems: 'center',
+                              alignItems: 'center',
                           p: 1,
                           border: '1px solid',
                           borderColor: (member.is_admin === 1 || member.is_admin === true) ? '#ffd700' : '#4caf50',
@@ -1332,17 +1593,17 @@ const BiometricEnrollment = () => {
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          {member.name}
-                          {(member.is_admin === 1 || member.is_admin === true) && (
-                            <StarIcon 
-                              sx={{ 
-                                color: '#ffd700', 
+                                {member.name}
+                              {(member.is_admin === 1 || member.is_admin === true) && (
+                                <StarIcon 
+                                  sx={{ 
+                                    color: '#ffd700', 
                                 fontSize: 16,
-                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                              }} 
-                            />
-                          )}
-                        </Box>
+                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                  }} 
+                                />
+                              )}
+                            </Box>
                         <Box sx={{ fontSize: '0.875rem' }}>{member.email}</Box>
                         <Box sx={{ fontSize: '0.875rem' }}>{member.phone}</Box>
                         <Box sx={{ fontSize: '0.875rem' }}>{member.biometric_id}</Box>
@@ -1356,33 +1617,47 @@ const BiometricEnrollment = () => {
                           />
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            onClick={() => openDeleteConfirmDialog(member.id, member.name)}
-                            disabled={loading || !!ongoingEnrollment}
-                            startIcon={<DeleteIcon />}
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              onClick={() => openDeleteConfirmDialog(member.id, member.name)}
+                              disabled={loading || !!ongoingEnrollment}
+                              startIcon={<DeleteIcon />}
                             size="small"
                             sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
-                          >
+                            >
                             Delete
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            onClick={() => startEnrollment(member.id)}
-                            disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                            startIcon={<RefreshIcon />}
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => startEnrollment(member.id)}
+                              disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                              startIcon={<RefreshIcon />}
                             size="small"
                             sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
-                          >
+                            >
                             Re-enroll
-                          </Button>
-                        </Box>
+                            </Button>
+                          </Box>
                       </Box>
                     ))}
                   </Box>
                 ) : (
                   <Typography>Loading member data...</Typography>
+                )}
+                
+                {/* Members With Biometric Data Pagination */}
+                {paginationMeta.membersWithBiometric.totalPages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                      count={paginationMeta.membersWithBiometric.totalPages}
+                      page={membersWithBiometricPage}
+                      onChange={handleMembersWithBiometricPageChange}
+                      color="primary"
+                      showFirstButton
+                      showLastButton
+                    />
+                  </Box>
                 )}
               </CardContent>
             </Card>
@@ -1444,7 +1719,7 @@ const BiometricEnrollment = () => {
                 Filter by Event Type:
               </Typography>
               <Grid container spacing={1}>
-                {Object.entries(eventTypeFilters).map(([eventType, isChecked]) => (
+                {eventTypeFilterOptions.map(({ eventType, isChecked, label }) => (
                   <Grid item xs={12} sm={6} md={4} lg={3} key={eventType}>
                     <FormControlLabel
                       control={
@@ -1456,7 +1731,7 @@ const BiometricEnrollment = () => {
                       }
                       label={
                         <Typography variant="body2">
-                          {eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          {label}
                         </Typography>
                       }
                     />
@@ -1465,10 +1740,79 @@ const BiometricEnrollment = () => {
               </Grid>
             </Box>
             
-            {biometricEvents.length === 0 ? (
+            {/* Events Search and Pagination Controls */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <TextField
+                size="small"
+                placeholder="Search events..."
+                value={eventSearchTerm}
+                onChange={handleEventSearchChange}
+                sx={{ minWidth: 250 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: eventSearchTerm && (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={() => {
+                        setEventSearchTerm('');
+                        setEventsPage(1);
+                        fetchBiometricEvents(1, itemsPerPage, '');
+                      }}>
+                        <ClearIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+              <FormControl size="small" sx={{ minWidth: 80 }}>
+                <InputLabel>Per Page</InputLabel>
+                <Select
+                  value={itemsPerPage}
+                  onChange={handleItemsPerPageChange}
+                  label="Per Page"
+                >
+                  <MenuItem value={5}>5</MenuItem>
+                  <MenuItem value={10}>10</MenuItem>
+                  <MenuItem value={25}>25</MenuItem>
+                  <MenuItem value={50}>50</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Showing {((eventsPage - 1) * itemsPerPage) + 1} to {Math.min(eventsPage * itemsPerPage, paginationMeta.events.total)} of {paginationMeta.events.total} events
+            </Typography>
+            
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <LinearProgress sx={{ width: '100%' }} />
+              </Box>
+            ) : biometricEvents.length === 0 ? (
               <Typography>No biometric events recorded yet.</Typography>
             ) : filteredBiometricEvents.length === 0 ? (
               <Typography>No events match the selected filters.</Typography>
+            ) : (
+              <>
+                {/* Virtual scrolling for large event lists */}
+                {filteredBiometricEvents.length > 50 ? (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      ⚡ Virtual scrolling enabled for {filteredBiometricEvents.length} events (performance optimized)
+                    </Typography>
+                    <Box sx={{ height: 400, width: '100%' }}>
+                      <VirtualList
+                        height={400}
+                        itemCount={filteredBiometricEvents.length}
+                        itemSize={80}
+                        itemData={filteredBiometricEvents}
+                      >
+                        {EventItem}
+                      </VirtualList>
+                    </Box>
+                  </Box>
             ) : (
               <List>
                 {filteredBiometricEvents.map(event => (
@@ -1508,6 +1852,22 @@ const BiometricEnrollment = () => {
                   </ListItem>
                 ))}
               </List>
+                )}
+                
+                {/* Events Pagination */}
+                {paginationMeta.events.totalPages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                      count={paginationMeta.events.totalPages}
+                      page={eventsPage}
+                      onChange={handleEventsPageChange}
+                      color="primary"
+                      showFirstButton
+                      showLastButton
+                    />
+                  </Box>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

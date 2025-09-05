@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
@@ -27,11 +27,11 @@ import {
     Alert,
     FormControlLabel,
     Checkbox,
-    Chip
+    Chip,
+    Pagination
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
 import CrownIcon from '@mui/icons-material/Star';
 import StarIcon from '@mui/icons-material/Star';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
@@ -40,9 +40,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
-    const [unpaidMembersThisMonth, setUnpaidMembersThisMonth] = useState([]);
     const location = useLocation();
-    const navigate = useNavigate();
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -70,6 +68,17 @@ const Member = () => {
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [calculatedDueDate, setCalculatedDueDate] = useState('');
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [paginationMeta, setPaginationMeta] = useState({
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0
+    });
+    const [loading, setLoading] = useState(false);
 
     // Webcam functionality
     const [cameraOpen, setCameraOpen] = useState(false);
@@ -118,11 +127,59 @@ const Member = () => {
     const [biometricError, setBiometricError] = useState('');
     const [biometricSuccess, setBiometricSuccess] = useState('');
 
+    // Pagination handlers
+    const handlePageChange = (event, page) => {
+        setCurrentPage(page);
+        fetchMembers(page, itemsPerPage, searchTerm, filter);
+    };
+
+    const handleItemsPerPageChange = (event) => {
+        const newItemsPerPage = parseInt(event.target.value, 10);
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1);
+        fetchMembers(1, newItemsPerPage, searchTerm, filter);
+    };
+
+    const handleSearchChange = (event) => {
+        const newSearchTerm = event.target.value;
+        setSearchTerm(newSearchTerm);
+        setCurrentPage(1);
+        fetchMembers(1, itemsPerPage, newSearchTerm, filter);
+    };
+
+    const handleFilterChange = (event) => {
+        const newFilter = event.target.value;
+        setFilter(newFilter);
+        setCurrentPage(1);
+        fetchMembers(1, itemsPerPage, searchTerm, newFilter);
+    };
+
+    const fetchMembers = useCallback(async (page = currentPage, limit = itemsPerPage, search = searchTerm, filterType = filter) => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+                search: search || '',
+                filter: filterType || 'all'
+            });
+            const response = await axios.get(`/api/members?${params}`);
+            const { members, pagination } = response.data;
+            setMembers(Array.isArray(members) ? members : []);
+            setPaginationMeta(pagination || { total: 0, page: 1, limit: 10, totalPages: 0 });
+        } catch (error) {
+            console.error("Error fetching members", error);
+            setMembers([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [currentPage, itemsPerPage, searchTerm, filter]);
+
     useEffect(() => {
         fetchMembers();
         fetchPlans();
         fetchCurrency();
-    }, []);
+    }, [fetchMembers]);
 
     const calculateDueDate = useCallback(() => {
         if (!joinDate || !membershipPlanId || isAdmin) {
@@ -155,32 +212,6 @@ const Member = () => {
     useEffect(() => {
         calculateDueDate();
     }, [calculateDueDate]);
-
-    useEffect(() => {
-        const qp = new URLSearchParams(location.search);
-        const f = qp.get('filter') || 'all';
-        setFilter(f);
-        if (f === 'unpaid-this-month') {
-            (async () => {
-                try {
-                    const res = await axios.get('/api/reports/unpaid-members-this-month');
-                    setUnpaidMembersThisMonth(res.data || []);
-                } catch (e) {
-                    console.error('Error fetching unpaid members this month', e);
-                    setUnpaidMembersThisMonth([]);
-                }
-            })();
-        }
-    }, [location.search]);
-
-    const fetchMembers = async () => {
-        try {
-            const response = await axios.get('/api/members');
-            setMembers(Array.isArray(response.data) ? response.data : []);
-        } catch (error) {
-            console.error("Error fetching members", error);
-        }
-    };
 
     const fetchPlans = async () => {
         try {
@@ -225,7 +256,7 @@ const Member = () => {
                 const up = await axios.post(`/api/members/${res.data.id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
                 setPhotoUrl(up?.data?.photo_url || '');
             }
-            fetchMembers();
+            fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
             setName('');
             setPhone('');
             setAddress('');
@@ -298,7 +329,7 @@ const Member = () => {
                 const up = await axios.post(`/api/members/${editingMember.id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
                 setPhotoUrl(up?.data?.photo_url || '');
             }
-            fetchMembers();
+            fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
             setOpenEdit(false);
             setEditingMember(null);
         } catch (error) {
@@ -699,36 +730,6 @@ const Member = () => {
         setCroppedImageUrl(null);
     };
 
-    const filteredMembers = useMemo(() => {
-        let filtered = members;
-
-        // Apply category filter first
-        if (filter === 'new-this-month') {
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1);
-            startOfMonth.setHours(0,0,0,0);
-            filtered = filtered.filter(m => m.join_date && new Date(m.join_date) >= startOfMonth);
-        } else if (filter === 'unpaid-this-month') {
-            const unpaidIds = new Set(unpaidMembersThisMonth.map(m => String(m.id)));
-            filtered = filtered.filter(m => unpaidIds.has(String(m.id)) && m.is_admin !== 1);
-        } else if (filter === 'admins') {
-            filtered = filtered.filter(m => m.is_admin === 1);
-        } else if (filter === 'members') {
-            filtered = filtered.filter(m => m.is_admin !== 1);
-        }
-
-        // Apply keyword search
-        if (searchTerm.trim()) {
-            const searchLower = searchTerm.toLowerCase().trim();
-            filtered = filtered.filter(member => {
-                const nameMatch = member.name && member.name.toLowerCase().includes(searchLower);
-                const phoneMatch = member.phone && member.phone.toLowerCase().includes(searchLower);
-                return nameMatch || phoneMatch;
-            });
-        }
-
-        return filtered;
-    }, [members, filter, unpaidMembersThisMonth, searchTerm]);
 
     return (
         <div>
@@ -736,11 +737,7 @@ const Member = () => {
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                 <FormControl size="small" sx={{ minWidth: 220 }}>
                     <InputLabel>Filter</InputLabel>
-                    <Select label="Filter" value={filter} onChange={(e)=>{
-                        const val = e.target.value;
-                        setFilter(val);
-                        if (val === 'all') { navigate('/members'); } else { navigate(`/members?filter=${val}`); }
-                    }}>
+                    <Select label="Filter" value={filter} onChange={handleFilterChange}>
                         <MenuItem value="all">All Members</MenuItem>
                         <MenuItem value="new-this-month">Joined This Month</MenuItem>
                         <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>
@@ -752,7 +749,7 @@ const Member = () => {
                     size="small"
                     placeholder="Search by name or phone..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleSearchChange}
                     sx={{ minWidth: 250 }}
                     InputProps={{
                         startAdornment: (
@@ -1130,7 +1127,32 @@ const Member = () => {
             </Dialog>
             
             <Typography variant="h5" gutterBottom>Current Members</Typography>
-            {members.length === 0 ? (
+            
+            {/* Pagination Controls */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, paginationMeta.total)} of {paginationMeta.total} members
+                </Typography>
+                <FormControl size="small" sx={{ minWidth: 80 }}>
+                    <InputLabel>Per Page</InputLabel>
+                    <Select
+                        value={itemsPerPage}
+                        onChange={handleItemsPerPageChange}
+                        label="Per Page"
+                    >
+                        <MenuItem value={5}>5</MenuItem>
+                        <MenuItem value={10}>10</MenuItem>
+                        <MenuItem value={25}>25</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
+
+            {loading ? (
+                <Box sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography>Loading members...</Typography>
+                </Box>
+            ) : members.length === 0 ? (
                 <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
                     <GroupAddOutlinedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                     <Typography gutterBottom>No members found.</Typography>
@@ -1138,87 +1160,94 @@ const Member = () => {
                 </Box>
             ) : (
                 <>
-                    {filteredMembers.length === 0 ? (
-                        <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
-                            <FilterAltOffOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                            <Typography>No members match the selected filter.</Typography>
-                        </Box>
-                    ) : (
-                        <List>
-                            {filteredMembers.map(member => {
-                                const today = new Date();
-                                const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
-                                const todayDay = String(today.getDate()).padStart(2, '0');
-                                const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === `${todayMonth}-${todayDay}`;
-                                const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
-                                const toggleActive = async () => {
-                                    try {
-                                        const newVal = String(member.is_active) === '0' ? 1 : 0;
-                                        await axios.put(`/api/members/${member.id}/status`, { is_active: newVal });
-                                        fetchMembers();
-                                    } catch (e) {
-                                        console.error('Failed to update status', e);
-                                    }
-                                };
-                                return (
-                                    <ListItem 
-                                        key={member.id} 
-                                        divider 
-                                        sx={{
-                                            background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                                            border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
-                                            borderRadius: member.is_admin === 1 ? 2 : 0,
-                                            mb: member.is_admin === 1 ? 1 : 0
-                                        }}
-                                        secondaryAction={
-                                        <Box sx={{ display: 'flex', gap: 1 }}>
-                                            {whatsappHref && (
-                                                <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
-                                                    Wish on WhatsApp
-                                                </Button>
-                                            )}
-                                            <Button size="small" color={String(member.is_active) === '0' ? 'success' : 'warning'} onClick={toggleActive}>
-                                                {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
+                    <List>
+                        {members.map(member => {
+                            const today = new Date();
+                            const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+                            const todayDay = String(today.getDate()).padStart(2, '0');
+                            const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === `${todayMonth}-${todayDay}`;
+                            const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
+                            const toggleActive = async () => {
+                                try {
+                                    const newVal = String(member.is_active) === '0' ? 1 : 0;
+                                    await axios.put(`/api/members/${member.id}/status`, { is_active: newVal });
+                                    fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
+                                } catch (e) {
+                                    console.error('Failed to update status', e);
+                                }
+                            };
+                            return (
+                                <ListItem 
+                                    key={member.id} 
+                                    divider 
+                                    sx={{
+                                        background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                                        border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
+                                        borderRadius: member.is_admin === 1 ? 2 : 0,
+                                        mb: member.is_admin === 1 ? 1 : 0
+                                    }}
+                                    secondaryAction={
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        {whatsappHref && (
+                                            <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
+                                                Wish on WhatsApp
                                             </Button>
-                                            <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
-                                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric Data</Button>
-                                        </Box>
-                                    }>
-                                        <ListItemAvatar>
-                                            <Avatar 
-                                                src={member.photo_url || undefined}
-                                                sx={{ 
-                                                    width: 48, 
-                                                    height: 48,
-                                                    bgcolor: String(member.is_active) === '0' ? 'grey.400' : 'primary.main'
-                                                }}
-                                            >
-                                                {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <span>{member.name}</span>
-                                                    {member.is_admin === 1 && (
-                                                        <CrownIcon 
-                                                            sx={{ 
-                                                                color: '#ffd700', 
-                                                                fontSize: 20,
-                                                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                                                            }} 
-                                                        />
-                                                    )}
-                                                    {isBirthdayToday && '🎂'}
-                                                    {String(member.is_active) === '0' && '(Deactivated)'}
-                                                </Box>
-                                            }
-                                            secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
-                                        />
-                                    </ListItem>
-                                );
-                            })}
-                        </List>
+                                        )}
+                                        <Button size="small" color={String(member.is_active) === '0' ? 'success' : 'warning'} onClick={toggleActive}>
+                                            {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
+                                        </Button>
+                                        <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
+                                        <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric Data</Button>
+                                    </Box>
+                                }>
+                                    <ListItemAvatar>
+                                        <Avatar 
+                                            src={member.photo_url || undefined}
+                                            sx={{ 
+                                                width: 48, 
+                                                height: 48,
+                                                bgcolor: String(member.is_active) === '0' ? 'grey.400' : 'primary.main'
+                                            }}
+                                        >
+                                            {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
+                                        </Avatar>
+                                    </ListItemAvatar>
+                                    <ListItemText
+                                        primary={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <span>{member.name}</span>
+                                                {member.is_admin === 1 && (
+                                                    <CrownIcon 
+                                                        sx={{ 
+                                                            color: '#ffd700', 
+                                                            fontSize: 20,
+                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                        }} 
+                                                    />
+                                                )}
+                                                {isBirthdayToday && '🎂'}
+                                                {String(member.is_active) === '0' && '(Deactivated)'}
+                                            </Box>
+                                        }
+                                        secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
+                                    />
+                                </ListItem>
+                            );
+                        })}
+                    </List>
+                    
+                    {/* Pagination */}
+                    {paginationMeta.totalPages > 1 && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                            <Pagination
+                                count={paginationMeta.totalPages}
+                                page={currentPage}
+                                onChange={handlePageChange}
+                                color="primary"
+                                showFirstButton
+                                showLastButton
+                            />
+                        </Box>
                     )}
                 </>
             )}

@@ -18,7 +18,8 @@ import {
     TableHead,
     TableRow,
     Paper,
-    Alert
+    Alert,
+    Pagination
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
@@ -34,6 +35,17 @@ const AttendanceTracker = () => {
     const [startDate, setStartDate] = useState(() => getPreviousDayString());
     const [endDate, setEndDate] = useState(() => getCurrentDateString());
     const [memberTypeFilter, setMemberTypeFilter] = useState('all');
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(50);
+    const [paginationMeta, setPaginationMeta] = useState({
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 0
+    });
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         fetchMembers();
@@ -61,17 +73,25 @@ const AttendanceTracker = () => {
         }
     };
 
-    const fetchAttendanceAll = async () => {
+    const fetchAttendanceAll = async (page = currentPage, limit = itemsPerPage) => {
         try {
+            setLoading(true);
             const params = new URLSearchParams();
             if (startDate) { params.append('start', startDate); }
             if (endDate) { params.append('end', endDate); }
             if (memberTypeFilter !== 'all') { params.append('member_type', memberTypeFilter); }
+            params.append('page', page.toString());
+            params.append('limit', limit.toString());
+            
             const response = await axios.get(`/api/attendance?${params.toString()}`);
-            setAttendanceRecords(Array.isArray(response.data) ? response.data : []);
+            const { attendance, pagination } = response.data;
+            setAttendanceRecords(Array.isArray(attendance) ? attendance : []);
+            setPaginationMeta(pagination || { total: 0, page: 1, limit: 50, totalPages: 0 });
         } catch (error) {
             console.error("Error fetching all attendance", error);
             setAttendanceRecords([]);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -79,7 +99,8 @@ const AttendanceTracker = () => {
         const memberId = e.target.value;
         setSelectedMemberId(memberId);
         if (memberId === 'all') {
-            fetchAttendanceAll();
+            setCurrentPage(1);
+            fetchAttendanceAll(1, itemsPerPage);
         } else if (memberId) {
             fetchAttendanceForMember(memberId);
         } else {
@@ -87,10 +108,24 @@ const AttendanceTracker = () => {
         }
     };
 
+    // Pagination handlers
+    const handlePageChange = (event, page) => {
+        setCurrentPage(page);
+        fetchAttendanceAll(page, itemsPerPage);
+    };
+
+    const handleItemsPerPageChange = (event) => {
+        const newItemsPerPage = parseInt(event.target.value, 10);
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1);
+        fetchAttendanceAll(1, newItemsPerPage);
+    };
+
     useEffect(() => {
         // Auto-refresh when selection or dates change
         if (selectedMemberId === 'all') {
-            fetchAttendanceAll();
+            setCurrentPage(1);
+            fetchAttendanceAll(1, itemsPerPage);
         } else if (selectedMemberId) {
             fetchAttendanceForMember(selectedMemberId);
         } else {
@@ -201,55 +236,100 @@ const AttendanceTracker = () => {
                     <Typography variant="h6" gutterBottom>
                         {selectedMemberId === 'all' ? 'Attendance for all users' : `Attendance for ${getMemberName(Number(selectedMemberId))}`}
                     </Typography>
-                    {attendanceRecords.length > 0 ? (
-                        <TableContainer component={Paper}>
-                            <Table>
-                                <TableHead>
-                                <TableRow sx={{ 
-                                    background: 'var(--accent-secondary-bg)',
-                                    '& .MuiTableCell-root': {
-                                        color: '#fff',
-                                        fontWeight: 700
-                                    }
-                                }}>
-                                    {selectedMemberId === 'all' && <TableCell>Member</TableCell>}
-                                    <TableCell>Check-in Time</TableCell>
-                                </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {attendanceRecords.map(record => (
-                                        <TableRow 
-                                            key={record.id}
-                                            sx={{
-                                                background: record.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                                                border: record.is_admin === 1 ? '2px solid #ffd700' : 'none',
-                                                '&:hover': {
-                                                    background: record.is_admin === 1 ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)' : undefined
-                                                }
-                                            }}
-                                        >
-                                            {selectedMemberId === 'all' && (
-                                                <TableCell>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                        {record.member_name || getMemberName(record.member_id)}
-                                                        {record.is_admin === 1 && (
-                                                            <CrownIcon 
-                                                                sx={{ 
-                                                                    color: '#ffd700', 
-                                                                    fontSize: 16,
-                                                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                                                                }} 
-                                                            />
-                                                        )}
-                                                    </Box>
-                                                </TableCell>
-                                            )}
-                                            <TableCell>{formatDateTime(record.check_in_time)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                    
+                    {/* Pagination Controls - Only show for "all" view */}
+                    {selectedMemberId === 'all' && (
+                        <>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, paginationMeta.total)} of {paginationMeta.total} records
+                                </Typography>
+                                <FormControl size="small" sx={{ minWidth: 80 }}>
+                                    <InputLabel>Per Page</InputLabel>
+                                    <Select
+                                        value={itemsPerPage}
+                                        onChange={handleItemsPerPageChange}
+                                        label="Per Page"
+                                    >
+                                        <MenuItem value={25}>25</MenuItem>
+                                        <MenuItem value={50}>50</MenuItem>
+                                        <MenuItem value={100}>100</MenuItem>
+                                        <MenuItem value={200}>200</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Box>
+                        </>
+                    )}
+                    
+                    {loading ? (
+                        <Box sx={{ p: 3, textAlign: 'center' }}>
+                            <Typography>Loading attendance records...</Typography>
+                        </Box>
+                    ) : attendanceRecords.length > 0 ? (
+                        <>
+                            <TableContainer component={Paper}>
+                                <Table>
+                                    <TableHead>
+                                    <TableRow sx={{ 
+                                        background: 'var(--accent-secondary-bg)',
+                                        '& .MuiTableCell-root': {
+                                            color: '#fff',
+                                            fontWeight: 700
+                                        }
+                                    }}>
+                                        {selectedMemberId === 'all' && <TableCell>Member</TableCell>}
+                                        <TableCell>Check-in Time</TableCell>
+                                    </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {attendanceRecords.map(record => (
+                                            <TableRow 
+                                                key={record.id}
+                                                sx={{
+                                                    background: record.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                                                    border: record.is_admin === 1 ? '2px solid #ffd700' : 'none',
+                                                    '&:hover': {
+                                                        background: record.is_admin === 1 ? 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)' : undefined
+                                                    }
+                                                }}
+                                            >
+                                                {selectedMemberId === 'all' && (
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                            {record.member_name || getMemberName(record.member_id)}
+                                                            {record.is_admin === 1 && (
+                                                                <CrownIcon 
+                                                                    sx={{ 
+                                                                        color: '#ffd700', 
+                                                                        fontSize: 16,
+                                                                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                                    }} 
+                                                                />
+                                                            )}
+                                                        </Box>
+                                                    </TableCell>
+                                                )}
+                                                <TableCell>{formatDateTime(record.check_in_time)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                            
+                            {/* Pagination - Only show for "all" view */}
+                            {selectedMemberId === 'all' && paginationMeta.totalPages > 1 && (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                                    <Pagination
+                                        count={paginationMeta.totalPages}
+                                        page={currentPage}
+                                        onChange={handlePageChange}
+                                        color="primary"
+                                        showFirstButton
+                                        showLastButton
+                                    />
+                                </Box>
+                            )}
+                        </>
                     ) : (
                         <Typography>
                             {selectedMemberId === 'all' ? 'No attendance records found for the selected period.' : 'No attendance records found for this member.'}
