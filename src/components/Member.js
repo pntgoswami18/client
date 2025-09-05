@@ -37,6 +37,7 @@ import StarIcon from '@mui/icons-material/Star';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 
 const Member = () => {
@@ -1213,10 +1214,12 @@ const Member = () => {
                                     key={member.id} 
                                     divider 
                                     sx={{
-                                        background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                                        border: member.is_admin === 1 ? '2px solid #ffd700' : 'none',
-                                        borderRadius: member.is_admin === 1 ? 2 : 0,
-                                        mb: member.is_admin === 1 ? 1 : 0
+                                        background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 
+                                                   member.has_overdue_payments === 1 ? 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)' : 'transparent',
+                                        border: member.is_admin === 1 ? '2px solid #ffd700' : 
+                                               member.has_overdue_payments === 1 ? '2px solid #f44336' : 'none',
+                                        borderRadius: (member.is_admin === 1 || member.has_overdue_payments === 1) ? 2 : 0,
+                                        mb: (member.is_admin === 1 || member.has_overdue_payments === 1) ? 1 : 0
                                     }}
                                     secondaryAction={
                                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1252,6 +1255,15 @@ const Member = () => {
                                                     <CrownIcon 
                                                         sx={{ 
                                                             color: '#ffd700', 
+                                                            fontSize: 20,
+                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                        }} 
+                                                    />
+                                                )}
+                                                {member.has_overdue_payments === 1 && (
+                                                    <CreditCardIcon 
+                                                        sx={{ 
+                                                            color: '#f44336', 
                                                             fontSize: 20,
                                                             filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
                                                         }} 
