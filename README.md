@@ -1,155 +1,142 @@
-# Gym Management Software - Frontend Dashboard
+# Gym Management System - Client
 
-React admin dashboard for managing members, classes, schedules, attendance, billing, and high‑level analytics.
-
-## High‑level Features
-
-- Analytics dashboard with summary cards and charts
-- Member management (add/edit/list)
-- Classes and schedules
-- Attendance tracking with date‑range filtering
-- Financials: membership plans, invoices, manual payments
-- Branding via accent colors (solid/gradient) with a gradient editor
-
-## Technology Stack
-
-- React 19, React Router
-- Material UI
-- Axios
-
-## Installation
-
-```bash
-cd client
-npm install
-npm start
-```
-
-Runs at `http://localhost:3000` and proxies API requests to the backend (`http://localhost:3001`).
-
-# Gym Management Software - Frontend Dashboard
-
-This is the React frontend for the Gym Management Software, providing a comprehensive admin dashboard for gym owners and staff to manage their operations.
+This is the React frontend for the Gym Management System.
 
 ## Features
 
-The frontend dashboard includes:
+### Member Management
+- Add, edit, and delete members
+- Biometric enrollment for members
+- Member attendance tracking
+- Member payment management
 
-- **Analytics Dashboard:** Real-time reporting with summary statistics, member growth trends, revenue analytics, and popular class rankings
-- **Member Management:** Add, view, edit, and delete gym members with automated welcome emails
-- **Class Management:** Create and manage fitness classes with instructor and duration details
-- **Schedule Management:** Schedule classes with datetime pickers and capacity management
-- **Attendance Tracking:** View member attendance history and simulate biometric check-ins
-- **Financial Management:** Create membership plans, invoices, and record manual payments
+### Class Management
+- Create and manage fitness classes
+- Assign instructors to classes
+- Schedule management
 
-## Technology Stack
+### Financial Management
+- Membership plan creation and management
+- Invoice generation and tracking
+- Payment processing
+- Financial reporting
 
-- **React.js** with functional components and hooks
-- **React Router** for multi-page navigation
-- **Axios** for API communication with the backend
-- **Professional styling** with responsive design
+### Device Management
+- ESP32 biometric device management
+- Remote device configuration
+- Device status monitoring
+
+### Searchable Member Dropdowns
+
+All member selection dropdowns throughout the application now include **index-based search functionality**. Users can search for members by:
+
+- **Name** (primary search)
+- **ID** (member ID)
+- **Email** (when enabled)
+- **Phone number**
+
+#### Features:
+- **Real-time filtering**: Results update as you type
+- **Multiple search fields**: Search across name, ID, email, and phone
+- **Admin indicators**: Star icons for admin members
+- **Clear search**: Easy-to-use clear button
+- **No results feedback**: Clear messaging when no matches found
+- **Accessibility**: Keyboard navigation support
+
+#### Components Updated:
+- **BiometricEnrollment**: Member selection for fingerprint enrollment
+- **AttendanceTracker**: Member selection for attendance viewing and simulation
+- **ESP32DeviceManager**: Member selection for remote enrollment
+- **Financials**: Member selection for invoice creation and editing
+
+#### Usage:
+```jsx
+import SearchableMemberDropdown from './SearchableMemberDropdown';
+
+<SearchableMemberDropdown
+  value={selectedMemberId}
+  onChange={handleMemberSelect}
+  members={members}
+  label="Select Member"
+  placeholder="Search members by name, ID, or phone..."
+  showId={true}
+  showEmail={false}
+  showAdminIcon={true}
+  includeAllOption={false}
+/>
+```
+
+#### Props:
+- `value`: Selected member ID
+- `onChange`: Change handler function
+- `members`: Array of member objects
+- `label`: Dropdown label text
+- `placeholder`: Search input placeholder
+- `showId`: Whether to display member IDs (default: true)
+- `showEmail`: Whether to display email addresses (default: false)
+- `showAdminIcon`: Whether to show star icons for admin members (default: true)
+- `includeAllOption`: Whether to include an "All users" option (default: false)
+- `allOptionLabel`: Text for the "all" option (default: "All users")
+- `allOptionValue`: Value for the "all" option (default: "all")
 
 ## Getting Started
 
 ### Prerequisites
-
-Make sure the backend server is running on `http://localhost:3001` before starting the frontend.
+- Node.js (v14 or higher)
+- npm or yarn
 
 ### Installation
+1. Navigate to the client directory:
+   ```bash
+   cd client
+   ```
 
-```bash
-# From the client directory
-npm install
-```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-### Development
+3. Start the development server:
+   ```bash
+   npm start
+   ```
 
-```bash
-# Start the development server
-npm start
-```
+   Or with biometric integration:
+   ```bash
+   npm run start:with-biometric
+   ```
 
-This will start the React development server and open the dashboard in your browser at `http://localhost:3000`.
+The application will be available at `http://localhost:3000`.
 
-The application will automatically proxy API requests to the backend server running on port 3001 (configured via `client/package.json` `proxy`).
+## Available Scripts
 
-### Available Scripts
+- `npm start`: Start the development server
+- `npm run start:with-biometric`: Start with biometric integration
+- `npm test`: Run tests
+- `npm run build`: Build for production
+- `npm run eject`: Eject from Create React App
 
-#### `npm start`
-
-Runs the app in development mode. The page will reload when you make changes and display any lint errors in the console.
-
-#### `npm test`
-
-Launches the test runner in interactive watch mode.
-
-#### `npm run build`
-
-Builds the app for production to the `build` folder. The build is minified and optimized for best performance.
-
-## Dashboard Navigation
-
-Once running, you can navigate between different sections:
-
-- **Dashboard (/):** Analytics and reporting overview
-- **Members (/members):** Manage gym members
-- **Classes (/classes):** Manage fitness classes
-- **Schedules (/schedules):** Schedule classes and manage capacity
-- **Attendance (/attendance):** Track member attendance. Session check-in rules are enforced (Morning 05:00–11:00, Evening 16:00–22:00) with max one check-in per calendar date. Filter by date range (default: current week).
-- **Financials (/financials):** Manage membership plans and billing. Manual payment modal supports selecting a member to fetch unpaid invoices and autofilling invoice/amount.
-
-## Component Structure
+## Project Structure
 
 ```
-src/
-├── components/
-│   ├── Dashboard.js          # Analytics dashboard with reporting
-│   ├── Member.js             # Member management interface
-│   ├── ClassManager.js       # Class management interface
-│   ├── ScheduleManager.js    # Schedule management interface
-│   ├── AttendanceTracker.js  # Attendance tracking interface
-│   ├── Financials.js         # Financial management interface
-│   └── Pages.js              # Placeholder components
-├── App.js                    # Main app with routing
-├── App.css                   # Application styling
-└── index.js                  # App entry point
+client/
+├── public/
+├── src/
+│   ├── components/
+│   │   ├── SearchableMemberDropdown.js    # Reusable searchable dropdown
+│   │   ├── BiometricEnrollment.js        # Biometric enrollment interface
+│   │   ├── AttendanceTracker.js          # Attendance tracking
+│   │   ├── ESP32DeviceManager.js         # Device management
+│   │   ├── Financials.js                 # Financial management
+│   │   └── ...
+│   ├── utils/
+│   └── App.js
+└── package.json
 ```
 
-## Styling & Branding
+## Contributing
 
-Accent colors (Primary and Secondary) are configurable in Settings as either Solid or Gradient. A built-in Gradient Editor supports Linear/Radial modes, angle, and draggable color stops. The app exposes CSS variables for accents:
-
-- `--accent-primary-color`
-- `--accent-secondary-color`
-- `--accent-primary-bg`
-- `--accent-secondary-bg`
-
-These are used across buttons (contained/outlined), headings (h4/h5 gradient text), section dividers, and invoice headings.
-
-## API Integration
-
-The frontend communicates with the backend through REST API calls using Axios. All API requests are automatically proxied to `http://localhost:3001` during development.
-
-Key endpoints integrated in the UI:
-- `GET /api/reports/summary` (includes `unpaidMembersThisMonth` for dashboard card)
-- `GET /api/reports/unpaid-members-this-month` (Members filter)
-- `GET /api/payments/unpaid?member_id=<id>` (Financials modal unpaid invoices)
-- `POST /api/payments/manual` (Record manual payment)
-
-## Deployment
-
-For production deployment:
-
-1. Build the application: `npm run build`
-2. The `build` folder contains the optimized production files
-3. Deploy the contents to your web server
-4. Ensure your production backend API is accessible
-
-## Development Notes
-
-- The application uses React Router for client-side routing
-- All components are functional components using React hooks
-- API calls are made using async/await pattern with proper error handling
-- The proxy configuration in package.json handles CORS during development
-
-For more information about the backend API and overall system architecture, see the main README.md in the project root.
+1. Follow the existing code style
+2. Add tests for new features
+3. Update documentation as needed
+4. Test thoroughly before submitting changes
