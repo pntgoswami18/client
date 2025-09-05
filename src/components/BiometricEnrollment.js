@@ -480,6 +480,13 @@ const BiometricEnrollment = () => {
     return () => clearTimeout(timer);
   }, [memberSearchTerm]);
   
+  // Load initial data on component mount
+  useEffect(() => {
+    fetchMembersWithoutBiometric(1, itemsPerPage, '');
+    fetchMembersWithBiometric(1, itemsPerPage, '');
+    fetchBiometricEvents(1, itemsPerPage, '');
+  }, [itemsPerPage, fetchMembersWithoutBiometric, fetchMembersWithBiometric, fetchBiometricEvents]);
+
   // Update members when debounced search term changes
   useEffect(() => {
     setMembersWithoutBiometricPage(1);
@@ -1271,7 +1278,7 @@ const BiometricEnrollment = () => {
                 <TextField
                   fullWidth
                   label="Search Members"
-                  placeholder="Search by name, ID, email, phone, or biometric ID..."
+                  placeholder="Search by name, ID, email, phone, or biometric enrollment ID..."
                   value={memberSearchTerm}
                   onChange={handleMemberSearchChange}
                   InputProps={{
@@ -1310,7 +1317,7 @@ const BiometricEnrollment = () => {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Members Without Biometric Data ({paginationMeta.membersWithoutBiometric.total})
+                    Members Without Biometric Enrollment ({paginationMeta.membersWithoutBiometric.total})
                   </Typography>
                   
                   {/* Pagination Controls */}
@@ -1342,11 +1349,11 @@ const BiometricEnrollment = () => {
         {members && members.length === 0 ? (
           memberSearchTerm ? (
             <Alert severity="info">
-              No members without biometric data found matching "{memberSearchTerm}"
+              No members without biometric enrollment found matching "{memberSearchTerm}"
             </Alert>
           ) : (
             <Alert severity="success">
-              🎉 All members have biometric data enrolled!
+              🎉 All members have biometric enrollment completed!
             </Alert>
           )
         ) : members && members.length > 0 ? (
@@ -1483,7 +1490,7 @@ const BiometricEnrollment = () => {
                   <Typography>Loading member data...</Typography>
                 )}
                 
-                {/* Members Without Biometric Data Pagination */}
+                {/* Members Without Biometric Enrollment Pagination */}
                 {paginationMeta.membersWithoutBiometric.totalPages > 1 && (
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
                     <Pagination
@@ -1500,14 +1507,14 @@ const BiometricEnrollment = () => {
             </Card>
           </Grid>
           
-          {/* Members With Biometric Data */}
+          {/* Members With Biometric Enrollment */}
           <Grid item xs={12}>
             <Card>
               <CardContent>
                 <Box display="flex" alignItems="center" mb={2}>
                   <FingerprintIcon color="success" sx={{ mr: 1 }} />
                   <Typography variant="h6">
-                    Members With Biometric Data ({paginationMeta.membersWithBiometric.total})
+                    Members With Biometric Enrollment ({paginationMeta.membersWithBiometric.total})
                   </Typography>
                 </Box>
                 
@@ -1534,11 +1541,11 @@ const BiometricEnrollment = () => {
                 {membersWithBiometric && membersWithBiometric.length === 0 ? (
                   memberSearchTerm ? (
                     <Alert severity="info">
-                      No members with biometric data found matching "{memberSearchTerm}"
+                      No members with biometric enrollment found matching "{memberSearchTerm}"
                     </Alert>
                   ) : (
                     <Alert severity="info">
-                      📝 No members have biometric data enrolled yet.
+                      📝 No members have biometric enrollment yet.
                     </Alert>
                   )
                 ) : membersWithBiometric && membersWithBiometric.length > 0 ? (
@@ -1634,7 +1641,7 @@ const BiometricEnrollment = () => {
                   <Typography>Loading member data...</Typography>
                 )}
                 
-                {/* Members With Biometric Data Pagination */}
+                {/* Members With Biometric Enrollment Pagination */}
                 {paginationMeta.membersWithBiometric.totalPages > 1 && (
                   <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
                     <Pagination
