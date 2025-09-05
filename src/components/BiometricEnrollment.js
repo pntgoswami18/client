@@ -144,19 +144,29 @@ const BiometricEnrollment = () => {
     'Complete Enrollment'
   ];
 
-  // Note: Client-side filtering removed - now using backend search with pagination
-  // The backend handles all filtering and search functionality
+  // Add refs for request cancellation
+  const abortControllerRef = useRef(null);
 
   // Define callback functions first
-  const fetchMembersWithoutBiometric = useCallback(async (page = membersWithoutBiometricPage, limit = itemsPerPage, search = memberSearchTerm) => {
+  const fetchMembersWithoutBiometric = useCallback(async (page = 1, limit = 10, search = '') => {
     try {
+      // Cancel previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         search: search || ''
       });
       
-      const response = await fetch(`/api/biometric/members/without-biometric?${params.toString()}`);
+      const response = await fetch(`/api/biometric/members/without-biometric?${params.toString()}`, {
+        signal: abortControllerRef.current.signal
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -176,22 +186,36 @@ const BiometricEnrollment = () => {
         setMembers([]); // Set empty array as fallback
       }
     } catch (error) {
+      // Ignore aborted requests
+      if (error.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching members:', error);
       setError(`Network error: ${error.message}`);
       setMembers([]); // Set empty array as fallback
     }
-  }, [membersWithoutBiometricPage, itemsPerPage, memberSearchTerm]);
+  }, []);
 
   // Fetch members with biometric data
-  const fetchMembersWithBiometric = useCallback(async (page = membersWithBiometricPage, limit = itemsPerPage, search = memberSearchTerm) => {
+  const fetchMembersWithBiometric = useCallback(async (page = 1, limit = 10, search = '') => {
     try {
+      // Cancel previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         search: search || ''
       });
       
-      const response = await fetch(`/api/biometric/members/with-biometric?${params.toString()}`);
+      const response = await fetch(`/api/biometric/members/with-biometric?${params.toString()}`, {
+        signal: abortControllerRef.current.signal
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -211,11 +235,15 @@ const BiometricEnrollment = () => {
         setMembersWithBiometric([]); // Set empty array as fallback
       }
     } catch (error) {
+      // Ignore aborted requests
+      if (error.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching members with biometric:', error);
       setError(`Network error: ${error.message}`);
       setMembersWithBiometric([]); // Set empty array as fallback
     }
-  }, [membersWithBiometricPage, itemsPerPage, memberSearchTerm]);
+  }, []);
 
   const checkEnrollmentProgress = useCallback(async () => {
     if (!enrollmentProgress && !ongoingEnrollment) {
@@ -454,13 +482,20 @@ const BiometricEnrollment = () => {
   
   // Update members when debounced search term changes
   useEffect(() => {
-    if (debouncedMemberSearchTerm !== memberSearchTerm) {
-      setMembersWithoutBiometricPage(1);
-      setMembersWithBiometricPage(1);
-      fetchMembersWithoutBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
-      fetchMembersWithBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
-    }
-  }, [debouncedMemberSearchTerm, itemsPerPage, fetchMembersWithoutBiometric, fetchMembersWithBiometric, memberSearchTerm]);
+    setMembersWithoutBiometricPage(1);
+    setMembersWithBiometricPage(1);
+    fetchMembersWithoutBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
+    fetchMembersWithBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
+  }, [debouncedMemberSearchTerm, itemsPerPage, fetchMembersWithoutBiometric, fetchMembersWithBiometric]);
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const handleMemberSearchChange = (event) => {
     const newSearchTerm = event.target.value;
