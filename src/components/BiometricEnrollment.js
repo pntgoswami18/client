@@ -150,30 +150,22 @@ const BiometricEnrollment = () => {
   // Define callback functions first
   const fetchMembersWithoutBiometric = useCallback(async (page = 1, limit = 10, search = '') => {
     try {
-      // Cancel previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      
-      // Create new abort controller
-      abortControllerRef.current = new AbortController();
-      
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
         search: search || ''
       });
       
-      const response = await fetch(`/api/biometric/members/without-biometric?${params.toString()}`, {
-        signal: abortControllerRef.current.signal
-      });
+      const response = await fetch(`/api/biometric/members/without-biometric?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('DEBUG: API Response for members without biometric:', data);
       if (data.success) {
+        console.log('DEBUG: Setting members state with:', data.data);
         setMembers(data.data || []);
         setPaginationMeta(prev => ({
           ...prev,
@@ -186,10 +178,6 @@ const BiometricEnrollment = () => {
         setMembers([]); // Set empty array as fallback
       }
     } catch (error) {
-      // Ignore aborted requests
-      if (error.name === 'AbortError') {
-        return;
-      }
       console.error('Error fetching members:', error);
       setError(`Network error: ${error.message}`);
       setMembers([]); // Set empty array as fallback
@@ -482,6 +470,7 @@ const BiometricEnrollment = () => {
   
   // Load initial data on component mount
   useEffect(() => {
+    console.log('DEBUG: Initial data loading useEffect triggered');
     // Call the functions directly without dependencies to ensure they run on mount
     fetchMembersWithoutBiometric(1, 10, '');
     fetchMembersWithBiometric(1, 10, '');
@@ -1348,19 +1337,21 @@ const BiometricEnrollment = () => {
                   </Alert>
         )}
         
-        {members === undefined || members === null ? (
-          <Typography>Loading member data...</Typography>
-        ) : members.length === 0 ? (
+        {(() => {
+          console.log('DEBUG: members state:', members, 'length:', members?.length, 'type:', typeof members);
+          return members === undefined || members === null ? (
+            <Typography>Loading member data...</Typography>
+          ) : members.length === 0 ? (
           memberSearchTerm ? (
             <Alert severity="info">
-              No members without biometric enrollment found matching "{memberSearchTerm}"
+                No members without biometric enrollment found matching "{memberSearchTerm}"
             </Alert>
           ) : (
             <Alert severity="success">
-              🎉 All members have biometric enrollment completed!
+                🎉 All members have biometric enrollment completed!
             </Alert>
           )
-        ) : (
+          ) : (
                   <Box sx={{ overflowX: 'auto' }}>
                     <Box sx={{ 
                       display: 'grid', 
@@ -1490,7 +1481,8 @@ const BiometricEnrollment = () => {
                       </Box>
                     ))}
                   </Box>
-        )}
+          );
+        })()}
                 
                 {/* Members Without Biometric Enrollment Pagination */}
                 {paginationMeta.membersWithoutBiometric.totalPages > 1 && (
