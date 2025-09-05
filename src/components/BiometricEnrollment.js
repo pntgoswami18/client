@@ -163,9 +163,7 @@ const BiometricEnrollment = () => {
       }
       
       const data = await response.json();
-      console.log('DEBUG: API Response for members without biometric:', data);
       if (data.success) {
-        console.log('DEBUG: Setting members state with:', data.data);
         setMembers(data.data || []);
         setPaginationMeta(prev => ({
           ...prev,
@@ -470,11 +468,8 @@ const BiometricEnrollment = () => {
   
   // Load initial data on component mount
   useEffect(() => {
-    console.log('DEBUG: Initial data loading useEffect triggered');
-    // Call the functions directly without dependencies to ensure they run on mount
+    // Simple approach - just load members without biometric first
     fetchMembersWithoutBiometric(1, 10, '');
-    fetchMembersWithBiometric(1, 10, '');
-    fetchBiometricEvents(1, 10, '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to run only on mount
 
@@ -1337,21 +1332,19 @@ const BiometricEnrollment = () => {
                   </Alert>
         )}
         
-        {(() => {
-          console.log('DEBUG: members state:', members, 'length:', members?.length, 'type:', typeof members);
-          return members === undefined || members === null ? (
-            <Typography>Loading member data...</Typography>
-          ) : members.length === 0 ? (
+        {members === undefined || members === null ? (
+          <Typography>Loading member data...</Typography>
+        ) : members.length === 0 ? (
           memberSearchTerm ? (
             <Alert severity="info">
-                No members without biometric enrollment found matching "{memberSearchTerm}"
+              No members without biometric enrollment found matching "{memberSearchTerm}"
             </Alert>
           ) : (
             <Alert severity="success">
-                🎉 All members have biometric enrollment completed!
+              🎉 All members have biometric enrollment completed!
             </Alert>
           )
-          ) : (
+        ) : (
                   <Box sx={{ overflowX: 'auto' }}>
                     <Box sx={{ 
                       display: 'grid', 
@@ -1481,8 +1474,7 @@ const BiometricEnrollment = () => {
                       </Box>
                     ))}
                   </Box>
-          );
-        })()}
+        )}
                 
                 {/* Members Without Biometric Enrollment Pagination */}
                 {paginationMeta.membersWithoutBiometric.totalPages > 1 && (
