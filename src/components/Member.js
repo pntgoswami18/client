@@ -72,6 +72,7 @@ const Member = () => {
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [calculatedDueDate, setCalculatedDueDate] = useState('');
+    const [dueDate, setDueDate] = useState('');
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -252,7 +253,8 @@ const Member = () => {
                 birthday: birthday || null,
                 photo_url: photoUrl || null,
                 is_admin: isAdmin,
-                join_date: joinDate
+                join_date: joinDate,
+                due_date: dueDate || null
             };
             const res = await axios.post('/api/members', newMember);
             if (res?.data?.id && photoFile) {
@@ -282,6 +284,7 @@ const Member = () => {
             setBirthday('');
             setJoinDate(new Date().toISOString().split('T')[0]);
             setCalculatedDueDate('');
+            setDueDate('');
             setPhotoFile(null);
             setPhotoUrl('');
             setReferralMemberId('');
@@ -293,28 +296,31 @@ const Member = () => {
                 const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId)) || plans[0];
                 setInvoiceAmount(selectedPlan ? String(selectedPlan.price) : '');
                 
-                // Calculate due date based on plan duration from join date
-                if (selectedPlan && selectedPlan.duration_days) {
+                // Use provided due date or calculate based on plan duration from join date
+                if (dueDate) {
+                    // Use the user-provided due date
+                    setInvoiceDueDate(dueDate);
+                } else if (selectedPlan && selectedPlan.duration_days) {
                     // Use normalized due date calculation
                     const joinDateObj = new Date(joinDate);
-                    const dueDate = new Date(joinDateObj);
+                    const calculatedDueDate = new Date(joinDateObj);
                     
                     if (selectedPlan.duration_days === 30) {
                         // For monthly plans, use normalized month calculation
                         const dayOfMonth = joinDateObj.getDate();
-                        dueDate.setMonth(dueDate.getMonth() + 1);
-                        dueDate.setDate(dayOfMonth);
+                        calculatedDueDate.setMonth(calculatedDueDate.getMonth() + 1);
+                        calculatedDueDate.setDate(dayOfMonth);
                     } else {
                         // For other durations, use simple day addition
-                        dueDate.setDate(dueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+                        calculatedDueDate.setDate(calculatedDueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
                     }
-                    setInvoiceDueDate(formatDateToLocalString(dueDate));
+                    setInvoiceDueDate(formatDateToLocalString(calculatedDueDate));
                 } else {
                     // Default 30 days if no plan selected
                     const joinDateObj = new Date(joinDate);
-                    const dueDate = new Date(joinDateObj);
-                    dueDate.setMonth(dueDate.getMonth() + 1);
-                    setInvoiceDueDate(formatDateToLocalString(dueDate));
+                    const calculatedDueDate = new Date(joinDateObj);
+                    calculatedDueDate.setMonth(calculatedDueDate.getMonth() + 1);
+                    setInvoiceDueDate(formatDateToLocalString(calculatedDueDate));
                 }
                 setOpenInvoice(true);
             }
@@ -786,6 +792,7 @@ const Member = () => {
                     setBirthday('');
                     setJoinDate(new Date().toISOString().split('T')[0]);
                     setCalculatedDueDate('');
+                    setDueDate('');
                     setPhotoFile(null);
                     setPhotoUrl('');
                     setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
@@ -805,6 +812,7 @@ const Member = () => {
                     setBirthday('');
                     setJoinDate(new Date().toISOString().split('T')[0]);
                     setCalculatedDueDate('');
+                    setDueDate('');
                     setPhotoFile(null);
                     setPhotoUrl('');
                     setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
@@ -918,7 +926,7 @@ const Member = () => {
                         
                         {calculatedDueDate && !isAdmin && (
                             <TextField 
-                                label="Due Date" 
+                                label="Calculated Due Date" 
                                 value={calculatedDueDate} 
                                 InputProps={{ readOnly: true }}
                                 InputLabelProps={{ shrink: true }}
@@ -929,6 +937,17 @@ const Member = () => {
                                         color: '#666'
                                     }
                                 }}
+                            />
+                        )}
+                        
+                        {!isAdmin && (
+                            <TextField 
+                                label="Due Date" 
+                                type="date"
+                                value={dueDate} 
+                                onChange={(e) => setDueDate(e.target.value)}
+                                InputLabelProps={{ shrink: true }}
+                                helperText="Payment due date (leave empty to use calculated date)"
                             />
                         )}
                         
@@ -948,6 +967,7 @@ const Member = () => {
                                 setBirthday('');
                                 setJoinDate(new Date().toISOString().split('T')[0]);
                                 setCalculatedDueDate('');
+                                setDueDate('');
                                 setPhotoFile(null);
                                 setPhotoUrl('');
                                 setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
