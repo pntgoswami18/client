@@ -189,29 +189,33 @@ const Member = () => {
     const calculateDueDate = useCallback(() => {
         if (!joinDate || !membershipPlanId || isAdmin) {
             setCalculatedDueDate('');
+            setDueDate('');
             return;
         }
 
         const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId));
         if (!selectedPlan || !selectedPlan.duration_days) {
             setCalculatedDueDate('');
+            setDueDate('');
             return;
         }
 
         const joinDateObj = new Date(joinDate);
-        const dueDate = new Date(joinDateObj);
+        const calculatedDueDate = new Date(joinDateObj);
         
         if (selectedPlan.duration_days === 30) {
             // For monthly plans, use normalized month calculation
             const dayOfMonth = joinDateObj.getDate();
-            dueDate.setMonth(dueDate.getMonth() + 1);
-            dueDate.setDate(dayOfMonth);
+            calculatedDueDate.setMonth(calculatedDueDate.getMonth() + 1);
+            calculatedDueDate.setDate(dayOfMonth);
         } else {
             // For other durations, use simple day addition
-            dueDate.setDate(dueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+            calculatedDueDate.setDate(calculatedDueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
         }
         
-        setCalculatedDueDate(formatDateToLocalString(dueDate));
+        const formattedDueDate = formatDateToLocalString(calculatedDueDate);
+        setCalculatedDueDate(formattedDueDate);
+        setDueDate(formattedDueDate);
     }, [joinDate, membershipPlanId, isAdmin, plans]);
 
     useEffect(() => {
@@ -296,12 +300,11 @@ const Member = () => {
                 const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId)) || plans[0];
                 setInvoiceAmount(selectedPlan ? String(selectedPlan.price) : '');
                 
-                // Use provided due date or calculate based on plan duration from join date
+                // Use calculated due date for invoice creation
                 if (dueDate) {
-                    // Use the user-provided due date
                     setInvoiceDueDate(dueDate);
                 } else if (selectedPlan && selectedPlan.duration_days) {
-                    // Use normalized due date calculation
+                    // Fallback calculation if dueDate is not set
                     const joinDateObj = new Date(joinDate);
                     const calculatedDueDate = new Date(joinDateObj);
                     
@@ -924,10 +927,10 @@ const Member = () => {
                             )}
                         </FormControl>
                         
-                        {calculatedDueDate && !isAdmin && (
+                        {!isAdmin && (
                             <TextField 
-                                label="Calculated Due Date" 
-                                value={calculatedDueDate} 
+                                label="Due Date" 
+                                value={calculatedDueDate || ''} 
                                 InputProps={{ readOnly: true }}
                                 InputLabelProps={{ shrink: true }}
                                 helperText="Auto-calculated based on joining date and membership plan"
@@ -937,17 +940,6 @@ const Member = () => {
                                         color: '#666'
                                     }
                                 }}
-                            />
-                        )}
-                        
-                        {!isAdmin && (
-                            <TextField 
-                                label="Due Date" 
-                                type="date"
-                                value={dueDate} 
-                                onChange={(e) => setDueDate(e.target.value)}
-                                InputLabelProps={{ shrink: true }}
-                                helperText="Payment due date (leave empty to use calculated date)"
                             />
                         )}
                         
