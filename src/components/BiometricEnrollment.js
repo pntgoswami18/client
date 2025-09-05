@@ -482,10 +482,12 @@ const BiometricEnrollment = () => {
   
   // Load initial data on component mount
   useEffect(() => {
-    fetchMembersWithoutBiometric(1, itemsPerPage, '');
-    fetchMembersWithBiometric(1, itemsPerPage, '');
-    fetchBiometricEvents(1, itemsPerPage, '');
-  }, [itemsPerPage, fetchMembersWithoutBiometric, fetchMembersWithBiometric, fetchBiometricEvents]);
+    // Call the functions directly without dependencies to ensure they run on mount
+    fetchMembersWithoutBiometric(1, 10, '');
+    fetchMembersWithBiometric(1, 10, '');
+    fetchBiometricEvents(1, 10, '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to run only on mount
 
   // Update members when debounced search term changes
   useEffect(() => {
@@ -1346,7 +1348,9 @@ const BiometricEnrollment = () => {
                   </Alert>
         )}
         
-        {members && members.length === 0 ? (
+        {members === undefined || members === null ? (
+          <Typography>Loading member data...</Typography>
+        ) : members.length === 0 ? (
           memberSearchTerm ? (
             <Alert severity="info">
               No members without biometric enrollment found matching "{memberSearchTerm}"
@@ -1356,7 +1360,7 @@ const BiometricEnrollment = () => {
               🎉 All members have biometric enrollment completed!
             </Alert>
           )
-        ) : members && members.length > 0 ? (
+        ) : (
                   <Box sx={{ overflowX: 'auto' }}>
                     <Box sx={{ 
                       display: 'grid', 
@@ -1486,9 +1490,7 @@ const BiometricEnrollment = () => {
                       </Box>
                     ))}
                   </Box>
-                ) : (
-                  <Typography>Loading member data...</Typography>
-                )}
+        )}
                 
                 {/* Members Without Biometric Enrollment Pagination */}
                 {paginationMeta.membersWithoutBiometric.totalPages > 1 && (
