@@ -1312,7 +1312,7 @@ const BiometricEnrollment = () => {
                   </Typography>
                   
                   {/* Pagination Controls */}
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
                     <Typography variant="body2" color="text.secondary">
                       Showing {((membersWithoutBiometricPage - 1) * itemsPerPage) + 1} to {Math.min(membersWithoutBiometricPage * itemsPerPage, paginationMeta.membersWithoutBiometric.total)} of {paginationMeta.membersWithoutBiometric.total} members
                     </Typography>
@@ -1510,7 +1510,7 @@ const BiometricEnrollment = () => {
                 </Box>
                 
                 {/* Pagination Controls */}
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
                   <Typography variant="body2" color="text.secondary">
                     Showing {((membersWithBiometricPage - 1) * itemsPerPage) + 1} to {Math.min(membersWithBiometricPage * itemsPerPage, paginationMeta.membersWithBiometric.total)} of {paginationMeta.membersWithBiometric.total} members
                   </Typography>
@@ -1727,7 +1727,7 @@ const BiometricEnrollment = () => {
             </Box>
             
             {/* Events Search and Pagination Controls */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
               <TextField
                 size="small"
                 placeholder="Search events..."

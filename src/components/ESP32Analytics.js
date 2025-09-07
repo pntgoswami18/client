@@ -292,7 +292,7 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box display="flex" justifyContent="space-between" alignItems="start" mb={3}>
         <Typography variant="h4" component="h1">
           ESP32 Device Analytics
         </Typography>

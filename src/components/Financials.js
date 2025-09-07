@@ -490,7 +490,7 @@ const Financials = () => {
             <Typography variant="h5" gutterBottom>Financial Summary</Typography>
 
             {/* Date Range Filter */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'start', flexWrap: 'wrap' }}>
                 <FormControl size="small" sx={{ minWidth: 200 }}>
                     <InputLabel>Date Range</InputLabel>
                     <Select

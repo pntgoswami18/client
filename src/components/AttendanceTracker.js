@@ -183,7 +183,7 @@ const AttendanceTracker = () => {
             
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
-            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
+            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 160px', gap: 1, alignItems: 'start', maxWidth: 800 }}>
                 <SearchableMemberDropdown
                     value={selectedMemberId}
                     onChange={handleMemberSelect}
@@ -198,8 +198,8 @@ const AttendanceTracker = () => {
                     allOptionValue="all"
                 />
                 <FormControl fullWidth>
-                    <InputLabel>Member Type</InputLabel>
-                    <Select value={memberTypeFilter} onChange={(e) => setMemberTypeFilter(e.target.value)}>
+                    <InputLabel shrink>Member Type</InputLabel>
+                    <Select value={memberTypeFilter} onChange={(e) => setMemberTypeFilter(e.target.value)} label="Member Type">
                         <MenuItem value="all">All member types</MenuItem>
                         <MenuItem value="admins">Admins</MenuItem>
                         <MenuItem value="members">Members</MenuItem>
@@ -224,7 +224,7 @@ const AttendanceTracker = () => {
                     {/* Pagination Controls - Only show for "all" view */}
                     {selectedMemberId === 'all' && (
                         <>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
                                 <Typography variant="body2" color="text.secondary">
                                     Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, paginationMeta.total)} of {paginationMeta.total} records
                                 </Typography>

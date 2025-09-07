@@ -1181,7 +1181,7 @@ const Member = () => {
             <Typography variant="h5" gutterBottom>Current Members</Typography>
             
             {/* Pagination Controls */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
                 <Typography variant="body2" color="text.secondary">
                     Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, paginationMeta.total)} of {paginationMeta.total} members
                 </Typography>
