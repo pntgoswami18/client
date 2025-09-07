@@ -92,6 +92,15 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             const response = await axios.get('/api/settings');
             const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
             
+            // Debug logging to see actual API values
+            console.log('API Response for card settings:', {
+                show_card_total_members,
+                show_card_total_revenue,
+                show_card_new_members_this_month,
+                show_card_unpaid_members_this_month,
+                show_card_active_schedules
+            });
+            
             if (currency) { setCurrency(currency); }
             if (gym_name) { setGymName(gym_name); }
             if (gym_logo) { setGymLogo(gym_logo); }
@@ -106,11 +115,20 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (morning_session_end) { setMorningEnd(morning_session_end); }
             if (evening_session_start) { setEveningStart(evening_session_start); }
             if (evening_session_end) { setEveningEnd(evening_session_end); }
-            setShowTotalMembers(Boolean(show_card_total_members));
-            setShowTotalRevenue(Boolean(show_card_total_revenue));
-            setShowNewMembersThisMonth(Boolean(show_card_new_members_this_month));
-            setShowUnpaidMembersThisMonth(Boolean(show_card_unpaid_members_this_month));
-            setShowActiveSchedules(Boolean(show_card_active_schedules));
+            setShowTotalMembers(show_card_total_members === 'true' || show_card_total_members === true);
+            setShowTotalRevenue(show_card_total_revenue === 'true' || show_card_total_revenue === true);
+            setShowNewMembersThisMonth(show_card_new_members_this_month === 'true' || show_card_new_members_this_month === true);
+            setShowUnpaidMembersThisMonth(show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true);
+            setShowActiveSchedules(show_card_active_schedules === 'true' || show_card_active_schedules === true);
+            
+            // Debug logging to see what string/boolean conversion produces
+            console.log('String/Boolean conversion results:', {
+                showTotalMembers: show_card_total_members === 'true' || show_card_total_members === true,
+                showTotalRevenue: show_card_total_revenue === 'true' || show_card_total_revenue === true,
+                showNewMembersThisMonth: show_card_new_members_this_month === 'true' || show_card_new_members_this_month === true,
+                showUnpaidMembersThisMonth: show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true,
+                showActiveSchedules: show_card_active_schedules === 'true' || show_card_active_schedules === true
+            });
             if (ask_unlock_reason !== undefined) { setAskUnlockReason(ask_unlock_reason); }
             if (referral_system_enabled !== undefined) { setReferralSystemEnabled(referral_system_enabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
@@ -136,11 +154,11 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 morningEnd: morning_session_end || '11:00',
                 eveningStart: evening_session_start || '16:00',
                 eveningEnd: evening_session_end || '22:00',
-                showTotalMembers: Boolean(show_card_total_members),
-                showTotalRevenue: Boolean(show_card_total_revenue),
-                showNewMembersThisMonth: Boolean(show_card_new_members_this_month),
-                showUnpaidMembersThisMonth: Boolean(show_card_unpaid_members_this_month),
-                showActiveSchedules: Boolean(show_card_active_schedules),
+                showTotalMembers: show_card_total_members === 'true' || show_card_total_members === true,
+                showTotalRevenue: show_card_total_revenue === 'true' || show_card_total_revenue === true,
+                showNewMembersThisMonth: show_card_new_members_this_month === 'true' || show_card_new_members_this_month === true,
+                showUnpaidMembersThisMonth: show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true,
+                showActiveSchedules: show_card_active_schedules === 'true' || show_card_active_schedules === true,
                 askUnlockReason: ask_unlock_reason,
                 referralSystemEnabled: referral_system_enabled,
                 referralDiscountAmount: String(referral_discount_amount || '100'),
@@ -157,6 +175,10 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             console.error("Error fetching settings", error);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        fetchSettings();
     }, []);
 
     const handleSaveAllSettings = async () => {
