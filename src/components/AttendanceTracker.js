@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { TableShimmer } from './ShimmerLoader';
-import { TableShimmer } from './ShimmerLoader';
 import {
     Typography,
     FormControl,
@@ -20,7 +19,6 @@ import {
     Paper,
     Pagination
 } from '@mui/material';
-import SearchableMemberDropdown from './SearchableMemberDropdown';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { getCurrentDateString, getPreviousDayString } from '../utils/formatting';
@@ -58,9 +56,6 @@ const AttendanceTracker = () => {
             // The API returns { members: [...], pagination: {...} }
             const membersData = response.data.members || response.data;
             setMembers(Array.isArray(membersData) ? membersData : []);
-            // The API returns { members: [...], pagination: {...} }
-            const membersData = response.data.members || response.data;
-            setMembers(Array.isArray(membersData) ? membersData : []);
         } catch (error) {
             console.error("Error fetching members", error);
         }
@@ -80,9 +75,7 @@ const AttendanceTracker = () => {
     };
 
     const fetchAttendanceAll = async (page = currentPage, limit = itemsPerPage) => {
-    const fetchAttendanceAll = async (page = currentPage, limit = itemsPerPage) => {
         try {
-            setLoading(true);
             setLoading(true);
             const params = new URLSearchParams();
             if (startDate) { params.append('start', startDate); }
@@ -91,22 +84,13 @@ const AttendanceTracker = () => {
             params.append('page', page.toString());
             params.append('limit', limit.toString());
             
-            if (memberTypeFilter !== 'all') { params.append('member_type', memberTypeFilter); }
-            params.append('page', page.toString());
-            params.append('limit', limit.toString());
-            
             const response = await axios.get(`/api/attendance?${params.toString()}`);
-            const { attendance, pagination } = response.data;
-            setAttendanceRecords(Array.isArray(attendance) ? attendance : []);
-            setPaginationMeta(pagination || { total: 0, page: 1, limit: 50, totalPages: 0 });
             const { attendance, pagination } = response.data;
             setAttendanceRecords(Array.isArray(attendance) ? attendance : []);
             setPaginationMeta(pagination || { total: 0, page: 1, limit: 50, totalPages: 0 });
         } catch (error) {
             console.error("Error fetching all attendance", error);
             setAttendanceRecords([]);
-        } finally {
-            setLoading(false);
         } finally {
             setLoading(false);
         }
@@ -116,8 +100,6 @@ const AttendanceTracker = () => {
         const memberId = e.target.value;
         setSelectedMemberId(memberId);
         if (memberId === 'all') {
-            setCurrentPage(1);
-            fetchAttendanceAll(1, itemsPerPage);
             setCurrentPage(1);
             fetchAttendanceAll(1, itemsPerPage);
         } else if (memberId) {
@@ -158,8 +140,6 @@ const AttendanceTracker = () => {
     useEffect(() => {
         // Auto-refresh when selection or dates change
         if (selectedMemberId === 'all') {
-            setCurrentPage(1);
-            fetchAttendanceAll(1, itemsPerPage);
             setCurrentPage(1);
             fetchAttendanceAll(1, itemsPerPage);
         } else if (selectedMemberId) {
