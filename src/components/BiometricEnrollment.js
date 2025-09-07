@@ -1081,7 +1081,15 @@ const BiometricEnrollment = () => {
   );
 
   return (
-    <Box>
+    <Box sx={{ 
+      maxWidth: 'none', 
+      mx: 0, 
+      px: 0,
+      position: 'relative',
+      left: '-24px', // Offset the parent padding
+      right: '-24px', // Offset the parent padding
+      width: 'calc(100% + 48px)' // Compensate for the offset
+    }}>
       {/* Header with Tabs and Status Cards */}
       <Box sx={{ mb: 3 }}>
         {/* Title */}
@@ -1303,10 +1311,10 @@ const BiometricEnrollment = () => {
           </Card>
 
           {/* Member Cards Grid */}
-          <Grid container spacing={3}>
+          <Grid container spacing={3} sx={{ width: '100%' }}>
             <Grid item xs={12}>
-              <Card>
-                <CardContent>
+              <Card sx={{ width: '100%' }}>
+                <CardContent sx={{ width: '100%' }}>
                   <Typography variant="h6" gutterBottom>
                     Members Without Biometric Enrollment ({paginationMeta.membersWithoutBiometric.total})
                   </Typography>
@@ -1350,10 +1358,10 @@ const BiometricEnrollment = () => {
             </Alert>
           )
         ) : (
-                  <Box sx={{ overflowX: 'auto' }}>
+                  <Box sx={{ width: '100%' }}>
                     <Box sx={{ 
                       display: 'grid', 
-                      gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                      gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1fr 2fr',
                       gap: 1,
                       alignItems: 'center',
                       p: 1,
@@ -1361,7 +1369,8 @@ const BiometricEnrollment = () => {
                       borderRadius: 1,
                       mb: 1,
                       fontWeight: 'bold',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      width: '100%'
                     }}>
                       <Box>Name</Box>
                       <Box>Email</Box>
@@ -1375,7 +1384,7 @@ const BiometricEnrollment = () => {
                         key={member.id}
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                          gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1fr 2fr',
                           gap: 1,
                           alignItems: 'center',
                           p: 1,
@@ -1384,6 +1393,7 @@ const BiometricEnrollment = () => {
                           borderRadius: 1,
                           mb: 1,
                           background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                          width: '100%',
                           ...(ongoingEnrollment && ongoingEnrollment.memberId === member.id && {
                             border: '2px solid #2196f3',
                             boxShadow: '0 0 10px rgba(33, 150, 243, 0.3)'
@@ -1500,8 +1510,8 @@ const BiometricEnrollment = () => {
           
           {/* Members With Biometric Enrollment */}
           <Grid item xs={12}>
-            <Card>
-              <CardContent>
+            <Card sx={{ width: '100%' }}>
+              <CardContent sx={{ width: '100%' }}>
                 <Box display="flex" alignItems="center" mb={2}>
                   <FingerprintIcon color="success" sx={{ mr: 1 }} />
                   <Typography variant="h6">
@@ -1540,10 +1550,10 @@ const BiometricEnrollment = () => {
                     </Alert>
                   )
                 ) : membersWithBiometric && membersWithBiometric.length > 0 ? (
-                  <Box sx={{ overflowX: 'auto' }}>
+                  <Box sx={{ width: '100%' }}>
                     <Box sx={{ 
                       display: 'grid', 
-                      gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                      gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1.5fr 1fr 2fr',
                       gap: 1,
                       alignItems: 'center',
                       p: 1,
@@ -1551,7 +1561,8 @@ const BiometricEnrollment = () => {
                       borderRadius: 1,
                       mb: 1,
                       fontWeight: 'bold',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      width: '100%'
                     }}>
                       <Box>Name</Box>
                       <Box>Email</Box>
@@ -1566,7 +1577,7 @@ const BiometricEnrollment = () => {
                         key={member.id}
                             sx={{ 
                           display: 'grid',
-                          gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                          gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1.5fr 1fr 2fr',
                           gap: 1,
                               alignItems: 'center',
                           p: 1,
@@ -1575,7 +1586,8 @@ const BiometricEnrollment = () => {
                           borderRadius: 1,
                           mb: 1,
                           background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                          boxShadow: (member.is_admin === 1 || member.is_admin === true) ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)'
+                          boxShadow: (member.is_admin === 1 || member.is_admin === true) ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)',
+                          width: '100%'
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

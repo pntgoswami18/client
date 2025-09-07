@@ -465,7 +465,11 @@ const Member = () => {
                     setBiometricSuccess('Re-enrollment started successfully. Please ask the member to place their finger on the biometric device.');
                     // Refresh biometric status
                     openBiometricDialog(editingMember);
+                } else {
+                    setBiometricError('Failed to start enrollment after deletion');
                 }
+            } else {
+                setBiometricError('Failed to delete existing biometric data');
             }
         } catch (error) {
             console.error('Error starting re-enrollment:', error);
@@ -895,7 +899,7 @@ const Member = () => {
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 <Button variant="outlined" component="label" size="small">
                                     Upload Photo
-                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { const url = URL.createObjectURL(f); openCropDialog(url) } }} />
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; f && (() => { const url = URL.createObjectURL(f); openCropDialog(url) })() }} />
                                 </Button>
                                 <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
                                     Take Photo
@@ -1079,7 +1083,7 @@ const Member = () => {
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                 <Button variant="outlined" component="label" size="small">
                                     Upload Photo
-                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { const url = URL.createObjectURL(f); openCropDialog(url) } }} />
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; f && (() => { const url = URL.createObjectURL(f); openCropDialog(url) })() }} />
                                 </Button>
                                 <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
                                     Take Photo

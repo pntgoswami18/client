@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Link, useLocation } from 'react-router-dom';
-import { createTheme, ThemeProvider, CssBaseline, AppBar, Toolbar, Typography, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, IconButton, Divider, Container } from '@mui/material';
+import { Route, Routes, Link, useLocation } from 'react-router-dom';
+import { createTheme, ThemeProvider, CssBaseline, AppBar, Toolbar, Typography, Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, IconButton, Divider } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
@@ -50,21 +50,20 @@ const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
         defaultProps: { variant: 'contained' },
         styleOverrides: {
           root: {
+            borderRadius: 8,
             textTransform: 'none',
-          },
-          contained: {
-            background: 'var(--accent-secondary-bg)',
-            color: '#fff',
-            '&:hover': { filter: 'brightness(0.95)' },
-          },
-          outlined: {
-            borderColor: 'var(--accent-secondary-color)',
-            color: 'var(--accent-secondary-color)',
-            '&:hover': { borderColor: 'var(--accent-secondary-color)', background: 'rgba(0,0,0,0.02)' },
+            fontWeight: 600,
+            padding: '8px 16px',
+            boxShadow: 'none',
+            '&:hover': {
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            },
           },
         },
       },
-      MuiTable: { defaultProps: { size: 'small' } },
+      MuiCard: { styleOverrides: { root: { borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' } } },
+      MuiTextField: { styleOverrides: { root: { '& .MuiOutlinedInput-root': { borderRadius: 8 } } } },
+      MuiChip: { styleOverrides: { root: { borderRadius: 6 } } },
       MuiTableRow: { styleOverrides: { root: { transition: 'background 0.2s' } } },
       MuiPaper: { styleOverrides: { root: { borderRadius: 12 } } },
     },
@@ -74,12 +73,17 @@ const drawerWidth = 240;
 
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
   const [gymName, setGymName] = useState('');
   const [gymLogo, setGymLogo] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#3f51b5');
   const [secondaryColor, setSecondaryColor] = useState('#f50057');
   const [primaryMode, setPrimaryMode] = useState('solid');
   const [primaryGradient, setPrimaryGradient] = useState('');
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
 
   useEffect(() => {
     fetchGymSettings();
@@ -93,31 +97,14 @@ function App() {
       setGymLogo(response.data.gym_logo);
       if (response.data.primary_color) { setPrimaryColor(response.data.primary_color); }
       if (response.data.secondary_color) { setSecondaryColor(response.data.secondary_color); }
-      if (response.data.primary_color_mode) { setPrimaryMode(response.data.primary_color_mode); }
-      if (response.data.primary_color_gradient) { setPrimaryGradient(response.data.primary_color_gradient); }
-      // expose CSS variables for easy usage in components with sensible fallbacks
-      const root = document.documentElement;
-      const resolvedPrimaryBG = (response.data.primary_color_mode === 'gradient'
-        ? (response.data.primary_color_gradient || `linear-gradient(90deg, ${response.data.primary_color || primaryColor}, ${response.data.secondary_color || secondaryColor})`)
-        : (response.data.primary_color || primaryColor));
-      const resolvedSecondaryBG = (response.data.secondary_color_mode === 'gradient'
-        ? (response.data.secondary_color_gradient || `linear-gradient(90deg, ${response.data.secondary_color || secondaryColor}, ${response.data.primary_color || primaryColor})`)
-        : (response.data.secondary_color || secondaryColor));
-      root.style.setProperty('--accent-primary-color', response.data.primary_color || primaryColor);
-      root.style.setProperty('--accent-secondary-color', response.data.secondary_color || secondaryColor);
-      root.style.setProperty('--accent-primary-bg', resolvedPrimaryBG);
-      root.style.setProperty('--accent-secondary-bg', resolvedSecondaryBG);
+      if (response.data.primary_mode) { setPrimaryMode(response.data.primary_mode); }
+      if (response.data.primary_gradient) { setPrimaryGradient(response.data.primary_gradient); }
     } catch (error) {
-      console.error("Error fetching gym settings", error);
+      console.error('Error fetching gym settings:', error);
     }
   };
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-
   const LocationAwareDrawerContent = () => {
-    const location = useLocation();
     const navigationItems = [
       { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
       { label: 'Members', to: '/members', icon: <PeopleIcon /> },
@@ -154,8 +141,7 @@ function App() {
   return (
     <ThemeProvider theme={buildTheme(primaryColor, secondaryColor)}>
       <CssBaseline />
-      <Router>
-        <Box sx={{ display: 'flex' }}>
+      <Box sx={{ display: 'flex' }}>
           <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
             <Toolbar>
               <IconButton
@@ -175,6 +161,7 @@ function App() {
               }}>
                 {gymName || 'Gym Management'}
               </Typography>
+
             </Toolbar>
           </AppBar>
           <Box
@@ -212,7 +199,7 @@ function App() {
             sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
           >
             <Toolbar />
-            <Container maxWidth="lg" sx={{ pb: 6 }}>
+            <Box sx={{ pb: 6, width: '100%' }}>
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/members" element={<Member />} />
@@ -223,10 +210,9 @@ function App() {
                 <Route path="/invoices/:id" element={<InvoiceView />} />
                 <Route path="/settings/*" element={<Settings />} />
               </Routes>
-            </Container>
+            </Box>
           </Box>
         </Box>
-      </Router>
     </ThemeProvider>
   );
 }
