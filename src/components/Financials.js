@@ -3,19 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
-
-// Debounce utility function
-const debounce = (func, wait) => {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-};
 import {
     Typography,
     TextField,
@@ -30,7 +17,6 @@ import {
     TableHead,
     TableRow,
     Paper,
-    Alert,
     Divider,
     Dialog,
     DialogTitle,
@@ -48,6 +34,19 @@ import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HistoryToggleOffOutlinedIcon from '@mui/icons-material/HistoryToggleOffOutlined';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
 import StarIcon from '@mui/icons-material/Star';
+
+// Debounce utility function
+const debounce = (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
 
 const Financials = () => {
     const [plans, setPlans] = useState([]);
@@ -109,7 +108,6 @@ const Financials = () => {
     const [customEndDate, setCustomEndDate] = useState('');
 
     // Loading states
-    const [isLoading, setIsLoading] = useState(false);
     const [loadingStates, setLoadingStates] = useState({
         outstanding: false,
         payments: false,
