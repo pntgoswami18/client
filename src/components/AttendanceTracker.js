@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { TableShimmer } from './ShimmerLoader';
+import { TableShimmer } from './ShimmerLoader';
 import {
     Typography,
     FormControl,
@@ -10,8 +11,6 @@ import {
     TextField,
     Button,
     Box,
-    Card,
-    CardContent,
     Table,
     TableBody,
     TableCell,
@@ -19,20 +18,21 @@ import {
     TableHead,
     TableRow,
     Paper,
-    Alert,
     Pagination
 } from '@mui/material';
+import SearchableMemberDropdown from './SearchableMemberDropdown';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { getCurrentDateString, getPreviousDayString } from '../utils/formatting';
 import CrownIcon from '@mui/icons-material/Star';
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import SimulateCheckInModal from './SimulateCheckInModal';
 
 const AttendanceTracker = () => {
     const [members, setMembers] = useState([]);
     const [selectedMemberId, setSelectedMemberId] = useState('all');
     const [attendanceRecords, setAttendanceRecords] = useState([]);
-    const [simulateMemberId, setSimulateMemberId] = useState('');
-    const [checkInError, setCheckInError] = useState('');
+    const [simulateModalOpen, setSimulateModalOpen] = useState(false);
     const [startDate, setStartDate] = useState(() => getPreviousDayString());
     const [endDate, setEndDate] = useState(() => getCurrentDateString());
     const [memberTypeFilter, setMemberTypeFilter] = useState('all');
@@ -58,6 +58,9 @@ const AttendanceTracker = () => {
             // The API returns { members: [...], pagination: {...} }
             const membersData = response.data.members || response.data;
             setMembers(Array.isArray(membersData) ? membersData : []);
+            // The API returns { members: [...], pagination: {...} }
+            const membersData = response.data.members || response.data;
+            setMembers(Array.isArray(membersData) ? membersData : []);
         } catch (error) {
             console.error("Error fetching members", error);
         }
@@ -77,7 +80,9 @@ const AttendanceTracker = () => {
     };
 
     const fetchAttendanceAll = async (page = currentPage, limit = itemsPerPage) => {
+    const fetchAttendanceAll = async (page = currentPage, limit = itemsPerPage) => {
         try {
+            setLoading(true);
             setLoading(true);
             const params = new URLSearchParams();
             if (startDate) { params.append('start', startDate); }
@@ -86,13 +91,22 @@ const AttendanceTracker = () => {
             params.append('page', page.toString());
             params.append('limit', limit.toString());
             
+            if (memberTypeFilter !== 'all') { params.append('member_type', memberTypeFilter); }
+            params.append('page', page.toString());
+            params.append('limit', limit.toString());
+            
             const response = await axios.get(`/api/attendance?${params.toString()}`);
+            const { attendance, pagination } = response.data;
+            setAttendanceRecords(Array.isArray(attendance) ? attendance : []);
+            setPaginationMeta(pagination || { total: 0, page: 1, limit: 50, totalPages: 0 });
             const { attendance, pagination } = response.data;
             setAttendanceRecords(Array.isArray(attendance) ? attendance : []);
             setPaginationMeta(pagination || { total: 0, page: 1, limit: 50, totalPages: 0 });
         } catch (error) {
             console.error("Error fetching all attendance", error);
             setAttendanceRecords([]);
+        } finally {
+            setLoading(false);
         } finally {
             setLoading(false);
         }
@@ -102,6 +116,8 @@ const AttendanceTracker = () => {
         const memberId = e.target.value;
         setSelectedMemberId(memberId);
         if (memberId === 'all') {
+            setCurrentPage(1);
+            fetchAttendanceAll(1, itemsPerPage);
             setCurrentPage(1);
             fetchAttendanceAll(1, itemsPerPage);
         } else if (memberId) {
@@ -124,9 +140,26 @@ const AttendanceTracker = () => {
         fetchAttendanceAll(1, newItemsPerPage);
     };
 
+    const handleSimulateCheckInSuccess = (memberId) => {
+        // If the simulated member is currently selected, refresh their attendance
+        if (String(selectedMemberId) === String(memberId)) {
+            fetchAttendanceForMember(Number(memberId));
+        }
+    };
+
+    const handleOpenSimulateModal = () => {
+        setSimulateModalOpen(true);
+    };
+
+    const handleCloseSimulateModal = () => {
+        setSimulateModalOpen(false);
+    };
+
     useEffect(() => {
         // Auto-refresh when selection or dates change
         if (selectedMemberId === 'all') {
+            setCurrentPage(1);
+            fetchAttendanceAll(1, itemsPerPage);
             setCurrentPage(1);
             fetchAttendanceAll(1, itemsPerPage);
         } else if (selectedMemberId) {
@@ -136,30 +169,6 @@ const AttendanceTracker = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMemberId, startDate, endDate, memberTypeFilter]);
-
-    const simulateCheckIn = async (e) => {
-        e.preventDefault();
-        if (!simulateMemberId) {
-            return;
-        }
-
-        try {
-            setCheckInError('');
-            await axios.post('/api/attendance/check-in', { memberId: Number(simulateMemberId) });
-            alert('Check-in successful!');
-            
-            // If the simulated member is currently selected, refresh their attendance
-            if (String(selectedMemberId) === String(simulateMemberId)) {
-                fetchAttendanceForMember(Number(simulateMemberId));
-            }
-            setSimulateMemberId('');
-        } catch (error) {
-            console.error("Error simulating check-in", error);
-            const msg = error?.response?.data?.message || 'Error during check-in. Please check if the member exists.';
-            setCheckInError(msg);
-            alert(msg);
-        }
-    };
 
     const formatDateTime = (dateTime) => {
         return new Date(dateTime).toLocaleString();
@@ -172,37 +181,29 @@ const AttendanceTracker = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1 }}>Attendance</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1, mb: 0 }}>
+                    Attendance
+                </Typography>
+                <Button
+                    variant="contained"
+                    startIcon={<FingerprintIcon />}
+                    onClick={handleOpenSimulateModal}
+                    sx={{
+                        background: 'var(--accent-secondary-bg)',
+                        '&:hover': {
+                            background: 'var(--accent-secondary-bg)',
+                            filter: 'brightness(0.95)'
+                        }
+                    }}
+                >
+                    Simulate Check-in
+                </Button>
+            </Box>
             
-            {/* Simulate Check-in Section */}
-            <Card sx={{ marginBottom: '2rem' }}>
-                <CardContent>
-                    <Typography variant="h6" gutterBottom>Simulate Biometric Check-in</Typography>
-                    <Alert severity="info" sx={{ marginBottom: '1rem' }}>
-                        This simulates what a biometric device would do when a member checks in.
-                    </Alert>
-                    {checkInError && (
-                        <Alert severity="error" sx={{ mb: 2 }}>{checkInError}</Alert>
-                    )}
-                    <Box component="form" onSubmit={simulateCheckIn} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px' }}>
-                        <SearchableMemberDropdown
-                            value={simulateMemberId}
-                            onChange={e => setSimulateMemberId(e.target.value)}
-                            members={members}
-                            label="Select Member to Check In"
-                            placeholder="Search members by name, ID, or phone..."
-                            showId={true}
-                            showEmail={false}
-                            showAdminIcon={true}
-                        />
-                        <Button type="submit">Simulate Check-in</Button>
-                    </Box>
-                </CardContent>
-            </Card>
-
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
-            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
+            <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 160px', gap: 1, alignItems: 'start', maxWidth: 800 }}>
                 <SearchableMemberDropdown
                     value={selectedMemberId}
                     onChange={handleMemberSelect}
@@ -217,8 +218,8 @@ const AttendanceTracker = () => {
                     allOptionValue="all"
                 />
                 <FormControl fullWidth>
-                    <InputLabel>Member Type</InputLabel>
-                    <Select value={memberTypeFilter} onChange={(e) => setMemberTypeFilter(e.target.value)}>
+                    <InputLabel shrink>Member Type</InputLabel>
+                    <Select value={memberTypeFilter} onChange={(e) => setMemberTypeFilter(e.target.value)} label="Member Type">
                         <MenuItem value="all">All member types</MenuItem>
                         <MenuItem value="admins">Admins</MenuItem>
                         <MenuItem value="members">Members</MenuItem>
@@ -243,7 +244,7 @@ const AttendanceTracker = () => {
                     {/* Pagination Controls - Only show for "all" view */}
                     {selectedMemberId === 'all' && (
                         <>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
                                 <Typography variant="body2" color="text.secondary">
                                     Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, paginationMeta.total)} of {paginationMeta.total} records
                                 </Typography>
@@ -338,6 +339,14 @@ const AttendanceTracker = () => {
                     )}
                 </Box>
             )}
+            
+            {/* Simulate Check-in Modal */}
+            <SimulateCheckInModal
+                open={simulateModalOpen}
+                onClose={handleCloseSimulateModal}
+                members={members}
+                onCheckInSuccess={handleSimulateCheckInSuccess}
+            />
         </div>
     );
 };

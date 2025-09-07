@@ -1179,30 +1179,7 @@ const Member = () => {
             </Dialog>
             
             <Typography variant="h5" gutterBottom>Current Members</Typography>
-            
-            {/* Pagination Controls */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, paginationMeta.total)} of {paginationMeta.total} members
-                </Typography>
-                <FormControl size="small" sx={{ minWidth: 80 }}>
-                    <InputLabel>Per Page</InputLabel>
-                    <Select
-                        value={itemsPerPage}
-                        onChange={handleItemsPerPageChange}
-                        label="Per Page"
-                    >
-                        <MenuItem value={5}>5</MenuItem>
-                        <MenuItem value={10}>10</MenuItem>
-                        <MenuItem value={25}>25</MenuItem>
-                        <MenuItem value={50}>50</MenuItem>
-                    </Select>
-                </FormControl>
-            </Box>
-
-            {loading ? (
-                <ListShimmer count={8} />
-            ) : members.length === 0 ? (
+            {members.length === 0 ? (
                 <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
                     <GroupAddOutlinedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                     <Typography gutterBottom>No members found.</Typography>
