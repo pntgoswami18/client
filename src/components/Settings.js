@@ -91,6 +91,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
         try {
             const response = await axios.get('/api/settings');
             const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
+            
             if (currency) { setCurrency(currency); }
             if (gym_name) { setGymName(gym_name); }
             if (gym_logo) { setGymLogo(gym_logo); }
@@ -157,10 +158,6 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    useEffect(() => {
-        fetchSettings();
-    }, [fetchSettings]);
 
     const handleSaveAllSettings = async () => {
         try {
