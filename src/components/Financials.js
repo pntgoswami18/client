@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
-import { formatDateToLocalString } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
 import {
     Typography,
@@ -30,30 +28,12 @@ import {
     MenuItem,
     Autocomplete,
     Pagination
-    Autocomplete,
-    Pagination
 } from '@mui/material';
-import SearchableMemberDropdown from './SearchableMemberDropdown';
-import { TableShimmer } from './ShimmerLoader';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import { TableShimmer } from './ShimmerLoader';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HistoryToggleOffOutlinedIcon from '@mui/icons-material/HistoryToggleOffOutlined';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
-import StarIcon from '@mui/icons-material/Star';
-
-// Debounce utility function
-const debounce = (func, wait) => {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-};
 import StarIcon from '@mui/icons-material/Star';
 
 // Debounce utility function
@@ -94,8 +74,6 @@ const Financials = () => {
     const [invDueDate, setInvDueDate] = useState('');
     const [invJoinDate, setInvJoinDate] = useState('');
     const [createInvoiceError, setCreateInvoiceError] = useState('');
-    const [invJoinDate, setInvJoinDate] = useState('');
-    const [createInvoiceError, setCreateInvoiceError] = useState('');
     // Edit invoice state
     const [openEditInvoice, setOpenEditInvoice] = useState(false);
     const [editInvoiceId, setEditInvoiceId] = useState('');
@@ -107,19 +85,6 @@ const Financials = () => {
         outstandingInvoices: [],
         paymentHistory: [],
         memberPaymentStatus: []
-    });
-    
-    // Pagination state
-    const [outstandingPage, setOutstandingPage] = useState(1);
-    const [paymentsPage, setPaymentsPage] = useState(1);
-    const [membersPage, setMembersPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    
-    // Pagination metadata
-    const [paginationMeta, setPaginationMeta] = useState({
-        outstanding: { total: 0, page: 1, limit: 10 },
-        payments: { total: 0, page: 1, limit: 10 },
-        members: { total: 0, page: 1, limit: 10 }
     });
     
     // Pagination state
@@ -317,191 +282,10 @@ const Financials = () => {
         debouncedFetchFinancialSummary('all', 1, newItemsPerPage);
     };
 
-    // Date range filters
-    const [dateRange, setDateRange] = useState('last-30-days');
-    const [customStartDate, setCustomStartDate] = useState('');
-    const [customEndDate, setCustomEndDate] = useState('');
-
-    // Loading states
-    const [loadingStates, setLoadingStates] = useState({
-        outstanding: false,
-        payments: false,
-        members: false,
-        plans: false,
-        currency: false
-    });
-
-    // Calculate date range based on filter selection
-    const getDateRange = useCallback(() => {
-        const today = new Date();
-        const startDate = new Date();
-        const endDate = new Date();
-
-        switch (dateRange) {
-            case 'last-7-days':
-                startDate.setDate(today.getDate() - 7);
-                break;
-            case 'last-30-days':
-                startDate.setDate(today.getDate() - 30);
-                break;
-            case 'last-90-days':
-                startDate.setDate(today.getDate() - 90);
-                break;
-            case 'last-6-months':
-                startDate.setMonth(today.getMonth() - 6);
-                break;
-            case 'last-year':
-                startDate.setFullYear(today.getFullYear() - 1);
-                break;
-            case 'custom':
-                if (customStartDate && customEndDate) {
-                    return {
-                        startDate: new Date(customStartDate).toISOString().split('T')[0],
-                        endDate: new Date(customEndDate).toISOString().split('T')[0]
-                    };
-                }
-                // Fall back to last 30 days if custom dates not set
-                startDate.setDate(today.getDate() - 30);
-                break;
-            default:
-                startDate.setDate(today.getDate() - 30);
-        }
-
-        return {
-            startDate: startDate.toISOString().split('T')[0],
-            endDate: endDate.toISOString().split('T')[0]
-        };
-    }, [dateRange, customStartDate, customEndDate]);
-
-    const fetchFinancialSummary = useCallback(async (table = 'all', page = 1, limit = itemsPerPage) => {
-        try {
-            // Set specific loading states based on table type
-            if (table === 'all') {
-                setLoadingStates(prev => ({
-                    ...prev,
-                    outstanding: true,
-                    payments: true,
-                    members: true
-                }));
-            } else {
-                setLoadingStates(prev => ({
-                    ...prev,
-                    [table]: true
-                }));
-            }
-
-            const { startDate, endDate } = getDateRange();
-            const params = new URLSearchParams({
-                startDate,
-                endDate,
-                page: page.toString(),
-                limit: limit.toString(),
-                table
-            });
-            const response = await axios.get(`/api/reports/financial-summary?${params}`);
-            const def = { outstandingInvoices: [], paymentHistory: [], memberPaymentStatus: [] };
-            const d = response?.data || {};
-            
-            // Update financial summary data
-            setFinancialSummary(prev => ({
-                ...prev,
-                ...def,
-                ...d,
-                outstandingInvoices: Array.isArray(d.outstandingInvoices) ? d.outstandingInvoices : prev.outstandingInvoices,
-                paymentHistory: Array.isArray(d.paymentHistory) ? d.paymentHistory : prev.paymentHistory,
-                memberPaymentStatus: Array.isArray(d.memberPaymentStatus) ? d.memberPaymentStatus : prev.memberPaymentStatus,
-            }));
-            
-            // Update pagination metadata
-            setPaginationMeta(prev => ({
-                ...prev,
-                outstanding: {
-                    total: d.outstandingInvoicesTotal || prev.outstanding.total,
-                    page: d.outstandingInvoicesPage || prev.outstanding.page,
-                    limit: d.outstandingInvoicesLimit || prev.outstanding.limit
-                },
-                payments: {
-                    total: d.paymentHistoryTotal || prev.payments.total,
-                    page: d.paymentHistoryPage || prev.payments.page,
-                    limit: d.paymentHistoryLimit || prev.payments.limit
-                },
-                members: {
-                    total: d.memberPaymentStatusTotal || prev.members.total,
-                    page: d.memberPaymentStatusPage || prev.members.page,
-                    limit: d.memberPaymentStatusLimit || prev.members.limit
-                }
-            }));
-        } catch (error) {
-            console.error("Error fetching financial summary", error);
-        } finally {
-            // Clear specific loading states
-            if (table === 'all') {
-                setLoadingStates(prev => ({
-                    ...prev,
-                    outstanding: false,
-                    payments: false,
-                    members: false
-                }));
-            } else {
-                setLoadingStates(prev => ({
-                    ...prev,
-                    [table]: false
-                }));
-            }
-        }
-    }, [getDateRange, itemsPerPage]);
-
-    // Debounced version of fetchFinancialSummary to prevent excessive API calls
-    const debouncedFetchFinancialSummary = useMemo(() => {
-        return debounce((table, page, limit) => {
-            fetchFinancialSummary(table, page, limit);
-        }, 300);
-    }, [fetchFinancialSummary]);
-
-    // Filter out admin users for invoice creation
-    const nonAdminMembers = useMemo(() => {
-        if (!Array.isArray(members)) {
-            return [];
-        }
-        return members.filter(member => 
-            member && 
-            typeof member === 'object' && 
-            member.id && 
-            !(member.is_admin === 1 || member.is_admin === true)
-        );
-    }, [members]);
-
-    // Pagination handlers
-    const handleOutstandingPageChange = (event, page) => {
-        setOutstandingPage(page);
-        debouncedFetchFinancialSummary('outstanding', page, itemsPerPage);
-    };
-
-    const handlePaymentsPageChange = (event, page) => {
-        setPaymentsPage(page);
-        debouncedFetchFinancialSummary('payments', page, itemsPerPage);
-    };
-
-    const handleMembersPageChange = (event, page) => {
-        setMembersPage(page);
-        debouncedFetchFinancialSummary('members', page, itemsPerPage);
-    };
-
-    const handleItemsPerPageChange = (event) => {
-        const newItemsPerPage = parseInt(event.target.value, 10);
-        setItemsPerPage(newItemsPerPage);
-        setOutstandingPage(1);
-        setPaymentsPage(1);
-        setMembersPage(1);
-        debouncedFetchFinancialSummary('all', 1, newItemsPerPage);
-    };
-
     useEffect(() => {
         fetchPlans();
         fetchCurrency();
         fetchMembers();
-        fetchFinancialSummary('all', 1, itemsPerPage);
-    }, [fetchFinancialSummary, itemsPerPage]);
         fetchFinancialSummary('all', 1, itemsPerPage);
     }, [fetchFinancialSummary, itemsPerPage]);
 
@@ -513,22 +297,15 @@ const Financials = () => {
         let scrollTimeout;
         let editTimeout;
 
-
-        let scrollTimeout;
-        let editTimeout;
-
         if (section === 'pending-payments' && outstandingRef.current) {
             // Scroll to Outstanding Invoices
-            scrollTimeout = setTimeout(() => {
             scrollTimeout = setTimeout(() => {
                 outstandingRef.current.scrollIntoView({ behavior: 'smooth' });
             }, 100);
         }
 
-
         if (editInvoiceParam) {
             // Auto-open edit dialog for the specified invoice
-            editTimeout = setTimeout(() => {
             editTimeout = setTimeout(() => {
                 handleEditInvoice(parseInt(editInvoiceParam, 10));
                 // Clear the URL parameter after opening the dialog
@@ -537,16 +314,6 @@ const Financials = () => {
                 window.history.replaceState({}, '', newUrl);
             }, 500); // Wait for data to load
         }
-
-        return () => {
-            if (scrollTimeout) {
-                clearTimeout(scrollTimeout);
-            }
-            if (editTimeout) {
-                clearTimeout(editTimeout);
-            }
-        };
-    }, [location.search]);
 
         return () => {
             if (scrollTimeout) {
@@ -570,15 +337,7 @@ const Financials = () => {
             }
             
             // Populate edit form with defensive programming
-            // Validate invoice data
-            if (!invoice || typeof invoice !== 'object') {
-                throw new Error('Invalid invoice data received');
-            }
-            
-            // Populate edit form with defensive programming
             setEditInvoiceId(invoiceId);
-            setEditInvMemberId(invoice.member_id ? String(invoice.member_id) : '');
-            setEditInvPlanId(invoice.plan_id ? String(invoice.plan_id) : '');
             setEditInvMemberId(invoice.member_id ? String(invoice.member_id) : '');
             setEditInvPlanId(invoice.plan_id ? String(invoice.plan_id) : '');
             setEditInvAmount(String(invoice.invoice_amount || ''));
@@ -596,7 +355,6 @@ const Financials = () => {
                 await axios.delete(`/api/payments/invoices/${invoiceId}`);
                 alert('Invoice deleted successfully');
                 fetchFinancialSummary('outstanding', outstandingPage, itemsPerPage);
-                fetchFinancialSummary('outstanding', outstandingPage, itemsPerPage);
             } catch (error) {
                 console.error('Error deleting invoice:', error);
                 alert(error?.response?.data?.message || 'Error deleting invoice');
@@ -607,13 +365,10 @@ const Financials = () => {
     const fetchCurrency = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, currency: true }));
-            setLoadingStates(prev => ({ ...prev, currency: true }));
             const response = await axios.get('/api/settings');
             setCurrency(response.data.currency);
         } catch (error) {
             console.error("Error fetching currency setting", error);
-        } finally {
-            setLoadingStates(prev => ({ ...prev, currency: false }));
         } finally {
             setLoadingStates(prev => ({ ...prev, currency: false }));
         }
@@ -622,21 +377,13 @@ const Financials = () => {
     const fetchPlans = async () => {
         try {
             setLoadingStates(prev => ({ ...prev, plans: true }));
-            setLoadingStates(prev => ({ ...prev, plans: true }));
             const response = await axios.get('/api/plans');
-            const plansData = Array.isArray(response.data) ? response.data : [];
-            // Filter out any null/undefined plans
-            const validPlans = plansData.filter(plan => plan && typeof plan === 'object' && plan.id);
-            setPlans(validPlans);
             const plansData = Array.isArray(response.data) ? response.data : [];
             // Filter out any null/undefined plans
             const validPlans = plansData.filter(plan => plan && typeof plan === 'object' && plan.id);
             setPlans(validPlans);
         } catch (error) {
             console.error("Error fetching plans", error);
-            setPlans([]); // Set empty array as fallback
-        } finally {
-            setLoadingStates(prev => ({ ...prev, plans: false }));
             setPlans([]); // Set empty array as fallback
         } finally {
             setLoadingStates(prev => ({ ...prev, plans: false }));
@@ -651,14 +398,8 @@ const Financials = () => {
             // Filter out any null/undefined members
             const validMembers = membersData.filter(member => member && typeof member === 'object' && member.id);
             setMembers(validMembers);
-            // The API returns {members: [...]}, so we need to access res.data.members
-            const membersData = Array.isArray(res.data.members) ? res.data.members : [];
-            // Filter out any null/undefined members
-            const validMembers = membersData.filter(member => member && typeof member === 'object' && member.id);
-            setMembers(validMembers);
         } catch (e) {
             console.error('Error fetching members', e);
-            setMembers([]); // Set empty array as fallback
             setMembers([]); // Set empty array as fallback
         }
     };
@@ -1142,9 +883,7 @@ const Financials = () => {
             <Box sx={{ marginBottom: '3rem' }}>
                 <Typography variant="h5" gutterBottom>Membership Plans</Typography>
 
-
                 {/* Create New Plan Form */}
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
                     <Button onClick={() => setOpenAddPlan(true)}>Add Plan</Button>
                 </Box>
@@ -1191,7 +930,6 @@ const Financials = () => {
 
                 {/* Existing Plans Table */}
                 <Typography variant="h6" sx={{ color: 'var(--accent-secondary-color)', mb: 1 }}>Existing Plans</Typography>
-                <Typography variant="h6" sx={{ color: 'var(--accent-secondary-color)', mb: 1 }}>Existing Plans</Typography>
                     {plans.length > 0 ? (
                     <TableContainer component={Paper} sx={{ overflow: 'hidden' }}>
                         <Table>
@@ -1211,31 +949,6 @@ const Financials = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {plans.map(plan => {
-                                    // Ensure plan is valid before rendering
-                                    if (!plan || typeof plan !== 'object' || !plan.id) {
-                                        return null;
-                                    }
-                                    return (
-                                        <TableRow key={plan.id} hover>
-                                            <TableCell>{plan.name}</TableCell>
-                                            <TableCell>{formatCurrency(plan.price, currency)}</TableCell>
-                                            <TableCell>{plan.duration_days}</TableCell>
-                                            <TableCell>{plan.description || 'No description'}</TableCell>
-                                            <TableCell>
-                                                <Button size="small" variant="outlined" onClick={() => {
-                                                    setEditingPlan(plan);
-                                                    setPlanName(plan.name);
-                                                    setPlanPrice(String(plan.price));
-                                                    setPlanDuration(String(plan.duration_days));
-                                                    setPlanDescription(plan.description || '');
-                                                    setOpenEditPlan(true);
-                                                }}>Edit</Button>
-                                                <Button size="small" color="error" variant="outlined" onClick={() => handleDeletePlan(plan.id)} sx={{ ml: 1 }}>Delete</Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
                                 {plans.map(plan => {
                                     // Ensure plan is valid before rendering
                                     if (!plan || typeof plan !== 'object' || !plan.id) {
@@ -1285,22 +998,6 @@ const Financials = () => {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={openAddPlan} onClose={() => setOpenAddPlan(false)} fullWidth maxWidth="sm">
-                <DialogTitle>Create New Membership Plan</DialogTitle>
-                <DialogContent>
-                    <Box component="form" onSubmit={handleCreatePlan} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <TextField label="Plan Name" value={planName} onChange={e => setPlanName(e.target.value)} placeholder="e.g., Monthly Premium" required />
-                        <TextField label="Price" type="number" inputProps={{ step: '0.01' }} value={planPrice} onChange={e => setPlanPrice(e.target.value)} placeholder="e.g., 49.99" required />
-                        <TextField label="Duration (Days)" type="number" value={planDuration} onChange={e => setPlanDuration(e.target.value)} placeholder="e.g., 30" required />
-                        <TextField label="Description" value={planDescription} onChange={e => setPlanDescription(e.target.value)} placeholder="Description (optional)" multiline rows={3} />
-                        <DialogActions sx={{ px: 0 }}>
-                            <Button onClick={() => setOpenAddPlan(false)}>Cancel</Button>
-                            <Button type="submit" variant="contained">Create</Button>
-                        </DialogActions>
-                    </Box>
-                </DialogContent>
-            </Dialog>
-
             <Dialog open={openEditPlan} onClose={() => setOpenEditPlan(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Membership Plan</DialogTitle>
                 <DialogContent>
@@ -1324,11 +1021,7 @@ const Financials = () => {
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
                             Note: Admin users are exempt from payments and cannot have payments recorded against them.
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                            Note: Admin users are exempt from payments and cannot have payments recorded against them.
-                        </Typography>
                         <Autocomplete
-                            options={nonAdminMembers}
                             options={nonAdminMembers}
                             isOptionEqualToValue={(option, value) => String(option.id) === String(value?.id)}
                             getOptionLabel={(option) => option?.name || ''}
@@ -1384,17 +1077,6 @@ const Financials = () => {
                                             </MenuItem>
                                         );
                                     })}
-                                    {unpaidInvoices.map(inv => {
-                                        // Ensure invoice is valid before rendering
-                                        if (!inv || typeof inv !== 'object' || !inv.id) {
-                                            return null;
-                                        }
-                                        return (
-                                            <MenuItem key={inv.id} value={inv.id}>
-                                                #{inv.id} — {formatCurrency(inv.amount, currency)} — Due {new Date(inv.due_date).toLocaleDateString()}
-                                            </MenuItem>
-                                        );
-                                    })}
                                 </Select>
                             </FormControl>
                         )}
@@ -1414,12 +1096,6 @@ const Financials = () => {
                     <Button onClick={() => setOpenManualPayment(false)}>Cancel</Button>
                     <Button onClick={async ()=>{
                         try {
-                            // Check if selected member is an admin user
-                            if (manualMember && manualMember.is_admin === 1) {
-                                alert('Admin users are exempt from payments and cannot have payments recorded against them.');
-                                return;
-                            }
-                            
                             // Check if selected member is an admin user
                             if (manualMember && manualMember.is_admin === 1) {
                                 alert('Admin users are exempt from payments and cannot have payments recorded against them.');
@@ -1455,35 +1131,9 @@ const Financials = () => {
                 setInvJoinDate('');
                 setCreateInvoiceError('');
             }} fullWidth maxWidth="sm">
-            <Dialog open={openCreateInvoice} onClose={() => {
-                setOpenCreateInvoice(false);
-                setInvJoinDate('');
-                setCreateInvoiceError('');
-            }} fullWidth maxWidth="sm">
                 <DialogTitle>Create Invoice</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                            Note: Admin users are exempt from payments and cannot have invoices created against them.
-                        </Typography>
-                        <SearchableMemberDropdown
-                            value={invMemberId}
-                            onChange={(e)=>{ 
-                                setInvMemberId(e.target.value); 
-                                setCreateInvoiceError(''); // Clear error when user selects
-                                // Set join_date when member is selected
-                                const selectedMember = members.find(m => String(m.id) === String(e.target.value));
-                                if (selectedMember && selectedMember.join_date) {
-                                    setInvJoinDate(selectedMember.join_date);
-                                }
-                            }}
-                            members={nonAdminMembers}
-                            label="Member"
-                            placeholder="Search members by name, ID, or phone..."
-                            showId={false}
-                            showEmail={true}
-                            showAdminIcon={false}
-                        />
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
                             Note: Admin users are exempt from payments and cannot have invoices created against them.
                         </Typography>
@@ -1529,37 +1179,7 @@ const Financials = () => {
                                         setInvDueDate(formatDateToLocalString(dueDate));
                                     }
                                 }
-                                if (p) { 
-                                    setInvAmount(String(p.price)); 
-                                    // Calculate due date based on join_date and plan duration
-                                    if (invJoinDate && p.duration_days) {
-                                        const joinDateObj = new Date(invJoinDate);
-                                        const dueDate = new Date(joinDateObj);
-                                        
-                                        if (p.duration_days === 30) {
-                                            // For monthly plans, use normalized month calculation
-                                            const dayOfMonth = joinDateObj.getDate();
-                                            dueDate.setMonth(dueDate.getMonth() + 1);
-                                            dueDate.setDate(dayOfMonth);
-                                        } else {
-                                            // For other durations, use simple day addition
-                                            dueDate.setDate(dueDate.getDate() + parseInt(p.duration_days, 10));
-                                        }
-                                        setInvDueDate(formatDateToLocalString(dueDate));
-                                    }
-                                }
                             }}>
-                                {plans.map(p => {
-                                    // Ensure plan is valid before rendering
-                                    if (!p || typeof p !== 'object' || !p.id) {
-                                        return null;
-                                    }
-                                    return (
-                                        <MenuItem key={p.id} value={p.id}>
-                                            {p.name} - {formatCurrency(p.price, currency)}
-                                        </MenuItem>
-                                    );
-                                })}
                                 {plans.map(p => {
                                     // Ensure plan is valid before rendering
                                     if (!p || typeof p !== 'object' || !p.id) {
@@ -1598,31 +1218,6 @@ const Financials = () => {
                             InputLabelProps={{ shrink: true }}
                         />
                         <TextField label="Join Date" type="date" value={invJoinDate} onChange={(e)=>setInvJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} helperText="Member's joining date for due date calculation" />
-                        <TextField 
-                            label="Amount" 
-                            type="number" 
-                            value={invAmount} 
-                            onChange={(e)=>{
-                                setInvAmount(e.target.value);
-                                setCreateInvoiceError(''); // Clear error when user types
-                            }}
-                            required
-                            error={!!createInvoiceError}
-                            helperText={createInvoiceError || 'Enter the invoice amount'}
-                            inputProps={{ min: 0, step: 0.01 }}
-                        />
-                        <TextField 
-                            label="Due Date" 
-                            type="date" 
-                            value={invDueDate} 
-                            onChange={(e)=>{
-                                setInvDueDate(e.target.value);
-                                setCreateInvoiceError(''); // Clear error when user selects
-                            }}
-                            required
-                            InputLabelProps={{ shrink: true }}
-                        />
-                        <TextField label="Join Date" type="date" value={invJoinDate} onChange={(e)=>setInvJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} helperText="Member's joining date for due date calculation" />
                 </Box>
                 </DialogContent>
                 <DialogActions>
@@ -1631,45 +1226,8 @@ const Financials = () => {
                         setInvJoinDate('');
                         setCreateInvoiceError('');
                     }}>Cancel</Button>
-                    <Button onClick={()=>{
-                        setOpenCreateInvoice(false);
-                        setInvJoinDate('');
-                        setCreateInvoiceError('');
-                    }}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
-                            // Clear previous errors
-                            setCreateInvoiceError('');
-                            
-                            // Client-side validation
-                            if (!invMemberId) {
-                                setCreateInvoiceError('Please select a member');
-                                return;
-                            }
-                            
-                            if (!invAmount || invAmount.trim() === '') {
-                                setCreateInvoiceError('Please enter an amount');
-                                return;
-                            }
-                            
-                            const amountValue = parseFloat(invAmount);
-                            if (isNaN(amountValue) || amountValue <= 0) {
-                                setCreateInvoiceError('Please enter a valid amount greater than 0');
-                                return;
-                            }
-                            
-                            if (!invDueDate) {
-                                setCreateInvoiceError('Please select a due date');
-                                return;
-                            }
-                            
-                            // Check if selected member is an admin user
-                            const selectedMember = members.find(m => String(m.id) === String(invMemberId));
-                            if (selectedMember && selectedMember.is_admin === 1) {
-                                setCreateInvoiceError('Admin users are exempt from payments and cannot have invoices created against them');
-                                return;
-                            }
-                            
                             // Clear previous errors
                             setCreateInvoiceError('');
                             
@@ -1706,8 +1264,6 @@ const Financials = () => {
                             let finalPlanId = invPlanId ? parseInt(invPlanId,10) : null;
                             if (!finalPlanId && invMemberId && selectedMember && selectedMember.membership_plan_id) {
                                 finalPlanId = selectedMember.membership_plan_id;
-                            if (!finalPlanId && invMemberId && selectedMember && selectedMember.membership_plan_id) {
-                                finalPlanId = selectedMember.membership_plan_id;
                             }
                             
                             await axios.post('/api/payments/invoice', {
@@ -1716,32 +1272,11 @@ const Financials = () => {
                                 amount: amountValue,
                                 due_date: invDueDate,
                                 join_date: invJoinDate
-                                amount: amountValue,
-                                due_date: invDueDate,
-                                join_date: invJoinDate
                             });
                             setOpenCreateInvoice(false);
                             setInvJoinDate('');
                             setCreateInvoiceError('');
-                            setInvJoinDate('');
-                            setCreateInvoiceError('');
                             fetchFinancialSummary();
-                        } catch (e) { 
-                            console.error(e);
-                            // Handle specific error messages
-                            if (e?.response?.data?.message) {
-                                const errorMessage = e.response.data.message;
-                                if (errorMessage.includes('NOT NULL constraint failed: invoices.amount')) {
-                                    setCreateInvoiceError('Please enter a valid amount');
-                                } else if (errorMessage.includes('NOT NULL constraint failed')) {
-                                    setCreateInvoiceError('Please fill in all required fields');
-                                } else {
-                                    setCreateInvoiceError(errorMessage);
-                                }
-                            } else {
-                                setCreateInvoiceError('Error creating invoice. Please try again.');
-                            }
-                        }
                         } catch (e) { 
                             console.error(e);
                             // Handle specific error messages
@@ -1766,25 +1301,9 @@ const Financials = () => {
             <Dialog open={openEditInvoice} onClose={() => {
                 setOpenEditInvoice(false);
             }} fullWidth maxWidth="sm">
-            <Dialog open={openEditInvoice} onClose={() => {
-                setOpenEditInvoice(false);
-            }} fullWidth maxWidth="sm">
                 <DialogTitle>Edit Invoice #{editInvoiceId}</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                            Note: Admin users are exempt from payments and cannot have invoices created against them.
-                        </Typography>
-                        <SearchableMemberDropdown
-                            value={editInvMemberId}
-                            onChange={(e)=>{ setEditInvMemberId(e.target.value); }}
-                            members={nonAdminMembers}
-                            label="Member"
-                            placeholder="Search members by name, ID, or phone..."
-                            showId={false}
-                            showEmail={true}
-                            showAdminIcon={false}
-                        />
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
                             Note: Admin users are exempt from payments and cannot have invoices created against them.
                         </Typography>
@@ -1817,27 +1336,9 @@ const Financials = () => {
                                         </MenuItem>
                                     );
                                 })}
-                                {plans.map(p => {
-                                    // Ensure plan is valid before rendering
-                                    if (!p || typeof p !== 'object' || !p.id) {
-                                        return null;
-                                    }
-                                    return (
-                                        <MenuItem key={p.id} value={p.id}>
-                                            {p.name} - {formatCurrency(p.price, currency)}
-                                        </MenuItem>
-                                    );
-                                })}
                             </Select>
                         </FormControl>
                         <TextField label="Amount" type="number" value={editInvAmount} onChange={(e)=>setEditInvAmount(e.target.value)} />
-                        <TextField 
-                            label="Due Date" 
-                            type="date" 
-                            value={editInvDueDate} 
-                            onChange={(e)=>setEditInvDueDate(e.target.value)} 
-                            InputLabelProps={{ shrink: true }}
-                        />
                         <TextField 
                             label="Due Date" 
                             type="date" 
@@ -1851,9 +1352,6 @@ const Financials = () => {
                     <Button onClick={()=>{
                         setOpenEditInvoice(false);
                     }}>Cancel</Button>
-                    <Button onClick={()=>{
-                        setOpenEditInvoice(false);
-                    }}>Cancel</Button>
                     <Button variant="contained" onClick={async ()=>{
                         try {
                             // Check if selected member is an admin user
@@ -1863,17 +1361,8 @@ const Financials = () => {
                                 return;
                             }
                             
-                            // Check if selected member is an admin user
-                            const selectedMember = members.find(m => String(m.id) === String(editInvMemberId));
-                            if (selectedMember && selectedMember.is_admin === 1) {
-                                alert('Admin users are exempt from payments and cannot have invoices created against them.');
-                                return;
-                            }
-                            
                             // If no plan selected, try to get member's current plan
                             let finalPlanId = editInvPlanId ? parseInt(editInvPlanId,10) : null;
-                            if (!finalPlanId && editInvMemberId && selectedMember && selectedMember.membership_plan_id) {
-                                finalPlanId = selectedMember.membership_plan_id;
                             if (!finalPlanId && editInvMemberId && selectedMember && selectedMember.membership_plan_id) {
                                 finalPlanId = selectedMember.membership_plan_id;
                             }

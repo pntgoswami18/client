@@ -54,81 +54,8 @@ import {
   Search as SearchIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { List as VirtualList } from 'react-window';
-import { ListShimmer, FormShimmer } from './ShimmerLoader';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Alert,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  LinearProgress,
-  Paper,
-  Tab,
-  Tabs,
-  FormControlLabel,
-  Checkbox,
-  InputAdornment,
-  IconButton,
-  Pagination
-} from '@mui/material';
-import SearchableMemberDropdown from './SearchableMemberDropdown';
-import {
-  Fingerprint as FingerprintIcon,
-  Person as PersonIcon,
-  DeviceHub as DeviceIcon,
-  Close as CloseIcon,
-  Refresh as RefreshIcon,
-  Warning as WarningIcon,
-  Settings as SettingsIcon,
-  History as HistoryIcon,
-  Monitor as MonitorIcon,
-  Delete as DeleteIcon,
-  Star as StarIcon,
-  Search as SearchIcon,
-  Clear as ClearIcon
-} from '@mui/icons-material';
 
 const BiometricEnrollment = () => {
-  // Add CSS animation for pulsing effect
-  React.useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.3; }
-        100% { opacity: 1; }
-      }
-    `;
-    document.head.appendChild(style);
-    
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-  // Core state
   // Add CSS animation for pulsing effect
   React.useEffect(() => {
     const style = document.createElement('style');
@@ -149,8 +76,6 @@ const BiometricEnrollment = () => {
   const [members, setMembers] = useState([]);
   const [membersWithBiometric, setMembersWithBiometric] = useState([]);
   const [devices, setDevices] = useState([]);
-  const [membersWithBiometric, setMembersWithBiometric] = useState([]);
-  const [devices, setDevices] = useState([]);
   const [enrollmentStatus, setEnrollmentStatus] = useState(null);
   const [systemStatus, setSystemStatus] = useState(null);
   const [biometricEvents, setBiometricEvents] = useState([]);
@@ -158,16 +83,6 @@ const BiometricEnrollment = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   
-  // UI state
-  const [currentTab, setCurrentTab] = useState(0);
-  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
-  const [manualDialogOpen, setManualDialogOpen] = useState(false);
-  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState({ open: false, memberId: null, memberName: '' });
-  
-  // Enrollment state
-  const [selectedMember, setSelectedMember] = useState('');
-  const [selectedDevice, setSelectedDevice] = useState('');
-  const [enrollmentProgress, setEnrollmentProgress] = useState(null);
   // UI state
   const [currentTab, setCurrentTab] = useState(0);
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
@@ -235,70 +150,7 @@ const BiometricEnrollment = () => {
 
   // Define callback functions first
   const fetchMembersWithoutBiometric = useCallback(async (page = 1, limit = 10, search = '') => {
-  const [manualMember, setManualMember] = useState('');
-  
-  // Track ongoing enrollments for individual members
-  const [ongoingEnrollment, setOngoingEnrollment] = useState(null); // { memberId, memberName, startTime }
-  const [lastCheckedEventId, setLastCheckedEventId] = useState(null);
-  
-  // Pagination state
-  const [membersWithoutBiometricPage, setMembersWithoutBiometricPage] = useState(1);
-  const [membersWithBiometricPage, setMembersWithBiometricPage] = useState(1);
-  const [eventsPage, setEventsPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [paginationMeta, setPaginationMeta] = useState({
-    membersWithoutBiometric: { total: 0, page: 1, limit: 10, totalPages: 0 },
-    membersWithBiometric: { total: 0, page: 1, limit: 10, totalPages: 0 },
-    events: { total: 0, page: 1, limit: 10, totalPages: 0 }
-  });
-  
-  // Event caching for performance
-  const [eventCache, setEventCache] = useState(new Map());
-  const [lastFetchParams, setLastFetchParams] = useState(null);
-  
-  // WebSocket connection for real-time updates
-  const [wsConnected, setWsConnected] = useState(false);
-  const wsRef = useRef(null);
-  
-  // Event filtering state - heartbeat events deselected by default
-  const [eventTypeFilters, setEventTypeFilters] = useState({
-    checkin: true,
-    checkout: true,
-    enrollment: true,
-    enrollment_failed: true,
-    enrollment_cancelled: true,
-    access_denied: true,
-    remote_unlock: true,
-    emergency_unlock: true,
-    heartbeat: false // Deselected by default as requested
-  });
-
-  // Member search state
-  const [memberSearchTerm, setMemberSearchTerm] = useState('');
-  const [eventSearchTerm, setEventSearchTerm] = useState('');
-  
-  // Stepper state
-  const [activeStep, setActiveStep] = useState(0);
-  const enrollmentSteps = [
-    'Select Member',
-    'Select Device', 
-    'Start Enrollment',
-    'Complete Enrollment'
-  ];
-
-  // Add refs for request cancellation
-  const abortControllerRef = useRef(null);
-
-  // Define callback functions first
-  const fetchMembersWithoutBiometric = useCallback(async (page = 1, limit = 10, search = '') => {
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-        search: search || ''
-      });
-      
-      const response = await fetch(`/api/biometric/members/without-biometric?${params.toString()}`);
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
@@ -314,11 +166,6 @@ const BiometricEnrollment = () => {
       const data = await response.json();
       if (data.success) {
         setMembers(data.data || []);
-        setPaginationMeta(prev => ({
-          ...prev,
-          membersWithoutBiometric: data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 }
-        }));
-        console.log(`Loaded ${data.data?.length || 0} members without biometric data (page ${page})`);
         setPaginationMeta(prev => ({
           ...prev,
           membersWithoutBiometric: data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 }
@@ -512,9 +359,7 @@ const BiometricEnrollment = () => {
       });
     }
   }, []);
-  }, []);
 
-  const fetchEnrollmentStatus = useCallback(async () => {
   const fetchEnrollmentStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/biometric/enrollment/status');
@@ -528,7 +373,6 @@ const BiometricEnrollment = () => {
       console.error('Error fetching enrollment status:', error);
       setEnrollmentStatus({ active: false });
     }
-  }, []);
   }, []);
 
   const fetchBiometricEvents = useCallback(async (page = eventsPage, limit = itemsPerPage, search = eventSearchTerm) => {
@@ -555,27 +399,6 @@ const BiometricEnrollment = () => {
       const response = await fetch(`/api/biometric/events?${params.toString()}`);
       const data = await response.json();
       if (data.success) {
-        const events = data.data || [];
-        const pagination = data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 };
-        
-        setBiometricEvents(events);
-        setPaginationMeta(prev => ({
-          ...prev,
-          events: pagination
-        }));
-        
-        // Cache the results
-        setEventCache(prev => {
-          const newCache = new Map(prev);
-          newCache.set(cacheKey, { events, pagination });
-          // Limit cache size to prevent memory issues
-          if (newCache.size > 10) {
-            const firstKey = newCache.keys().next().value;
-            newCache.delete(firstKey);
-          }
-          return newCache;
-        });
-        setLastFetchParams(cacheKey);
         const events = data.data || [];
         const pagination = data.pagination || { total: 0, page: 1, limit: 10, totalPages: 0 };
         
@@ -879,281 +702,6 @@ const BiometricEnrollment = () => {
       return;
     }
     
-  }, [eventsPage, itemsPerPage, eventSearchTerm, eventCache, lastFetchParams]);
-
-  // Pagination handlers
-  const handleMembersWithoutBiometricPageChange = (event, page) => {
-    setMembersWithoutBiometricPage(page);
-    fetchMembersWithoutBiometric(page, itemsPerPage, memberSearchTerm);
-  };
-
-  const handleMembersWithBiometricPageChange = (event, page) => {
-    setMembersWithBiometricPage(page);
-    fetchMembersWithBiometric(page, itemsPerPage, memberSearchTerm);
-  };
-
-  const handleEventsPageChange = (event, page) => {
-    setEventsPage(page);
-    fetchBiometricEvents(page, itemsPerPage, eventSearchTerm);
-  };
-
-  const handleItemsPerPageChange = (event) => {
-    const newItemsPerPage = parseInt(event.target.value, 10);
-    setItemsPerPage(newItemsPerPage);
-    setMembersWithoutBiometricPage(1);
-    setMembersWithBiometricPage(1);
-    setEventsPage(1);
-    fetchMembersWithoutBiometric(1, newItemsPerPage, memberSearchTerm);
-    fetchMembersWithBiometric(1, newItemsPerPage, memberSearchTerm);
-    fetchBiometricEvents(1, newItemsPerPage, eventSearchTerm);
-  };
-
-  // Debounced search for members to improve performance
-  const [debouncedMemberSearchTerm, setDebouncedMemberSearchTerm] = useState('');
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedMemberSearchTerm(memberSearchTerm);
-    }, 300); // 300ms delay
-    
-    return () => clearTimeout(timer);
-  }, [memberSearchTerm]);
-  
-  // Load initial data on component mount
-  useEffect(() => {
-    // Simple approach - just load members without biometric first
-    fetchMembersWithoutBiometric(1, 10, '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array to run only on mount
-
-  // Update members when debounced search term changes
-  useEffect(() => {
-    setMembersWithoutBiometricPage(1);
-    setMembersWithBiometricPage(1);
-    fetchMembersWithoutBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
-    fetchMembersWithBiometric(1, itemsPerPage, debouncedMemberSearchTerm);
-  }, [debouncedMemberSearchTerm, itemsPerPage, fetchMembersWithoutBiometric, fetchMembersWithBiometric]);
-
-  // Cleanup abort controller on unmount
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
-
-  const handleMemberSearchChange = (event) => {
-    const newSearchTerm = event.target.value;
-    setMemberSearchTerm(newSearchTerm);
-    // API calls will be triggered by debounced effect
-  };
-
-  // Debounced search for better performance
-  const [debouncedEventSearchTerm, setDebouncedEventSearchTerm] = useState('');
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedEventSearchTerm(eventSearchTerm);
-    }, 300); // 300ms delay
-    
-    return () => clearTimeout(timer);
-  }, [eventSearchTerm]);
-  
-  // Update events when debounced search term changes
-  useEffect(() => {
-    if (debouncedEventSearchTerm !== eventSearchTerm) {
-      setEventsPage(1);
-      fetchBiometricEvents(1, itemsPerPage, debouncedEventSearchTerm);
-    }
-  }, [debouncedEventSearchTerm, itemsPerPage, fetchBiometricEvents, eventSearchTerm]);
-
-  const handleEventSearchChange = (event) => {
-    const newSearchTerm = event.target.value;
-    setEventSearchTerm(newSearchTerm);
-    // API call will be triggered by debounced effect
-  };
-
-  // Memoized event type filter options for performance
-  const eventTypeFilterOptions = useMemo(() => {
-    return Object.entries(eventTypeFilters).map(([eventType, isChecked]) => ({
-      eventType,
-      isChecked,
-      label: eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    }));
-  }, [eventTypeFilters]);
-
-  // Memoized formatDateTime function for performance
-  const formatDateTime = useCallback((dateStr) => {
-    if (!dateStr) {
-      return '';
-    }
-    try {
-      return new Date(dateStr).toLocaleString();
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return dateStr;
-    }
-  }, []);
-
-  // Memoized event item component for virtual scrolling performance
-  const EventItem = useCallback(({ index, style, data }) => {
-    const event = data[index];
-    if (!event) {
-      return null;
-    }
-    
-    return (
-      <div style={style}>
-        <ListItem divider>
-          <ListItemIcon>
-            <Chip
-              size="small"
-              label={event.success ? 'Success' : 'Error'}
-              color={event.success ? 'success' : 'error'}
-            />
-          </ListItemIcon>
-          <ListItemText
-            primary={`${event.event_type} - ${event.member_name || 'Unknown'}`}
-            secondary={
-              <Box>
-                <Typography variant="caption" display="block">
-                  {formatDateTime(event.timestamp)}
-                </Typography>
-                {event.device_id && (
-                  <Typography variant="caption" display="block">
-                    Device: {event.device_id}
-                  </Typography>
-                )}
-                {event.biometric_id && (
-                  <Typography variant="caption" display="block">
-                    Device ID: {event.biometric_id}
-                  </Typography>
-                )}
-                {event.error_message && (
-                  <Typography variant="caption" color="error" display="block">
-                    Error: {event.error_message}
-                  </Typography>
-                )}
-              </Box>
-            }
-          />
-        </ListItem>
-      </div>
-    );
-  }, [formatDateTime]);
-
-  // Event filter handling
-  const handleEventFilterChange = (eventType, checked) => {
-    setEventTypeFilters(prev => ({
-      ...prev,
-      [eventType]: checked
-    }));
-  };
-
-  // Filter events based on selected event types - Memoized for performance
-  const filteredBiometricEvents = useMemo(() => {
-    return biometricEvents.filter(event => {
-    return eventTypeFilters[event.event_type] !== false;
-  });
-  }, [biometricEvents, eventTypeFilters]);
-
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchMembersWithoutBiometric();
-    fetchMembersWithBiometric();
-    fetchDevices();
-    fetchSystemStatus();
-    fetchEnrollmentStatus();
-    fetchBiometricEvents();
-    
-    // Set up WebSocket connection for real-time updates
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-    
-    ws.onopen = () => {
-      console.log('🔌 WebSocket connected for real-time enrollment updates');
-      setWsConnected(true);
-    };
-    
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('📡 WebSocket message received:', data);
-        
-        if (data.type === 'enrollment_started') {
-          setSuccess(`📱 Enrollment started for ${data.memberName}. Please place your finger on the biometric device.`);
-          setOngoingEnrollment({
-            memberId: data.memberId,
-            memberName: data.memberName,
-            startTime: new Date().toISOString()
-          });
-        } else if (data.type === 'enrollment_progress') {
-          if (data.status === 'progress') {
-            setSuccess(`🔄 Enrollment in progress: ${data.currentStep}`);
-          } else if (data.status === 'retry') {
-            setSuccess(`🔄 ${data.message}`);
-          }
-        } else if (data.type === 'enrollment_complete') {
-          if (data.status === 'success') {
-            setSuccess(`🎉 ${data.memberName} has been successfully enrolled! They can now use their fingerprint to access the gym.`);
-            setOngoingEnrollment(null);
-            fetchMembersWithoutBiometric(); // Refresh members list
-          } else if (data.status === 'failed') {
-            setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
-            setOngoingEnrollment(null);
-          } else if (data.status === 'cancelled') {
-            setSuccess(`⏹️ Enrollment cancelled for ${data.memberName}.`);
-            setOngoingEnrollment(null);
-          } else if (data.status === 'error') {
-            setError(`❌ Enrollment error for ${data.memberName}: ${data.message}`);
-            setOngoingEnrollment(null);
-          }
-        } else if (data.type === 'enrollment_stopped' && data.reason !== 'success') {
-          setSuccess(null);
-          setError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
-          setOngoingEnrollment(null);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-    
-    ws.onclose = () => {
-      console.log('🔌 WebSocket disconnected');
-      setWsConnected(false);
-    };
-    
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setWsConnected(false);
-    };
-    
-    // Poll enrollment status every 2 seconds (fallback)
-    const interval = setInterval(() => {
-      fetchEnrollmentStatus();
-      checkEnrollmentProgress();
-    }, 2000);
-
-    return () => {
-      clearInterval(interval);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
-  }, [checkEnrollmentProgress, fetchMembersWithoutBiometric, fetchMembersWithBiometric, fetchDevices, fetchSystemStatus, fetchEnrollmentStatus, fetchBiometricEvents]);
-
-
-
-  const startEnrollment = async (memberId, deviceId = null) => {
-    if (deviceId && (!selectedMember || !selectedDevice)) {
-      setError('Please select both a member and device');
-      return;
-    }
-    
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -1188,66 +736,13 @@ const BiometricEnrollment = () => {
       } else {
         // Fallback to basic enrollment if no devices available
         response = await fetch(`/api/biometric/members/${memberId}/enroll`, {
-      let response;
-      let targetDeviceId = deviceId;
-      
-      // Find member name for tracking
-      const member = members.find(m => m.id === parseInt(memberId));
-      const memberName = member ? member.name : `Member ${memberId}`;
-      
-      // If no device specified, try to use the first online device
-      if (!targetDeviceId && devices.length > 0) {
-        const onlineDevice = devices.find(device => device.status === 'online');
-        if (onlineDevice) {
-          targetDeviceId = onlineDevice.device_id;
-          console.log(`Auto-selecting device: ${targetDeviceId}`);
-        }
-      }
-      
-      if (targetDeviceId) {
-        // ESP32 device-specific enrollment
-        if (deviceId) {
-          setActiveStep(2);
-        }
-        response = await fetch(`/api/biometric/devices/${targetDeviceId}/enroll`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ memberId })
-        });
-      } else {
-        // Fallback to basic enrollment if no devices available
-        response = await fetch(`/api/biometric/members/${memberId}/enroll`, {
         method: 'POST'
       });
-      }
-      
       }
       
       const data = await response.json();
 
       if (data.success) {
-        // Set up enrollment tracking for individual member enrollments
-        if (!deviceId) { // This is individual member enrollment, not wizard
-          setOngoingEnrollment({
-            memberId: parseInt(memberId),
-            memberName: memberName,
-            startTime: new Date().toISOString()
-          });
-          setLastCheckedEventId(null); // Reset event tracking
-        }
-        
-        if (targetDeviceId) {
-          if (deviceId) {
-            setEnrollmentProgress({ status: 'in_progress', step: 1 });
-          }
-          setSuccess(`📱 Enrollment started for ${memberName}. Please place your finger on the biometric device and follow the prompts.`);
-          fetchEnrollmentStatus();
-        } else {
-          setSuccess(`📱 Enrollment started for ${memberName}. Please place your finger on the biometric device and follow the prompts.`);
-          fetchEnrollmentStatus();
-        }
-      } else {
-        setSuccess(null); // Clear any existing success message
         // Set up enrollment tracking for individual member enrollments
         if (!deviceId) { // This is individual member enrollment, not wizard
           setOngoingEnrollment({
@@ -1274,27 +769,16 @@ const BiometricEnrollment = () => {
         if (deviceId) {
           setActiveStep(1);
         }
-        if (deviceId) {
-          setActiveStep(1);
-        }
       }
     } catch (error) {
       setSuccess(null); // Clear any existing success message
-      setSuccess(null); // Clear any existing success message
       setError('Error starting enrollment: ' + error.message);
-      if (deviceId) {
-        setActiveStep(1);
-      }
       if (deviceId) {
         setActiveStep(1);
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const startDeviceEnrollment = async () => {
-    await startEnrollment(selectedMember, selectedDevice);
   };
 
   const startDeviceEnrollment = async () => {
@@ -1317,93 +801,11 @@ const BiometricEnrollment = () => {
         fetchMembersWithoutBiometric();
       } else {
         setSuccess(null); // Clear any existing success message
-        setSuccess(null); // Clear any existing success message
         setError(data.message || 'Failed to stop enrollment');
       }
     } catch (error) {
       setSuccess(null); // Clear any existing success message
-      setSuccess(null); // Clear any existing success message
       setError('Error stopping enrollment: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const openDeleteConfirmDialog = (memberId, memberName) => {
-    setDeleteConfirmDialog({ open: true, memberId, memberName });
-  };
-
-  const closeDeleteConfirmDialog = () => {
-    setDeleteConfirmDialog({ open: false, memberId: null, memberName: '' });
-  };
-
-  const confirmDeleteBiometricData = async () => {
-    const { memberId, memberName } = deleteConfirmDialog;
-    setLoading(true);
-    setError(null);
-    closeDeleteConfirmDialog();
-
-    try {
-      const response = await fetch(`/api/biometric/members/${memberId}/biometric`, {
-        method: 'DELETE'
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setSuccess(`✅ Biometric data deleted for ${memberName}. They can now be re-enrolled.`);
-        // Refresh both lists
-        fetchMembersWithoutBiometric();
-        fetchMembersWithBiometric();
-      } else {
-        setSuccess(null); // Clear any existing success message
-        setError(`❌ Failed to delete biometric data: ${data.message}`);
-      }
-    } catch (error) {
-      console.error('Error deleting biometric data:', error);
-      setSuccess(null); // Clear any existing success message
-      setError(`❌ Error deleting biometric data: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const cancelOngoingEnrollment = async () => {
-    if (!ongoingEnrollment) {
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Try to send cancel command to ESP32 devices
-      const response = await fetch('/api/biometric/enrollment/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          memberId: ongoingEnrollment.memberId,
-          reason: 'user_cancelled'
-        })
-      });
-
-      const data = await response.json();
-      
-      // Always clear the ongoing enrollment state, regardless of ESP32 response
-      setOngoingEnrollment(null);
-      setLastCheckedEventId(null);
-      
-      if (data.success) {
-        setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName}`);
-      } else {
-        setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
-      }
-    } catch (error) {
-      // Even if the API call fails, we should still cancel locally
-      console.error('Error cancelling enrollment:', error);
-      setOngoingEnrollment(null);
-      setLastCheckedEventId(null);
-      setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
     } finally {
       setLoading(false);
     }
@@ -1503,11 +905,9 @@ const BiometricEnrollment = () => {
         setSuccess(`Test message sent to ${data.data.connectedDevices} device(s)`);
       } else {
         setSuccess(null); // Clear any existing success message
-        setSuccess(null); // Clear any existing success message
         setError(data.message || 'Connection test failed');
       }
     } catch (error) {
-      setSuccess(null); // Clear any existing success message
       setSuccess(null); // Clear any existing success message
       setError('Error testing connection: ' + error.message);
     } finally {
@@ -1517,24 +917,19 @@ const BiometricEnrollment = () => {
 
   const openManualEnrollment = (member) => {
     setManualMember(member.id);
-    setManualMember(member.id);
     setDeviceUserId('');
     setError(null);
     setSuccess(null);
-    setManualDialogOpen(true);
     setManualDialogOpen(true);
   };
 
   const closeManualEnrollment = () => {
     setManualDialogOpen(false);
     setManualMember('');
-    setManualDialogOpen(false);
-    setManualMember('');
     setDeviceUserId('');
   };
 
   const handleManualEnrollment = async () => {
-    if (!manualMember || !deviceUserId.trim()) {
     if (!manualMember || !deviceUserId.trim()) {
       setError('Member and Device User ID are required');
       return;
@@ -1544,7 +939,6 @@ const BiometricEnrollment = () => {
     setError(null);
 
     try {
-      const response = await fetch(`/api/biometric/members/${manualMember}/manual-enroll`, {
       const response = await fetch(`/api/biometric/members/${manualMember}/manual-enroll`, {
         method: 'POST',
         headers: {
@@ -1559,19 +953,15 @@ const BiometricEnrollment = () => {
 
       if (data.success) {
         setSuccess('Manual enrollment completed successfully!');
-        setSuccess('Manual enrollment completed successfully!');
         closeManualEnrollment();
-        setOngoingEnrollment(null); // Clear any ongoing enrollment tracking
         setOngoingEnrollment(null); // Clear any ongoing enrollment tracking
         fetchMembersWithoutBiometric();
         fetchBiometricEvents();
       } else {
         setSuccess(null); // Clear any existing success message
-        setSuccess(null); // Clear any existing success message
         setError(data.message || 'Failed to assign biometric data');
       }
     } catch (error) {
-      setSuccess(null); // Clear any existing success message
       setSuccess(null); // Clear any existing success message
       setError('Error assigning biometric data: ' + error.message);
     } finally {
@@ -1807,238 +1197,8 @@ const BiometricEnrollment = () => {
         </Box>
       </Box>
 
-
-  const resetEnrollment = () => {
-    setSelectedMember('');
-    setSelectedDevice('');
-    setEnrollmentProgress(null);
-    setActiveStep(0);
-    setEnrollDialogOpen(false);
-    setOngoingEnrollment(null); // Clear ongoing enrollment tracking
-    setSuccess(null); // Clear any success messages
-    setError(null); // Clear any error messages
-  };
-
-  const getDeviceStatusChip = (device) => (
-    <Chip
-      size="small"
-      label={device.status}
-      color={device.status === 'online' ? 'success' : 'error'}
-      sx={{ ml: 1 }}
-    />
-  );
-
-  // Enrollment Stepper Component
-  const EnrollmentStepper = () => (
-    <Stepper activeStep={activeStep} orientation="vertical">
-      {enrollmentSteps.map((label, index) => (
-        <Step key={label}>
-          <StepLabel>{label}</StepLabel>
-          <StepContent>
-            {index === 0 && (
-              <SearchableMemberDropdown
-                value={selectedMember}
-                onChange={(e) => {
-                  setSelectedMember(e.target.value);
-                  if (e.target.value) {
-                    setActiveStep(1);
-                  }
-                }}
-                members={members}
-                label="Select Member"
-                placeholder="Search members by name, ID, or phone..."
-                showId={true}
-                showEmail={false}
-                showAdminIcon={true}
-                sx={{ mb: 2 }}
-              />
-            )}
-            
-            {index === 1 && (
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Select Device</InputLabel>
-                <Select
-                  value={selectedDevice}
-                  onChange={(e) => {
-                    setSelectedDevice(e.target.value);
-                    if (e.target.value) {
-                      setActiveStep(2);
-                    }
-                  }}
-                >
-                  {devices.map((device) => (
-                    <MenuItem key={device.device_id} value={device.device_id}>
-                      {device.device_id} - {device.location || 'Unknown Location'}
-                      {getDeviceStatusChip(device)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            
-            {index === 2 && (
-              <Box>
-                {enrollmentProgress ? (
-                  <Box>
-                    <Typography variant="body2" gutterBottom>
-                      Enrollment in progress...
-                    </Typography>
-                    <LinearProgress sx={{ mb: 2 }} />
-                    <Typography variant="caption" color="text.secondary">
-                      Step {enrollmentProgress.step || 1} - Please follow device instructions
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Button
-                    variant="contained"
-                    onClick={startDeviceEnrollment}
-              disabled={loading}
-                    startIcon={<FingerprintIcon />}
-                  >
-                    Start Fingerprint Enrollment
-                  </Button>
-                )}
-              </Box>
-            )}
-            
-            {index === 3 && (
-              <Box>
-                <Alert severity="success" sx={{ mb: 2 }}>
-                  Enrollment completed successfully!
-                </Alert>
-                <Button onClick={resetEnrollment}>
-                  Enroll Another Member
-                </Button>
-              </Box>
-            )}
-          </StepContent>
-        </Step>
-      ))}
-    </Stepper>
-  );
-
-  return (
-    <Box>
-      {/* Header with Tabs and Status Cards */}
-      <Box sx={{ mb: 3 }}>
-        {/* Title */}
-        <Typography variant="h4" component="h1" sx={{ mb: 2 }}>
-          Biometric Management
-        </Typography>
-        
-        {/* Combined Tabs and Status Cards Row */}
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
-          {/* Tabs Section */}
-          <Box sx={{ flex: 1 }}>
-            <Paper>
-              <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
-                <Tab icon={<PersonIcon />} label="Members" />
-                <Tab icon={<DeviceIcon />} label="Devices" />
-                <Tab icon={<HistoryIcon />} label="Events" />
-              </Tabs>
-            </Paper>
-      </Box>
-
-          {/* Status Cards Section */}
-          <Box sx={{ display: 'flex', gap: 2, minWidth: '700px' }}>
-            {/* Service Status Card */}
-            <Card sx={{ minHeight: '48px', flex: 1, minWidth: '320px' }}>
-              <CardContent sx={{ py: 1.5, px: 3, '&:last-child': { pb: 1.5 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                  <Box display="flex" alignItems="center">
-                    <MonitorIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                  Service Status
-                </Typography>
-              </Box>
-              <Chip
-                label={systemStatus?.biometricServiceAvailable ? 'Online' : 'Offline'}
-                color={systemStatus?.biometricServiceAvailable ? 'success' : 'error'}
-                    size="small"
-              />
-                </Box>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box display="flex" alignItems="center" gap={2}>
-                <Chip
-                  label={wsConnected ? 'Real-time Connected' : 'Real-time Disconnected'}
-                  color={wsConnected ? 'success' : 'warning'}
-                  size="small"
-                  icon={wsConnected ? <DeviceIcon /> : <WarningIcon />}
-                />
-                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: '80px' }}>
-                      Devices: {systemStatus?.connectedDevices || 0}
-              </Typography>
-                  </Box>
-                <Button
-                  variant="outlined"
-                  onClick={testConnection}
-                  disabled={loading || !systemStatus?.biometricServiceAvailable}
-                  startIcon={<RefreshIcon />}
-                  size="small"
-                >
-                    Test
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-            
-            {/* Enrollment Status Card */}
-            <Card sx={{ minHeight: '48px', flex: 1, minWidth: '320px' }}>
-              <CardContent sx={{ py: 1.5, px: 3, '&:last-child': { pb: 1.5 } }}>
-                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                  <Box display="flex" alignItems="center">
-                    <FingerprintIcon color="primary" sx={{ mr: 1, fontSize: '1.2rem' }} />
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                  Enrollment Status
-                </Typography>
-              </Box>
-              <Chip
-                label={enrollmentStatus?.active ? 'Active' : 'Inactive'}
-                color={enrollmentStatus?.active ? 'warning' : 'default'}
-                    size="small"
-              />
-                </Box>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box display="flex" flexDirection="column" gap={0.5} sx={{ minWidth: '200px' }}>
-                    {enrollmentStatus?.active ? (
-                <>
-                        <Typography variant="caption" color="text.secondary">
-                          {enrollmentStatus.enrollmentMode?.memberName}
-                  </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {enrollmentStatus.enrollmentMode?.attempts || 0}/{enrollmentStatus.enrollmentMode?.maxAttempts || 3} attempts
-                  </Typography>
-                      </>
-                    ) : (
-                      <Typography variant="caption" color="text.secondary">
-                        No active enrollment
-                  </Typography>
-                    )}
-                  </Box>
-                  {enrollmentStatus?.active && (
-                    <Button
-                      variant="outlined"
-                      color="warning"
-                      onClick={stopEnrollment}
-                      disabled={loading}
-                      startIcon={<CloseIcon />}
-                      size="small"
-                    >
-                      Stop
-                    </Button>
-              )}
-                </Box>
-            </CardContent>
-          </Card>
-          </Box>
-        </Box>
-      </Box>
-
       {/* Alerts */}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
@@ -2069,34 +1229,8 @@ const BiometricEnrollment = () => {
           🔄 Enrollment in progress for <strong>{ongoingEnrollment.memberName}</strong>. 
           Please place your finger on the biometric device and follow the prompts.
         </Alert>
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-          {success}
-        </Alert>
-      )}
-      
-      {/* Ongoing Enrollment Alert with Cancel Button */}
-      {ongoingEnrollment && (
-        <Alert 
-          severity="info" 
-          sx={{ mb: 2 }}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={cancelOngoingEnrollment}
-              disabled={loading}
-              startIcon={<CloseIcon />}
-            >
-              Cancel Enrollment
-            </Button>
-          }
-        >
-          🔄 Enrollment in progress for <strong>{ongoingEnrollment.memberName}</strong>. 
-          Please place your finger on the biometric device and follow the prompts.
-        </Alert>
       )}
 
-      {/* Active Enrollment Instructions */}
       {/* Active Enrollment Instructions */}
       {enrollmentStatus?.active && (
         <Card sx={{ mb: 3 }}>
@@ -2201,44 +1335,8 @@ const BiometricEnrollment = () => {
                   <Alert severity="warning" sx={{ mb: 2 }}>
                     Biometric service is offline. Member data may not be current. Service is not required to view members, but enrollment will not work.
                   </Alert>
-                  <Alert severity="warning" sx={{ mb: 2 }}>
-                    Biometric service is offline. Member data may not be current. Service is not required to view members, but enrollment will not work.
-                  </Alert>
         )}
         
-        {members === undefined || members === null ? (
-          <ListShimmer count={5} />
-        ) : members.length === 0 ? (
-          memberSearchTerm ? (
-            <Alert severity="info">
-              No members without biometric enrollment found matching "{memberSearchTerm}"
-            </Alert>
-          ) : (
-            <Alert severity="success">
-              🎉 All members have biometric enrollment completed!
-            </Alert>
-          )
-        ) : (
-                  <Box sx={{ overflowX: 'auto' }}>
-                    <Box sx={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
-                      gap: 1,
-                      alignItems: 'center',
-                      p: 1,
-                      bgcolor: 'grey.100',
-                      borderRadius: 1,
-                      mb: 1,
-                      fontWeight: 'bold',
-                      fontSize: '0.875rem'
-                    }}>
-                      <Box>Name</Box>
-                      <Box>Email</Box>
-                      <Box>Phone</Box>
-                      <Box>Joined</Box>
-                      <Box>Status</Box>
-                      <Box>Actions</Box>
-                    </Box>
         {members === undefined || members === null ? (
           <ListShimmer count={5} />
         ) : members.length === 0 ? (

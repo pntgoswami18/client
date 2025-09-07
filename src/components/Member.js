@@ -39,7 +39,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
-import { ListShimmer, FormShimmer } from './ShimmerLoader';
+import { FormShimmer } from './ShimmerLoader';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -77,14 +77,13 @@ const Member = () => {
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const itemsPerPage = 10;
     const [paginationMeta, setPaginationMeta] = useState({
         total: 0,
         page: 1,
         limit: 10,
         totalPages: 0
     });
-    const [loading, setLoading] = useState(false);
 
     // Webcam functionality
     const [cameraOpen, setCameraOpen] = useState(false);
@@ -139,12 +138,6 @@ const Member = () => {
         fetchMembers(page, itemsPerPage, searchTerm, filter);
     };
 
-    const handleItemsPerPageChange = (event) => {
-        const newItemsPerPage = parseInt(event.target.value, 10);
-        setItemsPerPage(newItemsPerPage);
-        setCurrentPage(1);
-        fetchMembers(1, newItemsPerPage, searchTerm, filter);
-    };
 
     const handleSearchChange = (event) => {
         const newSearchTerm = event.target.value;
@@ -162,7 +155,6 @@ const Member = () => {
 
     const fetchMembers = useCallback(async (page = currentPage, limit = itemsPerPage, search = searchTerm, filterType = filter) => {
         try {
-            setLoading(true);
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
@@ -176,8 +168,6 @@ const Member = () => {
         } catch (error) {
             console.error("Error fetching members", error);
             setMembers([]);
-        } finally {
-            setLoading(false);
         }
     }, [currentPage, itemsPerPage, searchTerm, filter]);
 
