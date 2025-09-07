@@ -10,8 +10,6 @@ import {
     TextField,
     Button,
     Box,
-    Card,
-    CardContent,
     Table,
     TableBody,
     TableCell,
@@ -19,20 +17,20 @@ import {
     TableHead,
     TableRow,
     Paper,
-    Alert,
     Pagination
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import PersonOffOutlinedIcon from '@mui/icons-material/PersonOffOutlined';
 import { getCurrentDateString, getPreviousDayString } from '../utils/formatting';
 import CrownIcon from '@mui/icons-material/Star';
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import SimulateCheckInModal from './SimulateCheckInModal';
 
 const AttendanceTracker = () => {
     const [members, setMembers] = useState([]);
     const [selectedMemberId, setSelectedMemberId] = useState('all');
     const [attendanceRecords, setAttendanceRecords] = useState([]);
-    const [simulateMemberId, setSimulateMemberId] = useState('');
-    const [checkInError, setCheckInError] = useState('');
+    const [simulateModalOpen, setSimulateModalOpen] = useState(false);
     const [startDate, setStartDate] = useState(() => getPreviousDayString());
     const [endDate, setEndDate] = useState(() => getCurrentDateString());
     const [memberTypeFilter, setMemberTypeFilter] = useState('all');
@@ -124,6 +122,21 @@ const AttendanceTracker = () => {
         fetchAttendanceAll(1, newItemsPerPage);
     };
 
+    const handleSimulateCheckInSuccess = (memberId) => {
+        // If the simulated member is currently selected, refresh their attendance
+        if (String(selectedMemberId) === String(memberId)) {
+            fetchAttendanceForMember(Number(memberId));
+        }
+    };
+
+    const handleOpenSimulateModal = () => {
+        setSimulateModalOpen(true);
+    };
+
+    const handleCloseSimulateModal = () => {
+        setSimulateModalOpen(false);
+    };
+
     useEffect(() => {
         // Auto-refresh when selection or dates change
         if (selectedMemberId === 'all') {
@@ -137,30 +150,6 @@ const AttendanceTracker = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedMemberId, startDate, endDate, memberTypeFilter]);
 
-    const simulateCheckIn = async (e) => {
-        e.preventDefault();
-        if (!simulateMemberId) {
-            return;
-        }
-
-        try {
-            setCheckInError('');
-            await axios.post('/api/attendance/check-in', { memberId: Number(simulateMemberId) });
-            alert('Check-in successful!');
-            
-            // If the simulated member is currently selected, refresh their attendance
-            if (String(selectedMemberId) === String(simulateMemberId)) {
-                fetchAttendanceForMember(Number(simulateMemberId));
-            }
-            setSimulateMemberId('');
-        } catch (error) {
-            console.error("Error simulating check-in", error);
-            const msg = error?.response?.data?.message || 'Error during check-in. Please check if the member exists.';
-            setCheckInError(msg);
-            alert(msg);
-        }
-    };
-
     const formatDateTime = (dateTime) => {
         return new Date(dateTime).toLocaleString();
     };
@@ -172,34 +161,26 @@ const AttendanceTracker = () => {
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1 }}>Attendance</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h4" gutterBottom sx={{ borderBottom: '2px solid var(--accent-secondary-color)', pb: 1, mb: 0 }}>
+                    Attendance
+                </Typography>
+                <Button
+                    variant="contained"
+                    startIcon={<FingerprintIcon />}
+                    onClick={handleOpenSimulateModal}
+                    sx={{
+                        background: 'var(--accent-secondary-bg)',
+                        '&:hover': {
+                            background: 'var(--accent-secondary-bg)',
+                            filter: 'brightness(0.95)'
+                        }
+                    }}
+                >
+                    Simulate Check-in
+                </Button>
+            </Box>
             
-            {/* Simulate Check-in Section */}
-            <Card sx={{ marginBottom: '2rem' }}>
-                <CardContent>
-                    <Typography variant="h6" gutterBottom>Simulate Biometric Check-in</Typography>
-                    <Alert severity="info" sx={{ marginBottom: '1rem' }}>
-                        This simulates what a biometric device would do when a member checks in.
-                    </Alert>
-                    {checkInError && (
-                        <Alert severity="error" sx={{ mb: 2 }}>{checkInError}</Alert>
-                    )}
-                    <Box component="form" onSubmit={simulateCheckIn} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px' }}>
-                        <SearchableMemberDropdown
-                            value={simulateMemberId}
-                            onChange={e => setSimulateMemberId(e.target.value)}
-                            members={members}
-                            label="Select Member to Check In"
-                            placeholder="Search members by name, ID, or phone..."
-                            showId={true}
-                            showEmail={false}
-                            showAdminIcon={true}
-                        />
-                        <Button type="submit">Simulate Check-in</Button>
-                    </Box>
-                </CardContent>
-            </Card>
-
             {/* View Attendance Section */}
             <Typography variant="h5" gutterBottom>View Attendance Records</Typography>
             <Box sx={{ marginBottom: '1rem', display: 'grid', gridTemplateColumns: '1fr 160px 160px 160px', gap: 1, alignItems: 'center', maxWidth: 800 }}>
@@ -338,6 +319,14 @@ const AttendanceTracker = () => {
                     )}
                 </Box>
             )}
+            
+            {/* Simulate Check-in Modal */}
+            <SimulateCheckInModal
+                open={simulateModalOpen}
+                onClose={handleCloseSimulateModal}
+                members={members}
+                onCheckInSuccess={handleSimulateCheckInSuccess}
+            />
         </div>
     );
 };
