@@ -127,7 +127,9 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   };
 
   const getEventColor = (eventType, success) => {
-    if (!success) return 'error';
+    if (!success) {
+      return 'error';
+    }
     
     switch (eventType) {
       case 'checkin':
@@ -168,30 +170,50 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   };
 
   const filteredEvents = realtimeEvents.filter(event => {
-    if (eventFilter === 'all') return true;
-    if (eventFilter === 'access') return ['checkin', 'checkout'].includes(event.event_type);
-    if (eventFilter === 'security') return ['remote_unlock', 'emergency_unlock', 'failed_access'].includes(event.event_type);
-    if (eventFilter === 'system') return ['heartbeat', 'enrollment'].includes(event.event_type);
+    if (eventFilter === 'all') {
+      return true;
+    }
+    if (eventFilter === 'access') {
+      return ['checkin', 'checkout'].includes(event.event_type);
+    }
+    if (eventFilter === 'security') {
+      return ['remote_unlock', 'emergency_unlock', 'failed_access'].includes(event.event_type);
+    }
+    if (eventFilter === 'system') {
+      return ['heartbeat', 'enrollment'].includes(event.event_type);
+    }
     return event.event_type === eventFilter;
   });
 
   const getDeviceHealth = (device) => {
-    if (!device || device.status !== 'online') return 0;
+    if (!device || device.status !== 'online') {
+      return 0;
+    }
     
     let health = 100;
     const lastSeen = new Date(device.last_seen);
     const minutesAgo = (Date.now() - lastSeen.getTime()) / (1000 * 60);
     
     // Reduce health based on last heartbeat
-    if (minutesAgo > 5) health -= 20;
-    if (minutesAgo > 10) health -= 30;
+    if (minutesAgo > 5) {
+      health -= 20;
+    }
+    if (minutesAgo > 10) {
+      health -= 30;
+    }
     
     // Consider signal strength
-    if (device.deviceData?.wifi_rssi < -70) health -= 20;
-    if (device.deviceData?.wifi_rssi < -80) health -= 30;
+    if (device.deviceData?.wifi_rssi < -70) {
+      health -= 20;
+    }
+    if (device.deviceData?.wifi_rssi < -80) {
+      health -= 30;
+    }
     
     // Consider memory usage
-    if (device.deviceData?.free_heap < 50000) health -= 20;
+    if (device.deviceData?.free_heap < 50000) {
+      health -= 20;
+    }
     
     return Math.max(0, health);
   };

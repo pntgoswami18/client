@@ -96,7 +96,7 @@ const Financials = () => {
     const [customEndDate, setCustomEndDate] = useState('');
 
     // Calculate date range based on filter selection
-    const getDateRange = () => {
+    const getDateRange = useCallback(() => {
         const today = new Date();
         const startDate = new Date();
         const endDate = new Date();
@@ -135,7 +135,7 @@ const Financials = () => {
             startDate: startDate.toISOString().split('T')[0],
             endDate: endDate.toISOString().split('T')[0]
         };
-    };
+    }, [dateRange, customStartDate, customEndDate]);
 
     const fetchFinancialSummary = useCallback(async (table = 'all', page = 1, limit = itemsPerPage) => {
         try {
@@ -183,8 +183,7 @@ const Financials = () => {
         } catch (error) {
             console.error("Error fetching financial summary", error);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [dateRange, customStartDate, customEndDate, getDateRange, itemsPerPage]);
+    }, [getDateRange, itemsPerPage]);
 
     // Filter out admin users for invoice creation
     const nonAdminMembers = useMemo(() => {
@@ -231,26 +230,24 @@ const Financials = () => {
         fetchFinancialSummary('all', 1, itemsPerPage);
     }, [fetchFinancialSummary, itemsPerPage]);
 
-    // Refetch financial summary when date range changes
-    useEffect(() => {
-        fetchFinancialSummary('all', 1, itemsPerPage);
-    }, [fetchFinancialSummary, itemsPerPage]);
-
     useEffect(() => {
         const qp = new URLSearchParams(location.search);
         const section = qp.get('section');
         const editInvoiceParam = qp.get('editInvoice');
 
+        let scrollTimeout;
+        let editTimeout;
+
         if (section === 'pending-payments' && outstandingRef.current) {
             // Scroll to Outstanding Invoices
-            setTimeout(() => {
+            scrollTimeout = setTimeout(() => {
                 outstandingRef.current.scrollIntoView({ behavior: 'smooth' });
             }, 100);
         }
 
         if (editInvoiceParam) {
             // Auto-open edit dialog for the specified invoice
-            setTimeout(() => {
+            editTimeout = setTimeout(() => {
                 handleEditInvoice(parseInt(editInvoiceParam, 10));
                 // Clear the URL parameter after opening the dialog
                 const newUrl = new URL(window.location);
@@ -258,6 +255,15 @@ const Financials = () => {
                 window.history.replaceState({}, '', newUrl);
             }, 500); // Wait for data to load
         }
+
+        return () => {
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            if (editTimeout) {
+                clearTimeout(editTimeout);
+            }
+        };
     }, [location.search]);
 
     const handleEditInvoice = async (invoiceId) => {
@@ -1179,10 +1185,8 @@ const Financials = () => {
                             
                             // If no plan selected, try to get member's current plan
                             let finalPlanId = invPlanId ? parseInt(invPlanId,10) : null;
-                            if (!finalPlanId && invMemberId) {
-                                if (selectedMember && selectedMember.membership_plan_id) {
-                                    finalPlanId = selectedMember.membership_plan_id;
-                                }
+                            if (!finalPlanId && invMemberId && selectedMember && selectedMember.membership_plan_id) {
+                                finalPlanId = selectedMember.membership_plan_id;
                             }
                             
                             await axios.post('/api/payments/invoice', {
@@ -1282,10 +1286,8 @@ const Financials = () => {
                             
                             // If no plan selected, try to get member's current plan
                             let finalPlanId = editInvPlanId ? parseInt(editInvPlanId,10) : null;
-                            if (!finalPlanId && editInvMemberId) {
-                                if (selectedMember && selectedMember.membership_plan_id) {
-                                    finalPlanId = selectedMember.membership_plan_id;
-                                }
+                            if (!finalPlanId && editInvMemberId && selectedMember && selectedMember.membership_plan_id) {
+                                finalPlanId = selectedMember.membership_plan_id;
                             }
                             
                             await axios.put(`/api/payments/invoices/${editInvoiceId}`, {

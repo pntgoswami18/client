@@ -128,7 +128,9 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
 
     // Group events by type
     const eventsByType = esp32Events.reduce((acc, event) => {
-      if (!acc[event.event_type]) acc[event.event_type] = [];
+      if (!acc[event.event_type]) {
+        acc[event.event_type] = [];
+      }
       acc[event.event_type].push(event);
       return acc;
     }, {});

@@ -105,13 +105,13 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (morning_session_end) { setMorningEnd(morning_session_end); }
             if (evening_session_start) { setEveningStart(evening_session_start); }
             if (evening_session_end) { setEveningEnd(evening_session_end); }
-            if (show_card_total_members !== undefined) { setShowTotalMembers(String(show_card_total_members) !== 'false'); }
-            if (show_card_total_revenue !== undefined) { setShowTotalRevenue(String(show_card_total_revenue) !== 'false'); }
-            if (show_card_new_members_this_month !== undefined) { setShowNewMembersThisMonth(String(show_card_new_members_this_month) !== 'false'); }
-            if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(String(show_card_unpaid_members_this_month) !== 'false'); }
-            if (show_card_active_schedules !== undefined) { setShowActiveSchedules(String(show_card_active_schedules) !== 'false'); }
-            if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
-            if (referral_system_enabled !== undefined) { setReferralSystemEnabled(String(referral_system_enabled) !== 'false'); }
+            if (show_card_total_members !== undefined) { setShowTotalMembers(show_card_total_members); }
+            if (show_card_total_revenue !== undefined) { setShowTotalRevenue(show_card_total_revenue); }
+            if (show_card_new_members_this_month !== undefined) { setShowNewMembersThisMonth(show_card_new_members_this_month); }
+            if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(show_card_unpaid_members_this_month); }
+            if (show_card_active_schedules !== undefined) { setShowActiveSchedules(show_card_active_schedules); }
+            if (ask_unlock_reason !== undefined) { setAskUnlockReason(ask_unlock_reason); }
+            if (referral_system_enabled !== undefined) { setReferralSystemEnabled(referral_system_enabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
             
             // Fetch card order
@@ -135,13 +135,13 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 morningEnd: morning_session_end || '11:00',
                 eveningStart: evening_session_start || '16:00',
                 eveningEnd: evening_session_end || '22:00',
-                showTotalMembers: String(show_card_total_members) !== 'false',
-                showTotalRevenue: String(show_card_total_revenue) !== 'false',
-                showNewMembersThisMonth: String(show_card_new_members_this_month) !== 'false',
-                showUnpaidMembersThisMonth: String(show_card_unpaid_members_this_month) !== 'false',
-                showActiveSchedules: String(show_card_active_schedules) !== 'false',
-                askUnlockReason: String(ask_unlock_reason) !== 'false',
-                referralSystemEnabled: String(referral_system_enabled) !== 'false',
+                showTotalMembers: show_card_total_members,
+                showTotalRevenue: show_card_total_revenue,
+                showNewMembersThisMonth: show_card_new_members_this_month,
+                showUnpaidMembersThisMonth: show_card_unpaid_members_this_month,
+                showActiveSchedules: show_card_active_schedules,
+                askUnlockReason: ask_unlock_reason,
+                referralSystemEnabled: referral_system_enabled,
                 referralDiscountAmount: String(referral_discount_amount || '100'),
                 cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
                     'total_members',

@@ -532,7 +532,9 @@ const BiometricEnrollment = () => {
 
   // Memoized formatDateTime function for performance
   const formatDateTime = useCallback((dateStr) => {
-    if (!dateStr) return '';
+    if (!dateStr) {
+      return '';
+    }
     try {
       return new Date(dateStr).toLocaleString();
     } catch (error) {
@@ -544,7 +546,9 @@ const BiometricEnrollment = () => {
   // Memoized event item component for virtual scrolling performance
   const EventItem = useCallback(({ index, style, data }) => {
     const event = data[index];
-    if (!event) return null;
+    if (!event) {
+      return null;
+    }
     
     return (
       <div style={style}>
@@ -655,12 +659,10 @@ const BiometricEnrollment = () => {
             setError(`❌ Enrollment error for ${data.memberName}: ${data.message}`);
             setOngoingEnrollment(null);
           }
-        } else if (data.type === 'enrollment_stopped') {
-          if (data.reason !== 'success') {
-            setSuccess(null);
-            setError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
-            setOngoingEnrollment(null);
-          }
+        } else if (data.type === 'enrollment_stopped' && data.reason !== 'success') {
+          setSuccess(null);
+          setError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
+          setOngoingEnrollment(null);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -848,7 +850,9 @@ const BiometricEnrollment = () => {
   };
 
   const cancelOngoingEnrollment = async () => {
-    if (!ongoingEnrollment) return;
+    if (!ongoingEnrollment) {
+      return;
+    }
     
     setLoading(true);
     setError(null);

@@ -22,7 +22,9 @@ export const formatCurrency = (amount, currency = 'INR') => {
 };
 
 export const formatDate = (dateString) => {
-    if (!dateString) return '';
+    if (!dateString) {
+        return '';
+    }
     const s = String(dateString);
     const isYearMonth = /^\d{4}-\d{2}$/.test(s);
     const isFullDate = /^\d{4}-\d{2}-\d{2}$/.test(s);

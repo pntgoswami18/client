@@ -404,7 +404,9 @@ const Member = () => {
     };
 
     const startEnrollment = async () => {
-        if (!editingMember) return;
+        if (!editingMember) {
+            return;
+        }
         
         try {
             setBiometricLoading(true);
@@ -426,7 +428,9 @@ const Member = () => {
     };
 
     const deleteEnrollment = async () => {
-        if (!editingMember) return;
+        if (!editingMember) {
+            return;
+        }
         
         if (!window.confirm(`Are you sure you want to delete the biometric enrollment for ${editingMember.name}?`)) {
             return;
@@ -452,7 +456,9 @@ const Member = () => {
     };
 
     const reEnroll = async () => {
-        if (!editingMember) return;
+        if (!editingMember) {
+            return;
+        }
         
         try {
             setBiometricLoading(true);
@@ -1384,18 +1390,7 @@ const Member = () => {
                             
                             {/* Action Buttons */}
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {!memberBiometricStatus.hasFingerprint ? (
-                                    <Button
-                                        fullWidth
-                                        variant="contained"
-                                        onClick={startEnrollment}
-                                        disabled={biometricLoading}
-                                        startIcon={<FingerprintIcon />}
-                                        sx={{ py: 1.5 }}
-                                    >
-                                        Enroll Fingerprints
-                                    </Button>
-                                ) : (
+                                {memberBiometricStatus.hasFingerprint ? (
                                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                         <Button
                                             fullWidth
@@ -1419,6 +1414,17 @@ const Member = () => {
                                             Re-enroll Now
                                         </Button>
                                     </Box>
+                                ) : (
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        onClick={startEnrollment}
+                                        disabled={biometricLoading}
+                                        startIcon={<FingerprintIcon />}
+                                        sx={{ py: 1.5 }}
+                                    >
+                                        Enroll Fingerprints
+                                    </Button>
                                 )}
                             </Box>
                         </Box>
@@ -1455,7 +1461,7 @@ const Member = () => {
                             }}>
                                 <Typography>Loading camera...</Typography>
                             </Box>
-                        ) : cameraError && !stream ? (
+                        ) : stream && !cameraError ? (
                             <Box sx={{ 
                                 width: '100%', 
                                 maxWidth: '400px', 
@@ -1472,7 +1478,7 @@ const Member = () => {
                                 <Typography color="error">{cameraError}</Typography>
                                 <Button variant="outlined" onClick={openCamera}>Retry</Button>
                             </Box>
-                        ) : !capturedImage ? (
+                        ) : capturedImage ? (
                             <>
                                 <video
                                     ref={setVideoRef}
