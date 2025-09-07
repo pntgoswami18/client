@@ -160,8 +160,6 @@ const Financials = () => {
 
     const fetchFinancialSummary = useCallback(async (table = 'all', page = 1, limit = itemsPerPage) => {
         try {
-            setIsLoading(true);
-            
             // Set specific loading states based on table type
             if (table === 'all') {
                 setLoadingStates(prev => ({
@@ -221,7 +219,6 @@ const Financials = () => {
         } catch (error) {
             console.error("Error fetching financial summary", error);
         } finally {
-            setIsLoading(false);
             // Clear specific loading states
             if (table === 'all') {
                 setLoadingStates(prev => ({
@@ -241,8 +238,8 @@ const Financials = () => {
 
     // Debounced version of fetchFinancialSummary to prevent excessive API calls
     const debouncedFetchFinancialSummary = useCallback(
-        debounce(async (table, page, limit) => {
-            await fetchFinancialSummary(table, page, limit);
+        debounce((table, page, limit) => {
+            fetchFinancialSummary(table, page, limit);
         }, 300),
         [fetchFinancialSummary]
     );
