@@ -237,12 +237,11 @@ const Financials = () => {
     }, [getDateRange, itemsPerPage]);
 
     // Debounced version of fetchFinancialSummary to prevent excessive API calls
-    const debouncedFetchFinancialSummary = useCallback(
-        debounce((table, page, limit) => {
+    const debouncedFetchFinancialSummary = useMemo(() => {
+        return debounce((table, page, limit) => {
             fetchFinancialSummary(table, page, limit);
-        }, 300),
-        [fetchFinancialSummary]
-    );
+        }, 300);
+    }, [fetchFinancialSummary]);
 
     // Filter out admin users for invoice creation
     const nonAdminMembers = useMemo(() => {
