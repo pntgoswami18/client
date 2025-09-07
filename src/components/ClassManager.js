@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { FormShimmer } from './ShimmerLoader';
 import {
     TextField,
     Button,
@@ -16,13 +18,24 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    Tabs,
+    Tab,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import LibraryBooksOutlinedIcon from '@mui/icons-material/LibraryBooksOutlined';
+import {
+    Edit as EditIcon,
+    Delete as DeleteIcon,
+    LibraryBooksOutlined as LibraryBooksOutlinedIcon,
+    Class as ClassIcon,
+    Schedule as ScheduleIcon
+} from '@mui/icons-material';
+import ScheduleManager from './ScheduleManager';
 
-const ClassManager = () => {
+const ClassesManagement = () => {
     const [classes, setClasses] = useState([]);
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -31,9 +44,12 @@ const ClassManager = () => {
     const [editingClass, setEditingClass] = useState(null);
     const [openAdd, setOpenAdd] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
+    const [adminMembers, setAdminMembers] = useState([]);
+    const [loadingAdminMembers, setLoadingAdminMembers] = useState(false);
 
     useEffect(() => {
         fetchClasses();
+        fetchAdminMembers();
     }, []);
 
     const fetchClasses = async () => {
@@ -42,6 +58,18 @@ const ClassManager = () => {
             setClasses(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error("Error fetching classes", error);
+        }
+    };
+
+    const fetchAdminMembers = async () => {
+        try {
+            setLoadingAdminMembers(true);
+            const response = await axios.get('/api/classes/instructors');
+            setAdminMembers(Array.isArray(response.data) ? response.data : []);
+        } catch (error) {
+            console.error("Error fetching admin instructors", error);
+        } finally {
+            setLoadingAdminMembers(false);
         }
     };
 
@@ -86,15 +114,20 @@ const ClassManager = () => {
         setEditingClass(null);
         setName('');
         setDescription('');
-        setInstructor('');
+        setInstructor(adminMembers.length > 0 ? adminMembers[0].name : '');
         setDuration('');
     };
 
     return (
         <div>
-            <Typography variant="h4" gutterBottom>Class Management</Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <Button variant="contained" onClick={() => setOpenAdd(true)}>Add Class</Button>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                    💡 <strong>Note:</strong> Only admin members can be assigned as class instructors
+                </Typography>
+                <Button variant="contained" onClick={() => {
+                    resetForm();
+                    setOpenAdd(true);
+                }}>Add Class</Button>
             </Box>
 
             <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
@@ -103,7 +136,25 @@ const ClassManager = () => {
                     <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField label="Class Name" value={name} onChange={e => setName(e.target.value)} required />
                         <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
-                        <TextField label="Instructor" value={instructor} onChange={e => setInstructor(e.target.value)} required />
+                        <FormControl fullWidth required>
+                            <InputLabel>Instructor</InputLabel>
+                            <Select value={instructor} onChange={e => setInstructor(e.target.value)} label="Instructor" disabled={loadingAdminMembers}>
+                                {loadingAdminMembers ? (
+                                    <MenuItem disabled><FormShimmer /></MenuItem>
+                                ) : adminMembers.length > 0 ? (
+                                    adminMembers.map(member => (
+                                        <MenuItem key={member.id} value={member.name}>
+                                            {member.name} {member.is_admin === 1 && '⭐'}
+                                        </MenuItem>
+                                    ))
+                                ) : (
+                                    <MenuItem disabled>No admin members available</MenuItem>
+                                )}
+                            </Select>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Only admin members can be assigned as instructors
+                            </Typography>
+                        </FormControl>
                         <TextField label="Duration (minutes)" type="number" value={duration} onChange={e => setDuration(e.target.value)} required />
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
@@ -119,7 +170,25 @@ const ClassManager = () => {
                     <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
                         <TextField label="Class Name" value={name} onChange={e => setName(e.target.value)} required />
                         <TextField label="Description" value={description} onChange={e => setDescription(e.target.value)} multiline rows={3} />
-                        <TextField label="Instructor" value={instructor} onChange={e => setInstructor(e.target.value)} required />
+                        <FormControl fullWidth required>
+                            <InputLabel>Instructor</InputLabel>
+                            <Select value={instructor} onChange={e => setInstructor(e.target.value)} label="Instructor" disabled={loadingAdminMembers}>
+                                {loadingAdminMembers ? (
+                                    <MenuItem disabled><FormShimmer /></MenuItem>
+                                ) : adminMembers.length > 0 ? (
+                                    adminMembers.map(member => (
+                                        <MenuItem key={member.id} value={member.name}>
+                                            {member.name} {member.is_admin === 1 && '⭐'}
+                                        </MenuItem>
+                                    ))
+                                ) : (
+                                    <MenuItem disabled>No admin members available</MenuItem>
+                                )}
+                            </Select>
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                Only admin members can be assigned as instructors
+                            </Typography>
+                        </FormControl>
                         <TextField label="Duration (minutes)" type="number" value={duration} onChange={e => setDuration(e.target.value)} required />
                         <DialogActions sx={{ px: 0 }}>
                             <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
@@ -158,7 +227,10 @@ const ClassManager = () => {
                                 <TableRow key={cls.id}>
                                     <TableCell>{cls.name}</TableCell>
                                     <TableCell>{cls.description}</TableCell>
-                                    <TableCell>{cls.instructor}</TableCell>
+                                    <TableCell>
+                                        {cls.instructor}
+                                        {adminMembers.some(m => m.name === cls.instructor && m.is_admin === 1) && ' ⭐'}
+                                    </TableCell>
                                     <TableCell>{cls.duration_minutes}</TableCell>
                                     <TableCell>
                                         <IconButton onClick={() => handleEdit(cls)}><EditIcon /></IconButton>
@@ -171,6 +243,60 @@ const ClassManager = () => {
                 </TableContainer>
             )}
         </div>
+    );
+};
+
+const ClassManager = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    
+    // Determine active tab based on current route
+    const getActiveTab = () => {
+        const path = location.pathname;
+        if (path.includes('/classes/schedules')) {
+            return 1;
+        }
+        return 0; // Classes management
+    };
+    
+    const handleTabChange = (event, newValue) => {
+        const routes = [
+            '/classes',
+            '/classes/schedules'
+        ];
+        navigate(routes[newValue]);
+    };
+
+    return (
+        <Box>
+            <Typography variant="h4" component="h1" gutterBottom>
+                Class Management
+            </Typography>
+            
+            <Paper sx={{ mb: 3 }}>
+                <Tabs 
+                    value={getActiveTab()} 
+                    onChange={handleTabChange}
+                    aria-label="class management tabs"
+                >
+                    <Tab 
+                        icon={<ClassIcon />} 
+                        label="Classes" 
+                        sx={{ minHeight: 72 }}
+                    />
+                    <Tab 
+                        icon={<ScheduleIcon />} 
+                        label="Schedules" 
+                        sx={{ minHeight: 72 }}
+                    />
+                </Tabs>
+            </Paper>
+
+            <Routes>
+                <Route path="/" element={<ClassesManagement />} />
+                <Route path="/schedules" element={<ScheduleManager />} />
+            </Routes>
+        </Box>
     );
 };
 

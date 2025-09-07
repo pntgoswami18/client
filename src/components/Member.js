@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
+import { formatDateToLocalString } from '../utils/formatting';
+import ReactCrop from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import {
     TextField,
     Button,
@@ -20,25 +24,38 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    Alert
+    Alert,
+    FormControlLabel,
+    Checkbox,
+    Chip,
+    Pagination
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import FilterAltOffOutlinedIcon from '@mui/icons-material/FilterAltOffOutlined';
+import CrownIcon from '@mui/icons-material/Star';
+import StarIcon from '@mui/icons-material/Star';
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import SearchableMemberDropdown from './SearchableMemberDropdown';
+import { ListShimmer, FormShimmer } from './ShimmerLoader';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
-    const [unpaidMembersThisMonth, setUnpaidMembersThisMonth] = useState([]);
     const location = useLocation();
-    const navigate = useNavigate();
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const [filter, setFilter] = useState(queryParams.get('filter') || 'all');
+    const [searchTerm, setSearchTerm] = useState('');
     const [plans, setPlans] = useState([]);
     const [name, setName] = useState('');
     
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [birthday, setBirthday] = useState('');
+    const [joinDate, setJoinDate] = useState(new Date().toISOString().split('T')[0]);
+    const [referralMemberId, setReferralMemberId] = useState('');
+    const [referralSystemEnabled, setReferralSystemEnabled] = useState(false);
     const [photoFile, setPhotoFile] = useState(null);
     const [photoUrl, setPhotoUrl] = useState('');
     const [membershipPlanId, setMembershipPlanId] = useState('');
@@ -48,47 +65,163 @@ const Member = () => {
     const [addError, setAddError] = useState('');
     const [editError, setEditError] = useState('');
     const [openBiometric, setOpenBiometric] = useState(false);
-    const [bioDeviceUserId, setBioDeviceUserId] = useState('');
-    const [bioSensorMemberId, setBioSensorMemberId] = useState('');
-    const [bioTemplate, setBioTemplate] = useState('');
     const [editingMember, setEditingMember] = useState(null);
     const [openInvoice, setOpenInvoice] = useState(false);
     const [invoicePlanId, setInvoicePlanId] = useState('');
     const [invoiceAmount, setInvoiceAmount] = useState('');
     const [invoiceDueDate, setInvoiceDueDate] = useState('');
     const [lastCreatedMemberId, setLastCreatedMemberId] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [calculatedDueDate, setCalculatedDueDate] = useState('');
+    const [dueDate, setDueDate] = useState('');
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [paginationMeta, setPaginationMeta] = useState({
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0
+    });
+    const [loading, setLoading] = useState(false);
+
+    // Webcam functionality
+    const [cameraOpen, setCameraOpen] = useState(false);
+    const [stream, setStream] = useState(null);
+    const [capturedImage, setCapturedImage] = useState(null);
+    const [cameraLoading, setCameraLoading] = useState(false);
+    const [cameraError, setCameraError] = useState('');
+    const [videoReady, setVideoReady] = useState(false);
+    const [videoElementMounted, setVideoElementMounted] = useState(false);
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+
+    // Photo cropping functionality
+    const [cropOpen, setCropOpen] = useState(false);
+    const [imageToCrop, setImageToCrop] = useState(null);
+    const [crop, setCrop] = useState({
+        unit: '%',
+        width: 90,
+        height: 90,
+        x: 5,
+        y: 5
+    });
+    const [croppedImageUrl, setCroppedImageUrl] = useState(null);
+    const cropImageRef = useRef(null);
+
+    // Video ref callback to ensure stream is set when video element is mounted
+    const setVideoRef = (element) => {
+        videoRef.current = element;
+        
+        if (element) {
+            setVideoElementMounted(true);
+            
+            // If we already have a stream, set it immediately
+            if (stream) {
+                element.srcObject = stream;
+                // Don't call play() here - let the useEffect handle it
+            }
+        } else {
+            setVideoElementMounted(false);
+        }
+    };
+    
+    // New state for biometric data
+    const [memberBiometricStatus, setMemberBiometricStatus] = useState(null);
+    const [biometricLoading, setBiometricLoading] = useState(false);
+    const [biometricError, setBiometricError] = useState('');
+    const [biometricSuccess, setBiometricSuccess] = useState('');
+
+    // Pagination handlers
+    const handlePageChange = (event, page) => {
+        setCurrentPage(page);
+        fetchMembers(page, itemsPerPage, searchTerm, filter);
+    };
+
+    const handleItemsPerPageChange = (event) => {
+        const newItemsPerPage = parseInt(event.target.value, 10);
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1);
+        fetchMembers(1, newItemsPerPage, searchTerm, filter);
+    };
+
+    const handleSearchChange = (event) => {
+        const newSearchTerm = event.target.value;
+        setSearchTerm(newSearchTerm);
+        setCurrentPage(1);
+        fetchMembers(1, itemsPerPage, newSearchTerm, filter);
+    };
+
+    const handleFilterChange = (event) => {
+        const newFilter = event.target.value;
+        setFilter(newFilter);
+        setCurrentPage(1);
+        fetchMembers(1, itemsPerPage, searchTerm, newFilter);
+    };
+
+    const fetchMembers = useCallback(async (page = currentPage, limit = itemsPerPage, search = searchTerm, filterType = filter) => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: limit.toString(),
+                search: search || '',
+                filter: filterType || 'all'
+            });
+            const response = await axios.get(`/api/members?${params}`);
+            const { members, pagination } = response.data;
+            setMembers(Array.isArray(members) ? members : []);
+            setPaginationMeta(pagination || { total: 0, page: 1, limit: 10, totalPages: 0 });
+        } catch (error) {
+            console.error("Error fetching members", error);
+            setMembers([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [currentPage, itemsPerPage, searchTerm, filter]);
 
     useEffect(() => {
         fetchMembers();
         fetchPlans();
         fetchCurrency();
-    }, []);
+    }, [fetchMembers]);
+
+    const calculateDueDate = useCallback(() => {
+        if (!joinDate || !membershipPlanId || isAdmin) {
+            setCalculatedDueDate('');
+            setDueDate('');
+            return;
+        }
+
+        const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId));
+        if (!selectedPlan || !selectedPlan.duration_days) {
+            setCalculatedDueDate('');
+            setDueDate('');
+            return;
+        }
+
+        const joinDateObj = new Date(joinDate);
+        const calculatedDueDate = new Date(joinDateObj);
+        
+        if (selectedPlan.duration_days === 30) {
+            // For monthly plans, use normalized month calculation
+            const dayOfMonth = joinDateObj.getDate();
+            calculatedDueDate.setMonth(calculatedDueDate.getMonth() + 1);
+            calculatedDueDate.setDate(dayOfMonth);
+        } else {
+            // For other durations, use simple day addition
+            calculatedDueDate.setDate(calculatedDueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+        }
+        
+        const formattedDueDate = formatDateToLocalString(calculatedDueDate);
+        setCalculatedDueDate(formattedDueDate);
+        setDueDate(formattedDueDate);
+    }, [joinDate, membershipPlanId, isAdmin, plans]);
 
     useEffect(() => {
-        const qp = new URLSearchParams(location.search);
-        const f = qp.get('filter') || 'all';
-        setFilter(f);
-        if (f === 'unpaid-this-month') {
-            (async () => {
-                try {
-                    const res = await axios.get('/api/reports/unpaid-members-this-month');
-                    setUnpaidMembersThisMonth(res.data || []);
-                } catch (e) {
-                    console.error('Error fetching unpaid members this month', e);
-                    setUnpaidMembersThisMonth([]);
-                }
-            })();
-        }
-    }, [location.search]);
-
-    const fetchMembers = async () => {
-        try {
-            const response = await axios.get('/api/members');
-            setMembers(Array.isArray(response.data) ? response.data : []);
-        } catch (error) {
-            console.error("Error fetching members", error);
-        }
-    };
+        calculateDueDate();
+    }, [calculateDueDate]);
 
     const fetchPlans = async () => {
         try {
@@ -106,6 +239,8 @@ const Member = () => {
             const response = await axios.get('/api/settings');
             const currentCurrency = response.data.currency || 'INR';
             setCurrency(currentCurrency);
+            const referralEnabled = response.data.referral_system_enabled === 'true' || response.data.referral_system_enabled === true;
+            setReferralSystemEnabled(referralEnabled);
         } catch (error) {
             console.error("Error fetching currency", error);
         }
@@ -121,7 +256,10 @@ const Member = () => {
                 membership_plan_id: membershipPlanId ? parseInt(membershipPlanId, 10) : null,
                 address: address || null,
                 birthday: birthday || null,
-                photo_url: photoUrl || null
+                photo_url: photoUrl || null,
+                is_admin: isAdmin,
+                join_date: joinDate,
+                due_date: dueDate || null
             };
             const res = await axios.post('/api/members', newMember);
             if (res?.data?.id && photoFile) {
@@ -131,13 +269,30 @@ const Member = () => {
                 const up = await axios.post(`/api/members/${res.data.id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
                 setPhotoUrl(up?.data?.photo_url || '');
             }
-            fetchMembers();
+            
+            // Handle referral if specified
+            if (referralMemberId && res?.data?.id) {
+                try {
+                    await axios.post('/api/referrals', {
+                        referrer_id: parseInt(referralMemberId, 10),
+                        referred_id: res.data.id
+                    });
+                } catch (referralError) {
+                    console.error('Error creating referral:', referralError);
+                    // Don't fail the member creation if referral fails
+                }
+            }
+            fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
             setName('');
             setPhone('');
             setAddress('');
             setBirthday('');
+            setJoinDate(new Date().toISOString().split('T')[0]);
+            setCalculatedDueDate('');
+            setDueDate('');
             setPhotoFile(null);
             setPhotoUrl('');
+            setReferralMemberId('');
             if (plans.length > 0) { setMembershipPlanId(plans[0].id); }
             setOpenAdd(false);
             if (res && res.data && res.data.id) {
@@ -146,15 +301,31 @@ const Member = () => {
                 const selectedPlan = plans.find(p => String(p.id) === String(membershipPlanId)) || plans[0];
                 setInvoiceAmount(selectedPlan ? String(selectedPlan.price) : '');
                 
-                // Calculate due date based on plan duration from join date
-                const joinDate = new Date();
-                const dueDate = new Date(joinDate);
-                if (selectedPlan && selectedPlan.duration_days) {
-                    dueDate.setDate(joinDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+                // Use calculated due date for invoice creation
+                if (dueDate) {
+                    setInvoiceDueDate(dueDate);
+                } else if (selectedPlan && selectedPlan.duration_days) {
+                    // Fallback calculation if dueDate is not set
+                    const joinDateObj = new Date(joinDate);
+                    const calculatedDueDate = new Date(joinDateObj);
+                    
+                    if (selectedPlan.duration_days === 30) {
+                        // For monthly plans, use normalized month calculation
+                        const dayOfMonth = joinDateObj.getDate();
+                        calculatedDueDate.setMonth(calculatedDueDate.getMonth() + 1);
+                        calculatedDueDate.setDate(dayOfMonth);
+                    } else {
+                        // For other durations, use simple day addition
+                        calculatedDueDate.setDate(calculatedDueDate.getDate() + parseInt(selectedPlan.duration_days, 10));
+                    }
+                    setInvoiceDueDate(formatDateToLocalString(calculatedDueDate));
                 } else {
-                    dueDate.setDate(joinDate.getDate() + 30); // Default 30 days
+                    // Default 30 days if no plan selected
+                    const joinDateObj = new Date(joinDate);
+                    const calculatedDueDate = new Date(joinDateObj);
+                    calculatedDueDate.setMonth(calculatedDueDate.getMonth() + 1);
+                    setInvoiceDueDate(formatDateToLocalString(calculatedDueDate));
                 }
-                setInvoiceDueDate(dueDate.toISOString().slice(0,10));
                 setOpenInvoice(true);
             }
         } catch (error) {
@@ -175,7 +346,10 @@ const Member = () => {
                 phone,
                 address: address || null,
                 birthday: birthday || null,
-                photo_url: photoUrl || null
+                join_date: joinDate,
+                photo_url: photoUrl || null,
+                is_admin: isAdmin,
+                membership_plan_id: isAdmin ? null : (membershipPlanId ? parseInt(membershipPlanId, 10) : null)
             };
             await axios.put(`/api/members/${editingMember.id}`, body);
             if (photoFile) {
@@ -185,7 +359,7 @@ const Member = () => {
                 const up = await axios.post(`/api/members/${editingMember.id}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
                 setPhotoUrl(up?.data?.photo_url || '');
             }
-            fetchMembers();
+            fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
             setOpenEdit(false);
             setEditingMember(null);
         } catch (error) {
@@ -200,43 +374,129 @@ const Member = () => {
         setPhone(member.phone ? String(member.phone) : '');
         setAddress(member.address || '');
         setBirthday(member.birthday || '');
+        setJoinDate(member.join_date || new Date().toISOString().split('T')[0]);
+        setCalculatedDueDate('');
         setPhotoUrl(member.photo_url || '');
+        setIsAdmin(member.is_admin === 1);
+        setMembershipPlanId(member.membership_plan_id ? String(member.membership_plan_id) : '');
         setOpenEdit(true);
     };
 
-    const openBiometricDialog = (member) => {
+    const openBiometricDialog = async (member) => {
         setEditingMember(member);
         setOpenBiometric(true);
-        setBioDeviceUserId('');
-        setBioSensorMemberId('');
-        setBioTemplate('');
+        setMemberBiometricStatus(null);
+        setBiometricError('');
+        setBiometricSuccess('');
+        
+        // Fetch member's biometric status
+        try {
+            setBiometricLoading(true);
+            const response = await axios.get(`/api/biometric/members/${member.id}/status`);
+            if (response.data.success) {
+                setMemberBiometricStatus(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching biometric status:', error);
+            setBiometricError('Failed to fetch biometric status');
+        } finally {
+            setBiometricLoading(false);
+        }
     };
 
-    const saveBiometric = async () => {
+    const startEnrollment = async () => {
         if (!editingMember) {
             return;
         }
+        
         try {
-            const payload = {};
-            if (bioDeviceUserId) { payload.device_user_id = bioDeviceUserId; }
-            if (bioSensorMemberId) { payload.sensor_member_id = bioSensorMemberId; }
-            if (bioTemplate) { payload.template = bioTemplate; }
-            await axios.put(`/api/members/${editingMember.id}/biometric`, payload);
-            setOpenBiometric(false);
-        } catch (e) {
-            console.error('Error saving biometric', e);
-            alert(e?.response?.data?.message || 'Failed to save biometric');
+            setBiometricLoading(true);
+            setBiometricError('');
+            setBiometricSuccess('');
+            
+            const response = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+            if (response.data.success) {
+                setBiometricSuccess('Enrollment started successfully. Please ask the member to place their finger on the biometric device.');
+                // Refresh biometric status
+                openBiometricDialog(editingMember);
+            }
+        } catch (error) {
+            console.error('Error starting enrollment:', error);
+            setBiometricError(error?.response?.data?.message || 'Failed to start enrollment');
+        } finally {
+            setBiometricLoading(false);
+        }
+    };
+
+    const deleteEnrollment = async () => {
+        if (!editingMember) {
+            return;
+        }
+        
+        if (!window.confirm(`Are you sure you want to delete the biometric enrollment for ${editingMember.name}?`)) {
+            return;
+        }
+        
+        try {
+            setBiometricLoading(true);
+            setBiometricError('');
+            setBiometricSuccess('');
+            
+            const response = await axios.delete(`/api/biometric/members/${editingMember.id}/biometric`);
+            if (response.data.success) {
+                setBiometricSuccess('Biometric enrollment deleted successfully. The member can now be re-enrolled.');
+                // Refresh biometric status
+                openBiometricDialog(editingMember);
+            }
+        } catch (error) {
+            console.error('Error deleting enrollment:', error);
+            setBiometricError(error?.response?.data?.message || 'Failed to delete enrollment');
+        } finally {
+            setBiometricLoading(false);
+        }
+    };
+
+    const reEnroll = async () => {
+        if (!editingMember) {
+            return;
+        }
+        
+        try {
+            setBiometricLoading(true);
+            setBiometricError('');
+            setBiometricSuccess('');
+            
+            // First delete existing enrollment
+            const deleteResponse = await axios.delete(`/api/biometric/members/${editingMember.id}/biometric`);
+            if (deleteResponse.data.success) {
+                // Then start new enrollment
+                const enrollResponse = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+                if (enrollResponse.data.success) {
+                    setBiometricSuccess('Re-enrollment started successfully. Please ask the member to place their finger on the biometric device.');
+                    // Refresh biometric status
+                    openBiometricDialog(editingMember);
+                }
+            }
+        } catch (error) {
+            console.error('Error starting re-enrollment:', error);
+            setBiometricError(error?.response?.data?.message || 'Failed to start re-enrollment');
+        } finally {
+            setBiometricLoading(false);
         }
     };
 
     const handleCreateInvoice = async () => {
-        if (!lastCreatedMemberId) { setOpenInvoice(false); return; }
+        if (!lastCreatedMemberId) { 
+            setOpenInvoice(false); 
+            return; 
+        }
         try {
             await axios.post('/api/payments/invoice', {
                 member_id: lastCreatedMemberId,
                 plan_id: invoicePlanId ? parseInt(invoicePlanId,10) : null,
                 amount: parseFloat(invoiceAmount),
-                due_date: invoiceDueDate
+                due_date: invoiceDueDate,
+                join_date: joinDate
             });
             setOpenInvoice(false);
         } catch (error) {
@@ -244,19 +504,268 @@ const Member = () => {
         }
     };
 
-    const filteredMembers = useMemo(() => {
-        if (filter === 'new-this-month') {
-            const startOfMonth = new Date();
-            startOfMonth.setDate(1);
-            startOfMonth.setHours(0,0,0,0);
-            return members.filter(m => m.join_date && new Date(m.join_date) >= startOfMonth);
+        // Webcam functions
+    const openCamera = async () => {
+        try {
+            setCameraLoading(true);
+            setCameraError('');
+            setVideoReady(false);
+            
+            // Check if getUserMedia is supported
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('getUserMedia is not supported in this browser');
+            }
+
+            const mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user'
+                }
+            });
+            
+            setStream(mediaStream);
+            setCameraOpen(true);
+            
+            // Force stream setup after a short delay to ensure video element is mounted
+            setTimeout(() => {
+                if (videoRef.current && mediaStream) {
+                    videoRef.current.srcObject = mediaStream;
+                    // Don't call play() here - let the useEffect handle it
+                }
+            }, 100);
+            
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            setCameraError(`Camera error: ${error.message}`);
+            alert(`Unable to access camera: ${error.message}`);
+            setCameraLoading(false);
         }
-        if (filter === 'unpaid-this-month') {
-            const unpaidIds = new Set(unpaidMembersThisMonth.map(m => String(m.id)));
-            return members.filter(m => unpaidIds.has(String(m.id)));
+    };
+
+    // Set video stream when camera opens and ensure it plays
+    useEffect(() => {
+        if (cameraOpen && stream && videoElementMounted && videoRef.current) {
+            videoRef.current.srcObject = stream;
+            
+            // Ensure video plays with proper error handling
+            const playVideo = async () => {
+                try {
+                    // Check if video is already playing
+                    if (videoRef.current && !videoRef.current.paused) {
+                        return; // Already playing
+                    }
+                    
+                    await videoRef.current.play();
+                } catch (playError) {
+                    // Only log non-abort errors
+                    if (playError.name !== 'AbortError') {
+                        console.error('Error playing video:', playError);
+                    }
+                }
+            };
+            
+            playVideo();
         }
-        return members;
-    }, [members, filter, unpaidMembersThisMonth]);
+    }, [cameraOpen, stream, videoElementMounted]);
+
+    // Polling effect to ensure video element gets stream
+    useEffect(() => {
+        if (cameraOpen && stream && !videoElementMounted) {
+            const pollInterval = setInterval(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    // Don't call play() here - let the main useEffect handle it
+                    setVideoElementMounted(true);
+                    clearInterval(pollInterval);
+                }
+            }, 100);
+
+            // Clear interval after 5 seconds to prevent infinite polling
+            const timeout = setTimeout(() => {
+                clearInterval(pollInterval);
+            }, 5000);
+
+            return () => {
+                clearInterval(pollInterval);
+                clearTimeout(timeout);
+            };
+        }
+    }, [cameraOpen, stream, videoElementMounted]);
+
+    // Handle loading state when video is ready
+    useEffect(() => {
+        if (videoReady && cameraLoading) {
+            setCameraLoading(false);
+        }
+    }, [videoReady, cameraLoading]);
+
+    // Timeout fallback for loading state
+    useEffect(() => {
+        if (cameraLoading && cameraOpen) {
+            const timeout = setTimeout(() => {
+                setCameraLoading(false);
+                // Don't set error if we have a stream - just force the video to render
+                if (!videoReady && stream) {
+                    // Force video element to render by clearing error
+                    setCameraError('');
+                } else if (!videoReady && !stream) {
+                    setCameraError('Camera took too long to load. Please try again.');
+                }
+            }, 10000); // 10 second timeout
+
+            return () => clearTimeout(timeout);
+        }
+    }, [cameraLoading, cameraOpen, videoReady, stream]);
+
+    const closeCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        setCameraOpen(false);
+        setCapturedImage(null);
+        setCameraLoading(false);
+        setCameraError('');
+        setVideoReady(false);
+        setVideoElementMounted(false);
+        
+        // Ensure focus is properly managed when closing
+        setTimeout(() => {
+            // Focus back to the document body to prevent focus trap
+            document.body.focus();
+        }, 0);
+    };
+
+    const capturePhoto = () => {
+        if (!videoReady) {
+            alert('Camera not ready. Please wait a moment and try again.');
+            return;
+        }
+        
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            const context = canvas.getContext('2d');
+
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                alert('Camera not ready. Please wait a moment and try again.');
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            setCapturedImage(imageDataUrl);
+            
+            // Open crop dialog with the captured image
+            closeCamera();
+            openCropDialog(imageDataUrl);
+        } else {
+            alert('Camera not available for capture');
+        }
+    };
+
+    const retakePhoto = () => {
+        setCapturedImage(null);
+        setPhotoFile(null);
+        setPhotoUrl('');
+        setVideoReady(false);
+        // Restart camera stream
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        openCamera();
+    };
+
+    // Photo cropping functions
+    const openCropDialog = (imageUrl) => {
+        setImageToCrop(imageUrl);
+        setCropOpen(true);
+        setCrop({
+            unit: '%',
+            width: 90,
+            height: 90,
+            x: 5,
+            y: 5
+        });
+    };
+
+    const getCroppedImg = (image, crop, fileName) => {
+        const canvas = document.createElement('canvas');
+        const scaleX = image.naturalWidth / image.width;
+        const scaleY = image.naturalHeight / image.height;
+        canvas.width = crop.width;
+        canvas.height = crop.height;
+        const ctx = canvas.getContext('2d');
+
+        ctx.drawImage(
+            image,
+            crop.x * scaleX,
+            crop.y * scaleY,
+            crop.width * scaleX,
+            crop.height * scaleY,
+            0,
+            0,
+            crop.width,
+            crop.height
+        );
+
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    console.error('Canvas is empty');
+                    return;
+                }
+                blob.name = fileName;
+                const fileUrl = window.URL.createObjectURL(blob);
+                resolve({ file: blob, url: fileUrl });
+            }, 'image/jpeg', 0.8);
+        });
+    };
+
+    const onCropComplete = async () => {
+        if (!cropImageRef.current || !crop.width || !crop.height) {
+            return;
+        }
+
+        try {
+            const croppedImageData = await getCroppedImg(
+                cropImageRef.current,
+                crop,
+                'cropped-photo.jpg'
+            );
+            setCroppedImageUrl(croppedImageData.url);
+        } catch (error) {
+            console.error('Error cropping image:', error);
+        }
+    };
+
+    const applyCrop = () => {
+        if (croppedImageUrl) {
+            setPhotoUrl(croppedImageUrl);
+            // Convert URL to File object
+            fetch(croppedImageUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], 'cropped-photo.jpg', { type: 'image/jpeg' });
+                    setPhotoFile(file);
+                });
+        }
+        setCropOpen(false);
+        setImageToCrop(null);
+        setCroppedImageUrl(null);
+    };
+
+    const cancelCrop = () => {
+        setCropOpen(false);
+        setImageToCrop(null);
+        setCroppedImageUrl(null);
+    };
+
 
     return (
         <div>
@@ -264,37 +773,94 @@ const Member = () => {
             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
                 <FormControl size="small" sx={{ minWidth: 220 }}>
                     <InputLabel>Filter</InputLabel>
-                    <Select label="Filter" value={filter} onChange={(e)=>{
-                        const val = e.target.value;
-                        setFilter(val);
-                        if (val === 'all') { navigate('/members'); } else { navigate(`/members?filter=${val}`); }
-                    }}>
+                    <Select label="Filter" value={filter} onChange={handleFilterChange}>
                         <MenuItem value="all">All Members</MenuItem>
                         <MenuItem value="new-this-month">Joined This Month</MenuItem>
                         <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>
+                        <MenuItem value="admins">Admins</MenuItem>
+                        <MenuItem value="members">Regular Members</MenuItem>
                     </Select>
                 </FormControl>
+                <TextField
+                    size="small"
+                    placeholder="Search by name or phone..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    sx={{ minWidth: 250 }}
+                    InputProps={{
+                        startAdornment: (
+                            <Box sx={{ mr: 1, color: 'text.secondary' }}>🔍</Box>
+                        ),
+                    }}
+                />
                 <Box sx={{ flex: 1 }} />
                 <Button onClick={() => {
                     setEditingMember(null);
                     setName('');
                     setPhone('');
+                    setAddress('');
+                    setBirthday('');
+                    setJoinDate(new Date().toISOString().split('T')[0]);
+                    setCalculatedDueDate('');
+                    setDueDate('');
+                    setPhotoFile(null);
+                    setPhotoUrl('');
                     setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setIsAdmin(false);
                     setOpenAdd(true);
                 }}>Add Member</Button>
             </Box>
 
-            <Dialog open={openAdd} onClose={() => setOpenAdd(false)} fullWidth maxWidth="sm">
+            <Dialog 
+                open={openAdd} 
+                onClose={() => {
+                    setOpenAdd(false);
+                    setEditingMember(null);
+                    setName('');
+                    setPhone('');
+                    setAddress('');
+                    setBirthday('');
+                    setJoinDate(new Date().toISOString().split('T')[0]);
+                    setCalculatedDueDate('');
+                    setDueDate('');
+                    setPhotoFile(null);
+                    setPhotoUrl('');
+                    setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setIsAdmin(false);
+                }} 
+                fullWidth 
+                maxWidth="sm"
+                disableRestoreFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Add Member</DialogTitle>
-                <DialogContent>
+                <DialogContent sx={{
+                    ...(isAdmin && {
+                        background: 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)',
+                        border: '2px solid #ffd700',
+                        borderRadius: 1
+                    })
+                }}>
                     {addError && <Alert severity="error" sx={{ mb: 2 }}>{addError}</Alert>}
                     <Box component="form" onSubmit={addMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <TextField
-                            label="Name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TextField
+                                label="Name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                fullWidth
+                            />
+                            {isAdmin && (
+                                <StarIcon 
+                                    sx={{ 
+                                        color: '#ffd700', 
+                                        fontSize: 24,
+                                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                    }} 
+                                />
+                            )}
+                        </Box>
                         <TextField
                             label="Phone"
                             value={phone}
@@ -303,22 +869,52 @@ const Member = () => {
                             inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }}
                             helperText="10–15 digits, optional leading +"
                         />
+                        
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isAdmin}
+                                    onChange={(e) => setIsAdmin(e.target.checked)}
+                                />
+                            }
+                            label="Admin User (can enter multiple times per day)"
+                        />
+                        
+                        {referralSystemEnabled && (
+                            <SearchableMemberDropdown
+                                value={referralMemberId}
+                                onChange={(e) => setReferralMemberId(e.target.value)}
+                                members={members.filter(member => member.id !== parseInt(referralMemberId))} // Exclude self
+                                label="Referred By (Optional)"
+                                placeholder="Search members by name, ID, or phone..."
+                                showId={false}
+                                showEmail={false}
+                                showAdminIcon={false}
+                            />
+                        )}
+                        
                         <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
                         <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField label="Joining Date" type="date" value={joinDate} onChange={(e)=>setJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} required />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             {photoUrl ? (
                                 <img src={photoUrl} alt="member" style={{ height: 64, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
                             ) : (
                                 <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
                             )}
-                            <Button variant="outlined" component="label">
-                                Upload Photo
-                                <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
-                            </Button>
-                            {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Button variant="outlined" component="label" size="small">
+                                    Upload Photo
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { const url = URL.createObjectURL(f); openCropDialog(url) } }} />
+                                </Button>
+                                <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
+                                    Take Photo
+                                </Button>
+                                {photoUrl && <Button color="error" size="small" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            </Box>
                         </Box>
-                        
-                        <FormControl fullWidth required disabled={plans.length === 0}>
+
+                        <FormControl fullWidth required disabled={plans.length === 0 || isAdmin}>
                             <InputLabel>Membership Plan</InputLabel>
                             <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
                                 {plans.length > 0 ? (
@@ -331,46 +927,224 @@ const Member = () => {
                                     <MenuItem disabled>Please create a membership plan first</MenuItem>
                                 )}
                             </Select>
+                            {isAdmin && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Admin users are exempt from membership plans
+                                </Typography>
+                            )}
                         </FormControl>
+                        
+                        {!isAdmin && (
+                            <TextField 
+                                label="Due Date" 
+                                value={calculatedDueDate || ''} 
+                                InputProps={{ readOnly: true }}
+                                InputLabelProps={{ shrink: true }}
+                                helperText="Auto-calculated based on joining date and membership plan"
+                                sx={{ 
+                                    '& .MuiInputBase-input': { 
+                                        backgroundColor: '#f5f5f5',
+                                        color: '#666'
+                                    }
+                                }}
+                            />
+                        )}
+                        
+                        {isAdmin && (
+                            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', p: 1, bgcolor: '#fff9c4', borderRadius: 1, border: '1px solid #ffd700' }}>
+                                ⭐ Admin users are exempt from payments and membership plans
+                            </Typography>
+                        )}
+                        
                         <DialogActions sx={{ px: 0 }}>
-                            <Button onClick={() => setOpenAdd(false)}>Cancel</Button>
-                            <Button type="submit" variant="contained" disabled={plans.length === 0}>Add Member</Button>
+                            <Button onClick={() => {
+                                setOpenAdd(false);
+                                setEditingMember(null);
+                                setName('');
+                                setPhone('');
+                                setAddress('');
+                                setBirthday('');
+                                setJoinDate(new Date().toISOString().split('T')[0]);
+                                setCalculatedDueDate('');
+                                setDueDate('');
+                                setPhotoFile(null);
+                                setPhotoUrl('');
+                                setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                                setIsAdmin(false);
+                            }}>Cancel</Button>
+                            <Button type="submit" variant="contained" disabled={plans.length === 0 && !isAdmin}>Add Member</Button>
                         </DialogActions>
                     </Box>
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={openEdit} onClose={() => setOpenEdit(false)} fullWidth maxWidth="sm">
+            <Dialog 
+                open={openEdit} 
+                onClose={() => {
+                    setOpenEdit(false);
+                    setEditingMember(null);
+                    setName('');
+                    setPhone('');
+                    setAddress('');
+                    setBirthday('');
+                    setJoinDate(new Date().toISOString().split('T')[0]);
+                    setCalculatedDueDate('');
+                    setPhotoFile(null);
+                    setPhotoUrl('');
+                    setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                    setIsAdmin(false);
+                }} 
+                fullWidth 
+                maxWidth="sm"
+                disableRestoreFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Edit Member</DialogTitle>
-                <DialogContent>
+                <DialogContent sx={{
+                    ...(isAdmin && {
+                        background: 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)',
+                        border: '2px solid #ffd700',
+                        borderRadius: 1
+                    })
+                }}>
                     {editError && <Alert severity="error" sx={{ mb: 2 }}>{editError}</Alert>}
                     <Box component="form" onSubmit={updateMember} sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
-                        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <TextField
+                                label="Name"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                fullWidth
+                            />
+                            {isAdmin && (
+                                <StarIcon 
+                                    sx={{ 
+                                        color: '#ffd700', 
+                                        fontSize: 24,
+                                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                    }} 
+                                />
+                            )}
+                        </Box>
                         <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} required inputProps={{ pattern: "^\\+?[0-9]{10,15}$" }} helperText="10–15 digits, optional leading +" />
+                        
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isAdmin}
+                                    onChange={(e) => setIsAdmin(e.target.checked)}
+                                />
+                            }
+                            label="Admin User (can enter multiple times per day)"
+                        />
+                        
+                        {isAdmin && (
+                            <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', p: 1, bgcolor: '#fff9c4', borderRadius: 1, border: '1px solid #ffd700' }}>
+                                ⭐ Admin users are exempt from payments and membership plans
+                            </Typography>
+                        )}
+                        
+                        {editingMember && editingMember.is_admin !== 1 && isAdmin && (
+                            <Typography variant="caption" color="warning.main" sx={{ textAlign: 'center', p: 1, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ff9800' }}>
+                                ⚠️ Changing this member to admin will remove their current membership plan
+                            </Typography>
+                        )}
+                        
+                        {editingMember && editingMember.is_admin === 1 && !isAdmin && (
+                            <Typography variant="caption" color="info.main" sx={{ textAlign: 'center', p: 1, bgcolor: '#e3f2fd', borderRadius: 1, border: '1px solid #2196f3' }}>
+                                ℹ️ Changing this member from admin to regular member will allow them to select a membership plan
+                            </Typography>
+                        )}
+                        
+                        <FormControl fullWidth required disabled={plans.length === 0 || isAdmin}>
+                            <InputLabel>Membership Plan</InputLabel>
+                            <Select value={membershipPlanId} onChange={(e) => setMembershipPlanId(e.target.value)}>
+                                {plans.length > 0 ? (
+                                    plans.map(plan => (
+                                        <MenuItem key={plan.id} value={plan.id}>
+                                            {plan.name} - {formatCurrency(plan.price, currency)}
+                                        </MenuItem>
+                                    ))
+                                ) : (
+                                    <MenuItem disabled>Please create a membership plan first</MenuItem>
+                                )}
+                            </Select>
+                            {isAdmin && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Admin users are exempt from membership plans
+                                </Typography>
+                                )}
+                        </FormControl>
+                        
                         <TextField label="Address" value={address} onChange={(e)=>setAddress(e.target.value)} multiline minRows={2} />
                         <TextField label="Birthday" type="date" value={birthday} onChange={(e)=>setBirthday(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField label="Joining Date" type="date" value={joinDate} onChange={(e)=>setJoinDate(e.target.value)} InputLabelProps={{ shrink: true }} required />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             {photoUrl ? (
                                 <img src={photoUrl} alt="member" style={{ height: 64, width: 64, borderRadius: 6, objectFit: 'cover', border: '1px solid #eee' }} />
                             ) : (
                                 <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
                             )}
-                            <Button variant="outlined" component="label">
-                                Upload Photo
-                                <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { setPhotoFile(f); try { setPhotoUrl(URL.createObjectURL(f)); } catch (_) {} } }} />
-                            </Button>
-                            {photoUrl && <Button color="error" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Button variant="outlined" component="label" size="small">
+                                    Upload Photo
+                                    <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; if (f) { const url = URL.createObjectURL(f); openCropDialog(url) } }} />
+                                </Button>
+                                <Button variant="outlined" size="small" onClick={openCamera} startIcon="📷">
+                                    Take Photo
+                                </Button>
+                                {photoUrl && <Button color="error" size="small" onClick={()=>{ setPhotoFile(null); setPhotoUrl(''); }}>Remove</Button>}
+                            </Box>
                         </Box>
-                        
+
+                        {calculatedDueDate && !isAdmin && (
+                            <TextField 
+                                label="Due Date" 
+                                value={calculatedDueDate} 
+                                InputProps={{ readOnly: true }}
+                                InputLabelProps={{ shrink: true }}
+                                helperText="Auto-calculated based on joining date and membership plan"
+                                sx={{ 
+                                    '& .MuiInputBase-input': { 
+                                        backgroundColor: '#f5f5f5',
+                                        color: '#666'
+                                    }
+                                }}
+                            />
+                        )}
+
                         <DialogActions sx={{ px: 0 }}>
-                            <Button onClick={() => setOpenEdit(false)}>Cancel</Button>
+                            <Button onClick={() => {
+                                setOpenEdit(false);
+                                setEditingMember(null);
+                                setName('');
+                                setPhone('');
+                                setAddress('');
+                                setBirthday('');
+                                setJoinDate(new Date().toISOString().split('T')[0]);
+                                setCalculatedDueDate('');
+                                setPhotoFile(null);
+                                setPhotoUrl('');
+                                setMembershipPlanId(plans.length > 0 ? plans[0].id : '');
+                                setIsAdmin(false);
+                            }}>Cancel</Button>
                             <Button type="submit" variant="contained">Save</Button>
                         </DialogActions>
                     </Box>
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={openInvoice} onClose={() => setOpenInvoice(false)} fullWidth maxWidth="sm">
+            <Dialog 
+                open={openInvoice} 
+                onClose={() => {
+                    setOpenInvoice(false);
+                }} 
+                fullWidth 
+                maxWidth="sm"
+                disableRestoreFocus
+                keepMounted={false}
+            >
                 <DialogTitle>Create Invoice for New Member</DialogTitle>
                 <DialogContent>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1rem', mt: 1 }}>
@@ -387,17 +1161,48 @@ const Member = () => {
                             </Select>
                         </FormControl>
                         <TextField label="Amount" type="number" value={invoiceAmount} onChange={(e)=>setInvoiceAmount(e.target.value)} />
-                        <TextField label="Due Date" type="date" value={invoiceDueDate} onChange={(e)=>setInvoiceDueDate(e.target.value)} InputLabelProps={{ shrink: true }} />
+                        <TextField 
+                            label="Due Date" 
+                            type="date" 
+                            value={invoiceDueDate} 
+                            onChange={(e)=>setInvoiceDueDate(e.target.value)} 
+                            InputLabelProps={{ shrink: true }}
+                        />
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setOpenInvoice(false)}>Skip</Button>
+                    <Button onClick={() => {
+                        setOpenInvoice(false);
+                    }}>Skip</Button>
                     <Button onClick={handleCreateInvoice} variant="contained">Create Invoice</Button>
                 </DialogActions>
             </Dialog>
             
             <Typography variant="h5" gutterBottom>Current Members</Typography>
-            {members.length === 0 ? (
+            
+            {/* Pagination Controls */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, paginationMeta.total)} of {paginationMeta.total} members
+                </Typography>
+                <FormControl size="small" sx={{ minWidth: 80 }}>
+                    <InputLabel>Per Page</InputLabel>
+                    <Select
+                        value={itemsPerPage}
+                        onChange={handleItemsPerPageChange}
+                        label="Per Page"
+                    >
+                        <MenuItem value={5}>5</MenuItem>
+                        <MenuItem value={10}>10</MenuItem>
+                        <MenuItem value={25}>25</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
+
+            {loading ? (
+                <ListShimmer count={8} />
+            ) : members.length === 0 ? (
                 <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
                     <GroupAddOutlinedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                     <Typography gutterBottom>No members found.</Typography>
@@ -405,76 +1210,415 @@ const Member = () => {
                 </Box>
             ) : (
                 <>
-                    {filteredMembers.length === 0 ? (
-                        <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
-                            <FilterAltOffOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                            <Typography>No members match the selected filter.</Typography>
-                        </Box>
-                    ) : (
-                        <List>
-                            {filteredMembers.map(member => {
-                                const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === new Date().toISOString().slice(5,10);
-                                const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
-                                const toggleActive = async () => {
-                                    try {
-                                        const newVal = String(member.is_active) === '0' ? 1 : 0;
-                                        await axios.put(`/api/members/${member.id}/status`, { is_active: newVal });
-                                        fetchMembers();
-                                    } catch (e) {
-                                        console.error('Failed to update status', e);
-                                    }
-                                };
-                                return (
-                                    <ListItem key={member.id} divider secondaryAction={
-                                        <Box sx={{ display: 'flex', gap: 1 }}>
-                                            {whatsappHref && (
-                                                <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
-                                                    Wish on WhatsApp
-                                                </Button>
-                                            )}
-                                            <Button size="small" color={String(member.is_active) === '0' ? 'success' : 'warning'} onClick={toggleActive}>
-                                                {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
+                    <List>
+                        {members.map(member => {
+                            const today = new Date();
+                            const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+                            const todayDay = String(today.getDate()).padStart(2, '0');
+                            const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === `${todayMonth}-${todayDay}`;
+                            const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
+                            const toggleActive = async () => {
+                                try {
+                                    const newVal = String(member.is_active) === '0' ? 1 : 0;
+                                    await axios.put(`/api/members/${member.id}/status`, { is_active: newVal });
+                                    fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
+                                } catch (e) {
+                                    console.error('Failed to update status', e);
+                                }
+                            };
+                            return (
+                                <ListItem 
+                                    key={member.id} 
+                                    divider 
+                                    sx={{
+                                        background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 
+                                                   member.has_overdue_payments === 1 ? 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)' : 'transparent',
+                                        border: member.is_admin === 1 ? '2px solid #ffd700' : 
+                                               member.has_overdue_payments === 1 ? '2px solid #f44336' : 'none',
+                                        borderRadius: (member.is_admin === 1 || member.has_overdue_payments === 1) ? 2 : 0,
+                                        mb: (member.is_admin === 1 || member.has_overdue_payments === 1) ? 1 : 0
+                                    }}
+                                    secondaryAction={
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        {whatsappHref && (
+                                            <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
+                                                Wish on WhatsApp
                                             </Button>
-                                            <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
-                                            <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric</Button>
-                                        </Box>
-                                    }>
-                                        <ListItemAvatar>
-                                            <Avatar 
-                                                src={member.photo_url || undefined}
-                                                sx={{ 
-                                                    width: 48, 
-                                                    height: 48,
-                                                    bgcolor: String(member.is_active) === '0' ? 'grey.400' : 'primary.main'
-                                                }}
-                                            >
-                                                {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
-                                            </Avatar>
-                                        </ListItemAvatar>
-                                        <ListItemText
-                                            primary={<span>{member.name} {isBirthdayToday ? '🎂' : ''} {String(member.is_active) === '0' ? '(Deactivated)' : ''}</span>}
-                                            secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
-                                        />
-                                    </ListItem>
-                                );
-                            })}
-                        </List>
+                                        )}
+                                        <Button size="small" color={String(member.is_active) === '0' ? 'success' : 'warning'} onClick={toggleActive}>
+                                            {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
+                                        </Button>
+                                        <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
+                                        <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric Data</Button>
+                                    </Box>
+                                }>
+                                    <ListItemAvatar>
+                                        <Avatar 
+                                            src={member.photo_url || undefined}
+                                            sx={{ 
+                                                width: 48, 
+                                                height: 48,
+                                                bgcolor: String(member.is_active) === '0' ? 'grey.400' : 'primary.main'
+                                            }}
+                                        >
+                                            {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
+                                        </Avatar>
+                                    </ListItemAvatar>
+                                    <ListItemText
+                                        primary={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <span>{member.name}</span>
+                                                {member.is_admin === 1 && (
+                                                    <CrownIcon 
+                                                        sx={{ 
+                                                            color: '#ffd700', 
+                                                            fontSize: 20,
+                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                        }} 
+                                                    />
+                                                )}
+                                                {member.has_overdue_payments === 1 && (
+                                                    <CreditCardIcon 
+                                                        sx={{ 
+                                                            color: '#f44336', 
+                                                            fontSize: 20,
+                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                        }} 
+                                                    />
+                                                )}
+                                                {isBirthdayToday && '🎂'}
+                                                {String(member.is_active) === '0' && '(Deactivated)'}
+                                            </Box>
+                                        }
+                                        secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
+                                    />
+                                </ListItem>
+                            );
+                        })}
+                    </List>
+                    
+                    {/* Pagination */}
+                    {paginationMeta.totalPages > 1 && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                            <Pagination
+                                count={paginationMeta.totalPages}
+                                page={currentPage}
+                                onChange={handlePageChange}
+                                color="primary"
+                                showFirstButton
+                                showLastButton
+                            />
+                        </Box>
                     )}
                 </>
             )}
 
             <Dialog open={openBiometric} onClose={() => setOpenBiometric(false)} fullWidth maxWidth="sm">
-                <DialogTitle>Link Biometric to Member</DialogTitle>
+                <DialogTitle>
+                    Biometric data for {editingMember?.name || 'Member'}
+                </DialogTitle>
                 <DialogContent>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-                        <TextField label="Device User ID (Secureye)" value={bioDeviceUserId} onChange={(e)=>setBioDeviceUserId(e.target.value)} helperText="User ID configured on device (if already enrolled)" />
-                        <TextField label="Sensor Member ID" value={bioSensorMemberId} onChange={(e)=>setBioSensorMemberId(e.target.value)} helperText="Member ID sent by the biometric sensor (if different from device user ID)" />
-                        <TextField label="Template (Base64)" value={bioTemplate} onChange={(e)=>setBioTemplate(e.target.value)} multiline minRows={3} placeholder="Paste template string if captured via SDK" />
+                    {biometricLoading && (
+                        <Box sx={{ textAlign: 'center', py: 2 }}>
+                            <FormShimmer />
+                        </Box>
+                    )}
+                    
+                    {biometricError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            {biometricError}
+                        </Alert>
+                    )}
+                    
+                    {biometricSuccess && (
+                        <Alert severity="success" sx={{ mb: 2 }}>
+                            {biometricSuccess}
+                        </Alert>
+                    )}
+                    
+                    {!biometricLoading && memberBiometricStatus && (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
+                            {/* Biometric Status Display */}
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Enrollment Status
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    {memberBiometricStatus.hasFingerprint ? (
+                                        <Chip 
+                                            icon={<FingerprintIcon />} 
+                                            label="Enrolled" 
+                                            color="success" 
+                                            variant="outlined"
+                                        />
+                                    ) : (
+                                        <Chip 
+                                            icon={<FingerprintIcon />} 
+                                            label="Not Enrolled" 
+                                            color="default" 
+                                            variant="outlined"
+                                        />
+                                    )}
+                                </Box>
+                            </Box>
+                            
+                            {/* Biometric Member ID Field */}
+                            <Box>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    Biometric Member ID
+                                </Typography>
+                                <TextField
+                                    fullWidth
+                                    value={memberBiometricStatus.biometricId || 'Not assigned'}
+                                    InputProps={{
+                                        readOnly: true,
+                                        sx: { 
+                                            backgroundColor: memberBiometricStatus.biometricId ? '#f5f5f5' : '#fff3cd',
+                                            '& .MuiInputBase-input': { 
+                                                color: memberBiometricStatus.biometricId ? 'text.primary' : 'text.secondary'
+                                            }
+                                        }
+                                    }}
+                                    helperText={
+                                        memberBiometricStatus.biometricId 
+                                            ? "This ID is automatically assigned when the member is biometrically enrolled"
+                                            : "This field will show the biometric member ID once enrollment is completed"
+                                    }
+                                />
+                            </Box>
+                            
+                            {/* Action Buttons */}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                {memberBiometricStatus.hasFingerprint ? (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                        <Button
+                                            fullWidth
+                                            variant="outlined"
+                                            color="error"
+                                            onClick={deleteEnrollment}
+                                            disabled={biometricLoading}
+                                            startIcon={<DeleteIcon />}
+                                            sx={{ py: 1.5 }}
+                                        >
+                                            Delete Enrollment
+                                        </Button>
+                                        <Button
+                                            fullWidth
+                                            variant="contained"
+                                            onClick={reEnroll}
+                                            disabled={biometricLoading}
+                                            startIcon={<RefreshIcon />}
+                                            sx={{ py: 1.5 }}
+                                        >
+                                            Re-enroll Now
+                                        </Button>
+                                    </Box>
+                                ) : (
+                                    <Button
+                                        fullWidth
+                                        variant="contained"
+                                        onClick={startEnrollment}
+                                        disabled={biometricLoading}
+                                        startIcon={<FingerprintIcon />}
+                                        sx={{ py: 1.5 }}
+                                    >
+                                        Enroll Fingerprints
+                                    </Button>
+                                )}
+                            </Box>
+                        </Box>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenBiometric(false)}>Close</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Camera Dialog */}
+            <Dialog 
+                open={cameraOpen} 
+                onClose={closeCamera} 
+                fullWidth 
+                maxWidth="md"
+                disableRestoreFocus
+                keepMounted={false}
+            >
+                <DialogTitle>Take Member Photo</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 1 }}>
+                        {cameraLoading ? (
+                            <Box sx={{ 
+                                width: '100%', 
+                                maxWidth: '400px', 
+                                height: '300px',
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                borderRadius: '8px',
+                                border: '2px solid #ddd',
+                                backgroundColor: '#f5f5f5'
+                            }}>
+                                <FormShimmer />
+                            </Box>
+                        ) : stream && !cameraError ? (
+                            <Box sx={{ 
+                                width: '100%', 
+                                maxWidth: '400px', 
+                                height: '300px',
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                borderRadius: '8px',
+                                border: '2px solid #ddd',
+                                backgroundColor: '#f5f5f5',
+                                flexDirection: 'column',
+                                gap: 1
+                            }}>
+                                <Typography color="error">{cameraError}</Typography>
+                                <Button variant="outlined" onClick={openCamera}>Retry</Button>
+                            </Box>
+                        ) : capturedImage ? (
+                            <>
+                                <video
+                                    ref={setVideoRef}
+                                    autoPlay
+                                    playsInline
+                                    muted
+                                    onLoadStart={() => {
+                                        console.log('Video load started');
+                                    }}
+                                    onLoadedMetadata={() => {
+                                        if (videoRef.current) {
+                                            // Don't call play() here - let the useEffect handle it
+                                        }
+                                    }}
+                                    onCanPlay={() => {
+                                        setVideoReady(true);
+                                    }}
+                                    onCanPlayThrough={() => {
+                                        console.log('Video can play through');
+                                    }}
+                                    onError={(e) => {
+                                        console.error('Video error:', e);
+                                        setCameraError('Video playback error');
+                                        setVideoReady(false);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        maxWidth: '400px',
+                                        borderRadius: '8px',
+                                        border: videoReady ? '2px solid #4caf50' : '2px solid #ddd',
+                                        backgroundColor: '#f5f5f5',
+                                        transform: 'scaleX(-1)' // Mirror the video horizontally
+                                    }}
+                                />
+                                {videoReady && (
+                                    <Typography variant="body2" color="success.main" sx={{ textAlign: 'center' }}>
+                                        ✅ Camera ready for capture
+                                    </Typography>
+                                )}
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                    <Button 
+                                        variant="contained" 
+                                        onClick={capturePhoto} 
+                                        startIcon="📸"
+                                        disabled={!videoReady}
+                                    >
+                                        {videoReady ? 'Capture Photo' : 'Camera Loading...'}
+                                    </Button>
+                                    <Button variant="outlined" onClick={closeCamera}>
+                                        Cancel
+                                    </Button>
+                                </Box>
+                            </>
+                        ) : (
+                            <>
+                                <img
+                                    src={capturedImage}
+                                    alt="Captured"
+                                    style={{
+                                        width: '100%',
+                                        maxWidth: '400px',
+                                        borderRadius: '8px',
+                                        border: '2px solid #ddd'
+                                    }}
+                                />
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                    <Button variant="contained" onClick={() => {
+                                        closeCamera();
+                                        if (editingMember) {
+                                            setOpenEdit(true);
+                                        } else {
+                                            setOpenAdd(true);
+                                        }
+                                    }}>
+                                        Use This Photo
+                                    </Button>
+                                    <Button variant="outlined" onClick={retakePhoto}>
+                                        Retake
+                                    </Button>
+                                    <Button variant="outlined" onClick={closeCamera}>
+                                        Cancel
+                                    </Button>
+                                </Box>
+                            </>
+                        )}
+                        <canvas ref={canvasRef} style={{ display: 'none' }} />
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
+            {/* Photo Crop Dialog */}
+            <Dialog 
+                open={cropOpen} 
+                onClose={cancelCrop} 
+                fullWidth 
+                maxWidth="md"
+                disableRestoreFocus
+                keepMounted={false}
+            >
+                <DialogTitle>Crop Photo</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 1 }}>
+                        {imageToCrop && (
+                            <ReactCrop
+                                crop={crop}
+                                onChange={(c) => setCrop(c)}
+                                onComplete={onCropComplete}
+                                aspect={1}
+                                circularCrop
+                            >
+                                <img
+                                    ref={cropImageRef}
+                                    src={imageToCrop}
+                                    alt="Crop preview"
+                                    style={{
+                                        maxWidth: '100%',
+                                        maxHeight: '400px',
+                                        borderRadius: '8px'
+                                    }}
+                                />
+                            </ReactCrop>
+                        )}
+                        
+                        {croppedImageUrl && (
+                            <Box sx={{ mt: 2, textAlign: 'center' }}>
+                                <Typography variant="body2" color="success.main">
+                                    ✅ Cropped preview ready
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={()=>setOpenBiometric(false)}>Cancel</Button>
-                    <Button variant="contained" onClick={saveBiometric}>Save</Button>
+                    <Button onClick={cancelCrop}>Cancel</Button>
+                    <Button 
+                        onClick={applyCrop} 
+                        variant="contained" 
+                        disabled={!croppedImageUrl}
+                    >
+                        Apply Crop
+                    </Button>
                 </DialogActions>
             </Dialog>
         </div>

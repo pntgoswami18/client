@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Box, Button, CircularProgress, Divider, Typography, useTheme, IconButton } from '@mui/material';
+import { Box, Button, Divider, Typography, useTheme, IconButton } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { formatCurrency, formatDate } from '../utils/formatting';
+import { FormShimmer } from './ShimmerLoader';
 
 const numberToWords = (amount) => {
   try {
@@ -115,7 +116,7 @@ const InvoiceView = () => {
     }
   };
 
-  if (loading) { return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>; }
+  if (loading) { return <FormShimmer />; }
   if (error) { return <Typography color="error" sx={{ mt: 4 }}>{error}</Typography>; }
   if (!data) { return null; }
 

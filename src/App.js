@@ -5,15 +5,16 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import ClassIcon from '@mui/icons-material/Class';
-import ScheduleIcon from '@mui/icons-material/Schedule';
+
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PaidIcon from '@mui/icons-material/Paid';
 import { Settings as SettingsIcon } from '@mui/icons-material';
+
+
 import axios from 'axios';
 import Member from './components/Member';
 import ClassManager from './components/ClassManager';
-import ScheduleManager from './components/ScheduleManager';
 import AttendanceTracker from './components/AttendanceTracker';
 import Financials from './components/Financials';
 import InvoiceView from './components/InvoiceView';
@@ -121,7 +122,6 @@ function App() {
       { label: 'Dashboard', to: '/', icon: <DashboardIcon /> },
       { label: 'Members', to: '/members', icon: <PeopleIcon /> },
       { label: 'Classes', to: '/classes', icon: <ClassIcon /> },
-      { label: 'Schedules', to: '/schedules', icon: <ScheduleIcon /> },
       { label: 'Attendance', to: '/attendance', icon: <CheckCircleIcon /> },
       { label: 'Biometric', to: '/biometric', icon: <FingerprintIcon /> },
       { label: 'Financials', to: '/financials', icon: <PaidIcon /> },
@@ -216,13 +216,12 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/members" element={<Member />} />
-                <Route path="/classes" element={<ClassManager />} />
-                <Route path="/schedules" element={<ScheduleManager />} />
+                <Route path="/classes/*" element={<ClassManager />} />
                 <Route path="/attendance" element={<AttendanceTracker />} />
                 <Route path="/biometric" element={<BiometricEnrollment />} />
                 <Route path="/financials" element={<Financials />} />
                 <Route path="/invoices/:id" element={<InvoiceView />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings/*" element={<Settings />} />
               </Routes>
             </Container>
           </Box>
