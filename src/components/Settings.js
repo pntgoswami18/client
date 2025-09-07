@@ -67,11 +67,11 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [morningEnd, setMorningEnd] = useState('11:00');
     const [eveningStart, setEveningStart] = useState('16:00');
     const [eveningEnd, setEveningEnd] = useState('22:00');
-    const [showTotalMembers, setShowTotalMembers] = useState(true);
-    const [showTotalRevenue, setShowTotalRevenue] = useState(true);
-    const [showNewMembersThisMonth, setShowNewMembersThisMonth] = useState(true);
-    const [showUnpaidMembersThisMonth, setShowUnpaidMembersThisMonth] = useState(true);
-    const [showActiveSchedules, setShowActiveSchedules] = useState(true);
+    const [showTotalMembers, setShowTotalMembers] = useState(false);
+    const [showTotalRevenue, setShowTotalRevenue] = useState(false);
+    const [showNewMembersThisMonth, setShowNewMembersThisMonth] = useState(false);
+    const [showUnpaidMembersThisMonth, setShowUnpaidMembersThisMonth] = useState(false);
+    const [showActiveSchedules, setShowActiveSchedules] = useState(false);
     const [askUnlockReason, setAskUnlockReason] = useState(true);
     const [referralSystemEnabled, setReferralSystemEnabled] = useState(false);
     const [referralDiscountAmount, setReferralDiscountAmount] = useState('100');
