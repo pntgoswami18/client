@@ -105,11 +105,11 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (morning_session_end) { setMorningEnd(morning_session_end); }
             if (evening_session_start) { setEveningStart(evening_session_start); }
             if (evening_session_end) { setEveningEnd(evening_session_end); }
-            if (show_card_total_members !== undefined) { setShowTotalMembers(show_card_total_members); }
-            if (show_card_total_revenue !== undefined) { setShowTotalRevenue(show_card_total_revenue); }
-            if (show_card_new_members_this_month !== undefined) { setShowNewMembersThisMonth(show_card_new_members_this_month); }
-            if (show_card_unpaid_members_this_month !== undefined) { setShowUnpaidMembersThisMonth(show_card_unpaid_members_this_month); }
-            if (show_card_active_schedules !== undefined) { setShowActiveSchedules(show_card_active_schedules); }
+            setShowTotalMembers(Boolean(show_card_total_members));
+            setShowTotalRevenue(Boolean(show_card_total_revenue));
+            setShowNewMembersThisMonth(Boolean(show_card_new_members_this_month));
+            setShowUnpaidMembersThisMonth(Boolean(show_card_unpaid_members_this_month));
+            setShowActiveSchedules(Boolean(show_card_active_schedules));
             if (ask_unlock_reason !== undefined) { setAskUnlockReason(ask_unlock_reason); }
             if (referral_system_enabled !== undefined) { setReferralSystemEnabled(referral_system_enabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
@@ -135,11 +135,11 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 morningEnd: morning_session_end || '11:00',
                 eveningStart: evening_session_start || '16:00',
                 eveningEnd: evening_session_end || '22:00',
-                showTotalMembers: show_card_total_members,
-                showTotalRevenue: show_card_total_revenue,
-                showNewMembersThisMonth: show_card_new_members_this_month,
-                showUnpaidMembersThisMonth: show_card_unpaid_members_this_month,
-                showActiveSchedules: show_card_active_schedules,
+                showTotalMembers: Boolean(show_card_total_members),
+                showTotalRevenue: Boolean(show_card_total_revenue),
+                showNewMembersThisMonth: Boolean(show_card_new_members_this_month),
+                showUnpaidMembersThisMonth: Boolean(show_card_unpaid_members_this_month),
+                showActiveSchedules: Boolean(show_card_active_schedules),
                 askUnlockReason: ask_unlock_reason,
                 referralSystemEnabled: referral_system_enabled,
                 referralDiscountAmount: String(referral_discount_amount || '100'),
