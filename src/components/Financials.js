@@ -30,7 +30,7 @@ import {
     Pagination
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
-import { TableShimmer, CardShimmer } from './ShimmerLoader';
+import { TableShimmer } from './ShimmerLoader';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HistoryToggleOffOutlinedIcon from '@mui/icons-material/HistoryToggleOffOutlined';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
