@@ -30,6 +30,7 @@ import {
     Pagination
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
+import { TableShimmer, CardShimmer } from './ShimmerLoader';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import HistoryToggleOffOutlinedIcon from '@mui/icons-material/HistoryToggleOffOutlined';
 import PersonSearchOutlinedIcon from '@mui/icons-material/PersonSearchOutlined';
@@ -539,7 +540,6 @@ const Financials = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">
                         Outstanding Invoices
-                        {loadingStates.outstanding && <span style={{ marginLeft: '8px', fontSize: '14px' }}>⏳ Loading...</span>}
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Typography variant="body2" color="text.secondary">
@@ -560,7 +560,9 @@ const Financials = () => {
                         </FormControl>
                     </Box>
                 </Box>
-                {financialSummary.outstandingInvoices.length > 0 ? (
+                {loadingStates.outstanding ? (
+                    <TableShimmer rows={5} columns={5} />
+                ) : financialSummary.outstandingInvoices.length > 0 ? (
                     <>
                         <TableContainer component={Paper}>
                             <Table>
@@ -642,13 +644,14 @@ const Financials = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">
                         Recent Payment History
-                        {loadingStates.payments && <span style={{ marginLeft: '8px', fontSize: '14px' }}>⏳ Loading...</span>}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Showing {((paymentsPage - 1) * itemsPerPage) + 1} to {Math.min(paymentsPage * itemsPerPage, paginationMeta.payments.total)} of {paginationMeta.payments.total} payments
                     </Typography>
                 </Box>
-                {financialSummary.paymentHistory.length > 0 ? (
+                {loadingStates.payments ? (
+                    <TableShimmer rows={5} columns={4} />
+                ) : financialSummary.paymentHistory.length > 0 ? (
                     <>
                         <TableContainer component={Paper}>
                             <Table>
@@ -736,13 +739,14 @@ const Financials = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">
                         Member Payment Status
-                        {loadingStates.members && <span style={{ marginLeft: '8px', fontSize: '14px' }}>⏳ Loading...</span>}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Showing {((membersPage - 1) * itemsPerPage) + 1} to {Math.min(membersPage * itemsPerPage, paginationMeta.members.total)} of {paginationMeta.members.total} members
                     </Typography>
                 </Box>
-                {financialSummary.memberPaymentStatus.length > 0 ? (
+                {loadingStates.members ? (
+                    <TableShimmer rows={5} columns={4} />
+                ) : financialSummary.memberPaymentStatus.length > 0 ? (
                     <>
                         <TableContainer component={Paper}>
                             <Table>

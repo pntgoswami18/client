@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { List as VirtualList } from 'react-window';
+import { ListShimmer, FormShimmer } from './ShimmerLoader';
 import {
   Box,
   Typography,
@@ -1337,7 +1338,7 @@ const BiometricEnrollment = () => {
         )}
         
         {members === undefined || members === null ? (
-          <Typography>Loading member data...</Typography>
+          <ListShimmer count={5} />
         ) : members.length === 0 ? (
           memberSearchTerm ? (
             <Alert severity="info">
@@ -1628,7 +1629,7 @@ const BiometricEnrollment = () => {
                     ))}
                   </Box>
                 ) : (
-                  <Typography>Loading member data...</Typography>
+                  <ListShimmer count={5} />
                 )}
                 
                 {/* Members With Biometric Enrollment Pagination */}
@@ -1773,7 +1774,7 @@ const BiometricEnrollment = () => {
             
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                <LinearProgress sx={{ width: '100%' }} />
+                <FormShimmer />
               </Box>
             ) : biometricEvents.length === 0 ? (
               <Typography>No biometric events recorded yet.</Typography>

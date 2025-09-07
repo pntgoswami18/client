@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { TableShimmer } from './ShimmerLoader';
 import {
     Typography,
     FormControl,
@@ -264,9 +265,7 @@ const AttendanceTracker = () => {
                     )}
                     
                     {loading ? (
-                        <Box sx={{ p: 3, textAlign: 'center' }}>
-                            <Typography>Loading attendance records...</Typography>
-                        </Box>
+                        <TableShimmer rows={8} columns={5} />
                     ) : attendanceRecords.length > 0 ? (
                         <>
                             <TableContainer component={Paper}>

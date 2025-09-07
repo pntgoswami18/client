@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { CardShimmer, FormShimmer } from './ShimmerLoader';
 import {
   Box,
   Typography,
@@ -909,9 +910,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
 
       {/* Content */}
       {loading && devices.length === 0 ? (
-        <Box display="flex" justifyContent="center" p={4}>
-          <CircularProgress />
-        </Box>
+        <CardShimmer count={3} />
       ) : (
         <>
           {activeTab === 0 && (
@@ -1327,7 +1326,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
         <DialogContent>
           {configLoading && (
             <Box display="flex" justifyContent="center" my={2}>
-              <CircularProgress />
+              <FormShimmer />
             </Box>
           )}
           

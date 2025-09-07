@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { DashboardShimmer } from './ShimmerLoader';
 import { 
     Dialog, 
     DialogTitle, 
@@ -374,7 +375,7 @@ const Dashboard = () => {
     };
 
     if (loading) {
-        return <div><h2>Dashboard</h2><p>Loading analytics...</p></div>;
+        return <DashboardShimmer />;
     }
     
     const displayValue = (value, isCurrency = false) => {

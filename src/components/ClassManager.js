@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { FormShimmer } from './ShimmerLoader';
 import {
     TextField,
     Button,
@@ -139,7 +140,7 @@ const ClassesManagement = () => {
                             <InputLabel>Instructor</InputLabel>
                             <Select value={instructor} onChange={e => setInstructor(e.target.value)} label="Instructor" disabled={loadingAdminMembers}>
                                 {loadingAdminMembers ? (
-                                    <MenuItem disabled>Loading admin members...</MenuItem>
+                                    <MenuItem disabled><FormShimmer /></MenuItem>
                                 ) : adminMembers.length > 0 ? (
                                     adminMembers.map(member => (
                                         <MenuItem key={member.id} value={member.name}>
@@ -173,7 +174,7 @@ const ClassesManagement = () => {
                             <InputLabel>Instructor</InputLabel>
                             <Select value={instructor} onChange={e => setInstructor(e.target.value)} label="Instructor" disabled={loadingAdminMembers}>
                                 {loadingAdminMembers ? (
-                                    <MenuItem disabled>Loading admin members...</MenuItem>
+                                    <MenuItem disabled><FormShimmer /></MenuItem>
                                 ) : adminMembers.length > 0 ? (
                                     adminMembers.map(member => (
                                         <MenuItem key={member.id} value={member.name}>

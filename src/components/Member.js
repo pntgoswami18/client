@@ -39,6 +39,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
+import { ListShimmer, FormShimmer } from './ShimmerLoader';
 
 const Member = () => {
     const [members, setMembers] = useState([]);
@@ -1200,9 +1201,7 @@ const Member = () => {
             </Box>
 
             {loading ? (
-                <Box sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography>Loading members...</Typography>
-                </Box>
+                <ListShimmer count={8} />
             ) : members.length === 0 ? (
                 <Box sx={{ p: 3, border: '1px dashed #ccc', borderRadius: 2, textAlign: 'center', background: '#fafafa' }}>
                     <GroupAddOutlinedIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
@@ -1321,7 +1320,7 @@ const Member = () => {
                 <DialogContent>
                     {biometricLoading && (
                         <Box sx={{ textAlign: 'center', py: 2 }}>
-                            <Typography>Loading biometric status...</Typography>
+                            <FormShimmer />
                         </Box>
                     )}
                     
@@ -1459,7 +1458,7 @@ const Member = () => {
                                 border: '2px solid #ddd',
                                 backgroundColor: '#f5f5f5'
                             }}>
-                                <Typography>Loading camera...</Typography>
+                                <FormShimmer />
                             </Box>
                         ) : stream && !cameraError ? (
                             <Box sx={{ 

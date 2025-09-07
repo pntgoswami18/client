@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { DashboardShimmer } from './ShimmerLoader';
 import {
   Box,
   Typography,
@@ -286,11 +287,7 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
   };
 
   if (loading && !analytics) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
+    return <DashboardShimmer />;
   }
 
   return (
