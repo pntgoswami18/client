@@ -31,12 +31,13 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [hoveredCard, setHoveredCard] = useState(-1);
     const [cardPrefs, setCardPrefs] = useState({
-        show_total_members: true,
-        show_total_revenue: true,
-        show_new_members_this_month: true,
-        show_unpaid_members_this_month: true,
-        show_active_schedules: true,
+        show_total_members: false,
+        show_total_revenue: false,
+        show_new_members_this_month: false,
+        show_unpaid_members_this_month: false,
+        show_active_schedules: false,
     });
+    const [cardPrefsLoaded, setCardPrefsLoaded] = useState(false);
     const [cardOrder, setCardOrder] = useState([
         'total_members',
         'total_revenue', 
@@ -215,8 +216,18 @@ const Dashboard = () => {
                     'active_schedules'
                 ]);
             }
+            // Mark card preferences as loaded
+            setCardPrefsLoaded(true);
         } catch (e) { 
             console.error('Error fetching card preferences:', e);
+            // Set default preferences on error
+            setCardPrefs({
+                show_total_members: true,
+                show_total_revenue: true,
+                show_new_members_this_month: true,
+                show_unpaid_members_this_month: true,
+                show_active_schedules: true,
+            });
             // Set default order on error
             setCardOrder([
                 'total_members',
@@ -225,6 +236,9 @@ const Dashboard = () => {
                 'unpaid_members_this_month',
                 'active_schedules'
             ]);
+        } finally {
+            // Mark card preferences as loaded
+            setCardPrefsLoaded(true);
         }
     };
 
@@ -287,6 +301,11 @@ const Dashboard = () => {
 
     // Function to render cards in the specified order
     const renderCardsInOrder = () => {
+        // Don't render cards until preferences are loaded
+        if (!cardPrefsLoaded) {
+            return null;
+        }
+        
         const cardConfigs = {
             total_members: {
                 key: 'total_members',
@@ -374,7 +393,7 @@ const Dashboard = () => {
             });
     };
 
-    if (loading) {
+    if (loading || !cardPrefsLoaded) {
         return <DashboardShimmer />;
     }
     
