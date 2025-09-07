@@ -179,7 +179,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
 
     useEffect(() => {
         fetchSettings();
-    }, []);
+    }, [fetchSettings]);
 
     const handleSaveAllSettings = async () => {
         try {
