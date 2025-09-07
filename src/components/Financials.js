@@ -3,6 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
+
+// Debounce utility function
+const debounce = (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+};
 import {
     Typography,
     TextField,
@@ -95,6 +108,16 @@ const Financials = () => {
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
 
+    // Loading states
+    const [isLoading, setIsLoading] = useState(false);
+    const [loadingStates, setLoadingStates] = useState({
+        outstanding: false,
+        payments: false,
+        members: false,
+        plans: false,
+        currency: false
+    });
+
     // Calculate date range based on filter selection
     const getDateRange = useCallback(() => {
         const today = new Date();
@@ -139,6 +162,23 @@ const Financials = () => {
 
     const fetchFinancialSummary = useCallback(async (table = 'all', page = 1, limit = itemsPerPage) => {
         try {
+            setIsLoading(true);
+            
+            // Set specific loading states based on table type
+            if (table === 'all') {
+                setLoadingStates(prev => ({
+                    ...prev,
+                    outstanding: true,
+                    payments: true,
+                    members: true
+                }));
+            } else {
+                setLoadingStates(prev => ({
+                    ...prev,
+                    [table]: true
+                }));
+            }
+
             const { startDate, endDate } = getDateRange();
             const params = new URLSearchParams({
                 startDate,
@@ -182,8 +222,32 @@ const Financials = () => {
             }));
         } catch (error) {
             console.error("Error fetching financial summary", error);
+        } finally {
+            setIsLoading(false);
+            // Clear specific loading states
+            if (table === 'all') {
+                setLoadingStates(prev => ({
+                    ...prev,
+                    outstanding: false,
+                    payments: false,
+                    members: false
+                }));
+            } else {
+                setLoadingStates(prev => ({
+                    ...prev,
+                    [table]: false
+                }));
+            }
         }
     }, [getDateRange, itemsPerPage]);
+
+    // Debounced version of fetchFinancialSummary to prevent excessive API calls
+    const debouncedFetchFinancialSummary = useCallback(
+        debounce(async (table, page, limit) => {
+            await fetchFinancialSummary(table, page, limit);
+        }, 300),
+        [fetchFinancialSummary]
+    );
 
     // Filter out admin users for invoice creation
     const nonAdminMembers = useMemo(() => {
@@ -201,17 +265,17 @@ const Financials = () => {
     // Pagination handlers
     const handleOutstandingPageChange = (event, page) => {
         setOutstandingPage(page);
-        fetchFinancialSummary('outstanding', page, itemsPerPage);
+        debouncedFetchFinancialSummary('outstanding', page, itemsPerPage);
     };
 
     const handlePaymentsPageChange = (event, page) => {
         setPaymentsPage(page);
-        fetchFinancialSummary('payments', page, itemsPerPage);
+        debouncedFetchFinancialSummary('payments', page, itemsPerPage);
     };
 
     const handleMembersPageChange = (event, page) => {
         setMembersPage(page);
-        fetchFinancialSummary('members', page, itemsPerPage);
+        debouncedFetchFinancialSummary('members', page, itemsPerPage);
     };
 
     const handleItemsPerPageChange = (event) => {
@@ -220,7 +284,7 @@ const Financials = () => {
         setOutstandingPage(1);
         setPaymentsPage(1);
         setMembersPage(1);
-        fetchFinancialSummary('all', 1, newItemsPerPage);
+        debouncedFetchFinancialSummary('all', 1, newItemsPerPage);
     };
 
     useEffect(() => {
@@ -305,15 +369,19 @@ const Financials = () => {
 
     const fetchCurrency = async () => {
         try {
+            setLoadingStates(prev => ({ ...prev, currency: true }));
             const response = await axios.get('/api/settings');
             setCurrency(response.data.currency);
         } catch (error) {
             console.error("Error fetching currency setting", error);
+        } finally {
+            setLoadingStates(prev => ({ ...prev, currency: false }));
         }
     };
 
     const fetchPlans = async () => {
         try {
+            setLoadingStates(prev => ({ ...prev, plans: true }));
             const response = await axios.get('/api/plans');
             const plansData = Array.isArray(response.data) ? response.data : [];
             // Filter out any null/undefined plans
@@ -322,6 +390,8 @@ const Financials = () => {
         } catch (error) {
             console.error("Error fetching plans", error);
             setPlans([]); // Set empty array as fallback
+        } finally {
+            setLoadingStates(prev => ({ ...prev, plans: false }));
         }
     };
 
@@ -473,7 +543,10 @@ const Financials = () => {
             {/* Outstanding Invoices */}
             <Box ref={outstandingRef} sx={{ marginBottom: '2rem' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">Outstanding Invoices</Typography>
+                    <Typography variant="h6">
+                        Outstanding Invoices
+                        {loadingStates.outstanding && <span style={{ marginLeft: '8px', fontSize: '14px' }}>⏳ Loading...</span>}
+                    </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Typography variant="body2" color="text.secondary">
                             Showing {((outstandingPage - 1) * itemsPerPage) + 1} to {Math.min(outstandingPage * itemsPerPage, paginationMeta.outstanding.total)} of {paginationMeta.outstanding.total} invoices
@@ -573,7 +646,10 @@ const Financials = () => {
             {/* Payment History */}
             <Box sx={{ marginBottom: '2rem' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">Recent Payment History</Typography>
+                    <Typography variant="h6">
+                        Recent Payment History
+                        {loadingStates.payments && <span style={{ marginLeft: '8px', fontSize: '14px' }}>⏳ Loading...</span>}
+                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Showing {((paymentsPage - 1) * itemsPerPage) + 1} to {Math.min(paymentsPage * itemsPerPage, paginationMeta.payments.total)} of {paginationMeta.payments.total} payments
                     </Typography>
@@ -664,7 +740,10 @@ const Financials = () => {
             {/* Member Payment Status */}
             <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">Member Payment Status</Typography>
+                    <Typography variant="h6">
+                        Member Payment Status
+                        {loadingStates.members && <span style={{ marginLeft: '8px', fontSize: '14px' }}>⏳ Loading...</span>}
+                    </Typography>
                     <Typography variant="body2" color="text.secondary">
                         Showing {((membersPage - 1) * itemsPerPage) + 1} to {Math.min(membersPage * itemsPerPage, paginationMeta.members.total)} of {paginationMeta.members.total} members
                     </Typography>
