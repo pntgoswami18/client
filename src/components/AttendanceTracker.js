@@ -54,7 +54,9 @@ const AttendanceTracker = () => {
     const fetchMembers = async () => {
         try {
             const response = await axios.get('/api/members');
-            setMembers(Array.isArray(response.data) ? response.data : []);
+            // The API returns { members: [...], pagination: {...} }
+            const membersData = response.data.members || response.data;
+            setMembers(Array.isArray(membersData) ? membersData : []);
         } catch (error) {
             console.error("Error fetching members", error);
         }
