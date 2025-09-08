@@ -14,10 +14,6 @@ import {
     FormControl,
     InputLabel,
     Box,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemAvatar,
     Avatar,
     Typography,
     Dialog,
@@ -29,7 +25,19 @@ import {
     Checkbox,
     Chip,
     Pagination,
-    CircularProgress
+    CircularProgress,
+    Card,
+    CardContent,
+    CardHeader,
+    Grid,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    IconButton
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
@@ -40,8 +48,17 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
+import PhoneIcon from '@mui/icons-material/Phone';
+import CakeIcon from '@mui/icons-material/Cake';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CardMembershipIcon from '@mui/icons-material/CardMembership';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
+import ToggleOffIcon from '@mui/icons-material/ToggleOff';
+import ToggleOnIcon from '@mui/icons-material/ToggleOn';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
-import { FormShimmer } from './ShimmerLoader';
+import { FormShimmer, CameraShimmer } from './ShimmerLoader';
 
 const Member = () => {
     // Add CSS animation for pulsing effect
@@ -86,6 +103,10 @@ const Member = () => {
     const [openBiometric, setOpenBiometric] = useState(false);
     const [editingMember, setEditingMember] = useState(null);
     const [openInvoice, setOpenInvoice] = useState(false);
+    const [openMemberDetails, setOpenMemberDetails] = useState(false);
+    const [memberDetails, setMemberDetails] = useState(null);
+    const [memberDetailsLoading, setMemberDetailsLoading] = useState(false);
+    const [currentViewingMember, setCurrentViewingMember] = useState(null);
     const [invoicePlanId, setInvoicePlanId] = useState('');
     const [invoiceAmount, setInvoiceAmount] = useState('');
     const [invoiceDueDate, setInvoiceDueDate] = useState('');
@@ -111,7 +132,6 @@ const Member = () => {
     const [cameraLoading, setCameraLoading] = useState(false);
     const [cameraError, setCameraError] = useState('');
     const [videoReady, setVideoReady] = useState(false);
-    const [videoElementMounted, setVideoElementMounted] = useState(false);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -128,22 +148,6 @@ const Member = () => {
     const [croppedImageUrl, setCroppedImageUrl] = useState(null);
     const cropImageRef = useRef(null);
 
-    // Video ref callback to ensure stream is set when video element is mounted
-    const setVideoRef = (element) => {
-        videoRef.current = element;
-        
-        if (element) {
-            setVideoElementMounted(true);
-            
-            // If we already have a stream, set it immediately
-            if (stream) {
-                element.srcObject = stream;
-                // Don't call play() here - let the useEffect handle it
-            }
-        } else {
-            setVideoElementMounted(false);
-        }
-    };
     
     // New state for biometric data
     const [memberBiometricStatus, setMemberBiometricStatus] = useState(null);
@@ -564,6 +568,53 @@ const Member = () => {
         }
     };
 
+    const openMemberDetailsDialog = async (member) => {
+        try {
+            setMemberDetailsLoading(true);
+            setCurrentViewingMember(member);
+            const response = await axios.get(`/api/members/${member.id}/details`);
+            setMemberDetails(response.data);
+            setOpenMemberDetails(true);
+        } catch (error) {
+            console.error('Error fetching member details:', error);
+            alert('Failed to load member details');
+        } finally {
+            setMemberDetailsLoading(false);
+        }
+    };
+
+    const toggleMemberActiveStatus = async () => {
+        if (!currentViewingMember) {
+            return;
+        }
+        
+        try {
+            const newVal = String(currentViewingMember.is_active) === '0' ? 1 : 0;
+            await axios.put(`/api/members/${currentViewingMember.id}/status`, { is_active: newVal });
+            
+            // Update the current viewing member state
+            setCurrentViewingMember(prev => ({
+                ...prev,
+                is_active: newVal
+            }));
+            
+            // Update the member details
+            setMemberDetails(prev => ({
+                ...prev,
+                member: {
+                    ...prev.member,
+                    is_active: newVal
+                }
+            }));
+            
+            // Refresh the members list
+            fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
+        } catch (e) {
+            console.error('Failed to update status', e);
+            alert('Failed to update member status');
+        }
+    };
+
     // Helper functions for individual button loading states
     const setBiometricButtonLoadingState = (action, isLoading = true) => {
         setBiometricButtonLoading(prev => ({
@@ -851,7 +902,7 @@ const Member = () => {
 
     // Set video stream when camera opens and ensure it plays
     useEffect(() => {
-        if (cameraOpen && stream && videoElementMounted && videoRef.current) {
+        if (cameraOpen && stream && videoRef.current) {
             videoRef.current.srcObject = stream;
             
             // Ensure video plays with proper error handling
@@ -873,31 +924,8 @@ const Member = () => {
             
             playVideo();
         }
-    }, [cameraOpen, stream, videoElementMounted]);
+    }, [cameraOpen, stream]);
 
-    // Polling effect to ensure video element gets stream
-    useEffect(() => {
-        if (cameraOpen && stream && !videoElementMounted) {
-            const pollInterval = setInterval(() => {
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    // Don't call play() here - let the main useEffect handle it
-                    setVideoElementMounted(true);
-                    clearInterval(pollInterval);
-                }
-            }, 100);
-
-            // Clear interval after 5 seconds to prevent infinite polling
-            const timeout = setTimeout(() => {
-                clearInterval(pollInterval);
-            }, 5000);
-
-            return () => {
-                clearInterval(pollInterval);
-                clearTimeout(timeout);
-            };
-        }
-    }, [cameraOpen, stream, videoElementMounted]);
 
     // Handle loading state when video is ready
     useEffect(() => {
@@ -934,7 +962,6 @@ const Member = () => {
         setCameraLoading(false);
         setCameraError('');
         setVideoReady(false);
-        setVideoElementMounted(false);
         
         // Ensure focus is properly managed when closing
         setTimeout(() => {
@@ -1493,92 +1520,140 @@ const Member = () => {
                 </Box>
             ) : (
                 <>
-                    <List>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                         {members.map(member => {
                             const today = new Date();
                             const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
                             const todayDay = String(today.getDate()).padStart(2, '0');
                             const isBirthdayToday = Boolean(member.birthday) && member.birthday.slice(5,10) === `${todayMonth}-${todayDay}`;
                             const whatsappHref = member.phone ? `https://wa.me/${encodeURIComponent(member.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${member.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}` : null;
-                            const toggleActive = async () => {
-                                try {
-                                    const newVal = String(member.is_active) === '0' ? 1 : 0;
-                                    await axios.put(`/api/members/${member.id}/status`, { is_active: newVal });
-                                    fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
-                                } catch (e) {
-                                    console.error('Failed to update status', e);
-                                }
-                            };
                             return (
-                                <ListItem 
+                                <Card 
                                     key={member.id} 
-                                    divider 
-                                    sx={{
+                                    sx={{ 
+                                        mb: 2,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease-in-out',
                                         background: member.is_admin === 1 ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 
-                                                   member.has_overdue_payments === 1 ? 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)' : 'transparent',
+                                                   member.has_overdue_payments === 1 ? 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)' : 'background.paper',
                                         border: member.is_admin === 1 ? '2px solid #ffd700' : 
-                                               member.has_overdue_payments === 1 ? '2px solid #f44336' : 'none',
-                                        borderRadius: (member.is_admin === 1 || member.has_overdue_payments === 1) ? 2 : 0,
-                                        mb: (member.is_admin === 1 || member.has_overdue_payments === 1) ? 1 : 0
-                                    }}
-                                    secondaryAction={
-                                    <Box sx={{ display: 'flex', gap: 1 }}>
-                                        {whatsappHref && (
-                                            <Button size="small" href={whatsappHref} target="_blank" rel="noreferrer" startIcon={<WhatsAppIcon />}>
-                                                Wish on WhatsApp
-                                            </Button>
-                                        )}
-                                        <Button size="small" color={String(member.is_active) === '0' ? 'success' : 'warning'} onClick={toggleActive}>
-                                            {String(member.is_active) === '0' ? 'Activate' : 'Deactivate'}
-                                        </Button>
-                                        <Button size="small" onClick={() => openEditDialog(member)}>Edit</Button>
-                                        <Button size="small" onClick={() => openBiometricDialog(member)}>Biometric Data</Button>
-                                    </Box>
-                                }>
-                                    <ListItemAvatar>
-                                        <Avatar 
-                                            src={member.photo_url || undefined}
-                                            sx={{ 
-                                                width: 48, 
-                                                height: 48,
-                                                bgcolor: String(member.is_active) === '0' ? 'grey.400' : 'primary.main'
-                                            }}
-                                        >
-                                            {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
-                                        </Avatar>
-                                    </ListItemAvatar>
-                                    <ListItemText
-                                        primary={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <span>{member.name}</span>
-                                                {member.is_admin === 1 && (
-                                                    <CrownIcon 
-                                                        sx={{ 
-                                                            color: '#ffd700', 
-                                                            fontSize: 20,
-                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                                                        }} 
-                                                    />
-                                                )}
-                                                {member.has_overdue_payments === 1 && (
-                                                    <CreditCardIcon 
-                                                        sx={{ 
-                                                            color: '#f44336', 
-                                                            fontSize: 20,
-                                                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
-                                                        }} 
-                                                    />
-                                                )}
-                                                {isBirthdayToday && '🎂'}
-                                                {String(member.is_active) === '0' && '(Deactivated)'}
-                                            </Box>
+                                               member.has_overdue_payments === 1 ? '2px solid #f44336' : '1px solid',
+                                        borderColor: 'divider',
+                                        '&:hover': {
+                                            transform: 'translateY(-2px)',
+                                            boxShadow: 3,
+                                            backgroundColor: member.is_admin === 1 ? 'linear-gradient(135deg, #fff8e1 0%, #fffde7 100%)' : 
+                                                           member.has_overdue_payments === 1 ? 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)' : 'action.hover'
                                         }
-                                        secondary={<span>{member.phone || ''}{member.birthday ? ` • Birthday: ${member.birthday}` : ''}</span>}
-                                    />
-                                </ListItem>
+                                    }}
+                                    onClick={() => openMemberDetailsDialog(member)}
+                                >
+                                    <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                                <Avatar 
+                                                    src={member.photo_url || undefined}
+                                                    sx={{ 
+                                                        width: 48, 
+                                                        height: 48,
+                                                        mr: 2,
+                                                        bgcolor: String(member.is_active) === '0' ? 'grey.400' : 
+                                                               member.is_admin === 1 ? 'warning.main' : 'primary.main',
+                                                        border: '2px solid',
+                                                        borderColor: member.is_admin === 1 ? '#ffd700' : 
+                                                                   member.has_overdue_payments === 1 ? '#f44336' : 'transparent'
+                                                    }}
+                                                >
+                                                    {!member.photo_url && (member.name || '').slice(0, 2).toUpperCase()}
+                                                </Avatar>
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                            {member.name}
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                                            #{member.id}
+                                                        </Typography>
+                                                        {member.is_admin === 1 && (
+                                                            <CrownIcon 
+                                                                sx={{ 
+                                                                    color: '#ffd700', 
+                                                                    fontSize: 20,
+                                                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                                }} 
+                                                            />
+                                                        )}
+                                                        {member.has_overdue_payments === 1 && (
+                                                            <CreditCardIcon 
+                                                                sx={{ 
+                                                                    color: '#f44336', 
+                                                                    fontSize: 20,
+                                                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))'
+                                                                }} 
+                                                            />
+                                                        )}
+                                                        {isBirthdayToday && (
+                                                            <Chip 
+                                                                label="🎂 Birthday" 
+                                                                size="small" 
+                                                                color="secondary" 
+                                                                sx={{ fontSize: '0.75rem' }}
+                                                            />
+                                                        )}
+                                                        {String(member.is_active) === '0' && (
+                                                            <Chip 
+                                                                label="Deactivated" 
+                                                                size="small" 
+                                                                color="error" 
+                                                                variant="outlined"
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                    <Typography variant="body2" color="text.secondary">
+                                                        {member.phone || 'No phone'} • {member.birthday || 'No birthday'} • Joined: {formatDateToLocalString(new Date(member.join_date))}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+                                                {whatsappHref && (
+                                                    <Button 
+                                                        size="small" 
+                                                        variant="outlined"
+                                                        href={whatsappHref} 
+                                                        target="_blank" 
+                                                        rel="noreferrer" 
+                                                        startIcon={<WhatsAppIcon />}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        sx={{ 
+                                                            color: '#25D366',
+                                                            borderColor: '#25D366',
+                                                            '&:hover': {
+                                                                backgroundColor: '#25D366',
+                                                                color: 'white'
+                                                            }
+                                                        }}
+                                                    >
+                                                        Message
+                                                    </Button>
+                                                )}
+                                                <Button 
+                                                    size="small" 
+                                                    variant="outlined"
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        openBiometricDialog(member); 
+                                                    }}
+                                                    startIcon={<FingerprintIcon />}
+                                                >
+                                                    Biometric
+                                                </Button>
+                                            </Box>
+                                        </Box>
+                                    </CardContent>
+                                </Card>
                             );
                         })}
-                    </List>
+                    </Box>
                     
                     {/* Pagination */}
                     {paginationMeta.totalPages > 1 && (
@@ -1814,14 +1889,25 @@ const Member = () => {
                                 width: '100%', 
                                 maxWidth: '400px', 
                                 height: '300px',
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
                                 borderRadius: '8px',
                                 border: '2px solid #ddd',
-                                backgroundColor: '#f5f5f5'
+                                backgroundColor: '#f5f5f5',
+                                position: 'relative'
                             }}>
-                                <FormShimmer />
+                                <CameraShimmer />
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        position: 'absolute',
+                                        bottom: 8,
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        color: '#666',
+                                        fontSize: '0.875rem'
+                                    }}
+                                >
+                                    Initializing camera...
+                                </Typography>
                             </Box>
                         ) : stream && !cameraError ? (
                             <Box sx={{ 
@@ -1843,7 +1929,7 @@ const Member = () => {
                         ) : capturedImage ? (
                             <>
                                 <video
-                                    ref={setVideoRef}
+                                    ref={videoRef}
                                     autoPlay
                                     playsInline
                                     muted
@@ -1982,6 +2068,302 @@ const Member = () => {
                     >
                         Apply Crop
                     </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Member Details Modal */}
+            <Dialog 
+                open={openMemberDetails} 
+                onClose={() => {
+                    setOpenMemberDetails(false);
+                    setCurrentViewingMember(null);
+                }} 
+                fullWidth 
+                maxWidth="md"
+                disableRestoreFocus
+                keepMounted={false}
+            >
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="h6">
+                        {memberDetails?.member?.name || 'Member Details'}
+                    </Typography>
+                    <IconButton onClick={() => setOpenMemberDetails(false)} size="small">
+                        <CloseIcon />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                    {memberDetailsLoading ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : memberDetails ? (
+                        <Box sx={{ mt: 1 }}>
+                            <Grid container spacing={3}>
+                                {/* Member Photo and Basic Info */}
+                                <Grid item xs={12} sm={4} md={3}>
+                                    <Card sx={{ height: '100%' }}>
+                                        <CardContent sx={{ textAlign: 'center' }}>
+                                            <Avatar 
+                                                src={memberDetails.member.photo_url || undefined}
+                                                sx={{ 
+                                                    width: 120, 
+                                                    height: 120, 
+                                                    mx: 'auto', 
+                                                    mb: 2,
+                                                    bgcolor: memberDetails.member.is_admin === 1 ? 'warning.main' : 'primary.main'
+                                                }}
+                                            >
+                                                {!memberDetails.member.photo_url && (memberDetails.member.name || '').slice(0, 2).toUpperCase()}
+                                            </Avatar>
+                                            <Typography variant="h6" gutterBottom>
+                                                {memberDetails.member.name}
+                                                {memberDetails.member.is_admin === 1 && (
+                                                    <CrownIcon sx={{ ml: 1, color: '#ffd700', fontSize: 24 }} />
+                                                )}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                Member ID: {memberDetails.member.id}
+                                            </Typography>
+                                            {memberDetails.member.is_active === 0 && (
+                                                <Chip label="Deactivated" color="error" size="small" sx={{ mt: 1 }} />
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+
+                                {/* Member Information */}
+                                <Grid item xs={12} sm={8} md={9}>
+                                    <Card sx={{ height: '100%', width: '100%' }}>
+                                        <CardHeader title="Member Information" />
+                                        <CardContent sx={{ width: '100%', p: 3 }}>
+                                            <Grid container spacing={3} sx={{ width: '100%' }}>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
+                                                        <PhoneIcon sx={{ mr: 2, color: 'text.secondary', mt: 0.5, flexShrink: 0 }} />
+                                                        <Box sx={{ flex: 1 }}>
+                                                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                                Phone Number
+                                                            </Typography>
+                                                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                                                {memberDetails.member.phone || 'Not provided'}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
+                                                        <CakeIcon sx={{ mr: 2, color: 'text.secondary', mt: 0.5, flexShrink: 0 }} />
+                                                        <Box sx={{ flex: 1 }}>
+                                                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                                Birthday
+                                                            </Typography>
+                                                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                                                {memberDetails.member.birthday ? formatDateToLocalString(new Date(memberDetails.member.birthday)) : 'Not provided'}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
+                                                        <CalendarTodayIcon sx={{ mr: 2, color: 'text.secondary', mt: 0.5, flexShrink: 0 }} />
+                                                        <Box sx={{ flex: 1 }}>
+                                                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                                Joining Date
+                                                            </Typography>
+                                                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                                                {formatDateToLocalString(new Date(memberDetails.member.join_date))}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Grid>
+                                                <Grid item xs={12} sm={6} md={3}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
+                                                        <CardMembershipIcon sx={{ mr: 2, color: 'text.secondary', mt: 0.5, flexShrink: 0 }} />
+                                                        <Box sx={{ flex: 1 }}>
+                                                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                                Membership Plan
+                                                            </Typography>
+                                                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                                                {memberDetails.member.plan_name || 'No plan assigned'}
+                                                            </Typography>
+                                                            {memberDetails.member.plan_price && (
+                                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                                                    {formatCurrency(memberDetails.member.plan_price, currency)}
+                                                                </Typography>
+                                                            )}
+                                                        </Box>
+                                                    </Box>
+                                                </Grid>
+                                                {memberDetails.member.address && (
+                                                    <Grid item xs={12}>
+                                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
+                                                            <LocationOnIcon sx={{ mr: 2, color: 'text.secondary', mt: 0.5, flexShrink: 0 }} />
+                                                            <Box sx={{ flex: 1 }}>
+                                                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                                    Address
+                                                                </Typography>
+                                                                <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                                                    {memberDetails.member.address}
+                                                                </Typography>
+                                                            </Box>
+                                                        </Box>
+                                                    </Grid>
+                                                )}
+                                            </Grid>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+
+                                {/* Referral Discount */}
+                                {memberDetails.referralSystemEnabled && memberDetails.unusedReferralDiscount && (
+                                    <Grid item xs={12}>
+                                        <Card>
+                                            <CardHeader 
+                                                title="Referral Discount" 
+                                                avatar={<Chip label="Available" color="success" size="small" />}
+                                            />
+                                            <CardContent>
+                                                <Typography variant="body1" gutterBottom>
+                                                    You have an unused referral discount of {formatCurrency(memberDetails.unusedReferralDiscount.discount_amount, currency)} 
+                                                    from referring {memberDetails.unusedReferralDiscount.referrer_name}.
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    This discount will be automatically applied to your next payment.
+                                                </Typography>
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
+                                )}
+
+                                {/* Latest Invoice Status */}
+                                {memberDetails.latestInvoice && (
+                                    <Grid item xs={12} sm={6}>
+                                        <Card>
+                                            <CardHeader 
+                                                title="Latest Invoice" 
+                                                avatar={
+                                                    <Chip 
+                                                        label={memberDetails.latestInvoice.status} 
+                                                        color={memberDetails.latestInvoice.status === 'paid' ? 'success' : 
+                                                               memberDetails.has_overdue_payments ? 'error' : 'warning'} 
+                                                        size="small" 
+                                                    />
+                                                }
+                                            />
+                                            <CardContent>
+                                                <Typography variant="body1" gutterBottom>
+                                                    Amount: {formatCurrency(memberDetails.latestInvoice.amount, currency)}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                    Due Date: {formatDateToLocalString(new Date(memberDetails.latestInvoice.due_date))}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Plan: {memberDetails.latestInvoice.plan_name || 'N/A'}
+                                                </Typography>
+                                                {memberDetails.has_overdue_payments && (
+                                                    <Alert severity="error" sx={{ mt: 2 }}>
+                                                        This invoice is overdue!
+                                                    </Alert>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    </Grid>
+                                )}
+
+                                {/* Payment History */}
+                                <Grid item xs={12} sm={6}>
+                                    <Card>
+                                        <CardHeader title="Recent Payments" />
+                                        <CardContent>
+                                            {memberDetails.paymentHistory.length > 0 ? (
+                                                <TableContainer component={Paper} variant="outlined">
+                                                    <Table size="small">
+                                                        <TableHead>
+                                                            <TableRow>
+                                                                <TableCell>Date</TableCell>
+                                                                <TableCell>Amount</TableCell>
+                                                                <TableCell>Method</TableCell>
+                                                            </TableRow>
+                                                        </TableHead>
+                                                        <TableBody>
+                                                            {memberDetails.paymentHistory.map((payment) => (
+                                                                <TableRow key={payment.id}>
+                                                                    <TableCell>
+                                                                        {formatDateToLocalString(new Date(payment.payment_date))}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        {formatCurrency(payment.amount, currency)}
+                                                                    </TableCell>
+                                                                    <TableCell>
+                                                                        {payment.payment_method || 'N/A'}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </TableContainer>
+                                            ) : (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    No payment history available
+                                                </Typography>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
+                            </Grid>
+                        </Box>
+                    ) : null}
+                </DialogContent>
+                <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Button 
+                            variant="outlined" 
+                            startIcon={<EditIcon />}
+                            onClick={() => {
+                                setOpenMemberDetails(false);
+                                openEditDialog(currentViewingMember);
+                            }}
+                            disabled={!currentViewingMember}
+                        >
+                            Edit Member
+                        </Button>
+                        <Button 
+                            variant="outlined" 
+                            color={currentViewingMember?.is_active === 0 ? 'success' : 'warning'}
+                            startIcon={currentViewingMember?.is_active === 0 ? <ToggleOnIcon /> : <ToggleOffIcon />}
+                            onClick={toggleMemberActiveStatus}
+                            disabled={!currentViewingMember}
+                        >
+                            {currentViewingMember?.is_active === 0 ? 'Activate' : 'Deactivate'}
+                        </Button>
+                        {currentViewingMember?.phone && (
+                            <Button 
+                                variant="outlined" 
+                                startIcon={<WhatsAppIcon />}
+                                href={`https://wa.me/${encodeURIComponent(currentViewingMember.phone.replace(/\D/g,''))}?text=${encodeURIComponent(`Happy Birthday, ${currentViewingMember.name}! 🎉🎂 Wishing you a fantastic year ahead from ${currency} Gym!`)}`}
+                                target="_blank" 
+                                rel="noreferrer"
+                                disabled={!currentViewingMember}
+                            >
+                                Message on WhatsApp
+                            </Button>
+                        )}
+                        <Button 
+                            variant="outlined" 
+                            startIcon={<FingerprintIcon />}
+                            onClick={() => {
+                                setOpenMemberDetails(false);
+                                openBiometricDialog(currentViewingMember);
+                            }}
+                            disabled={!currentViewingMember}
+                        >
+                            Biometric Data
+                        </Button>
+                    </Box>
+                    <Button onClick={() => {
+                        setOpenMemberDetails(false);
+                        setCurrentViewingMember(null);
+                    }}>Close</Button>
                 </DialogActions>
             </Dialog>
         </div>

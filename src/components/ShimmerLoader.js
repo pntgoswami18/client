@@ -149,6 +149,41 @@ export const DashboardShimmer = () => (
     </Box>
 );
 
+export const CameraShimmer = () => (
+    <Box sx={{ 
+        width: '100%', 
+        height: '100%',
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+        p: 2
+    }}>
+        {/* Main camera preview area shimmer */}
+        <ShimmerLoader 
+            variant="rectangular" 
+            height="180px" 
+            width="100%" 
+            sx={{ 
+                borderRadius: '8px',
+                maxWidth: '350px'
+            }} 
+        />
+        {/* Camera status text shimmer */}
+        <ShimmerLoader 
+            variant="text" 
+            height={18} 
+            width="140px" 
+        />
+        {/* Button area shimmer */}
+        <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+            <ShimmerLoader variant="rectangular" height={36} width={100} sx={{ borderRadius: '4px' }} />
+            <ShimmerLoader variant="rectangular" height={36} width={80} sx={{ borderRadius: '4px' }} />
+        </Box>
+    </Box>
+);
+
 export const FormShimmer = () => (
     <Box sx={{ p: 3 }}>
         <ShimmerLoader variant="rectangular" height={30} width="200px" sx={{ mb: 3 }} />
