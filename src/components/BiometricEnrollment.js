@@ -1110,10 +1110,7 @@ const BiometricEnrollment = () => {
       maxWidth: 'none', 
       mx: 0, 
       px: 0,
-      position: 'relative',
-      left: '-24px', // Offset the parent padding
-      right: '-24px', // Offset the parent padding
-      width: 'calc(100% + 48px)' // Compensate for the offset
+      position: 'relative'
     }}>
       {/* Header with Tabs and Status Cards */}
       <Box sx={{ mb: 3 }}>

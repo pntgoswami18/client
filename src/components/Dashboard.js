@@ -432,11 +432,13 @@ const Dashboard = () => {
                 `}
             </style>
             <div style={{ position: 'relative' }}>
-                <h2 style={{
-                    color: 'var(--accent-header-color)',
-                    fontWeight: '700',
-                    marginBottom: '20px'
-                }}>Dashboard - Analytics & Reports</h2>
+                <Typography variant="h4" gutterBottom sx={{ 
+                    borderBottom: '2px solid var(--accent-secondary-color)', 
+                    pb: 1, 
+                    mb: 2 
+                }}>
+                    Dashboard - Analytics & Reports
+                </Typography>
                 
                 {/* Quick Door Unlock Section */}
                 {esp32Devices.length > 0 && (

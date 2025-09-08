@@ -129,7 +129,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 showUnpaidMembersThisMonth: show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true,
                 showActiveSchedules: show_card_active_schedules === 'true' || show_card_active_schedules === true
             });
-            if (ask_unlock_reason !== undefined) { setAskUnlockReason(ask_unlock_reason); }
+            if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
             if (referral_system_enabled !== undefined) { setReferralSystemEnabled(referral_system_enabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
             
