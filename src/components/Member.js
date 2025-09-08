@@ -1107,7 +1107,8 @@ const Member = () => {
                 <FormControl size="small" sx={{ minWidth: 220 }}>
                     <InputLabel>Filter</InputLabel>
                     <Select label="Filter" value={filter} onChange={handleFilterChange}>
-                        <MenuItem value="all">All Members</MenuItem>
+                        <MenuItem value="all">All Active Members</MenuItem>
+                        <MenuItem value="deactivated">Deactivated Members</MenuItem>
                         <MenuItem value="new-this-month">Joined This Month</MenuItem>
                         <MenuItem value="unpaid-this-month">Unpaid This Month</MenuItem>
                         <MenuItem value="admins">Admins</MenuItem>

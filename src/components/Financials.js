@@ -392,7 +392,7 @@ const Financials = () => {
 
     const fetchMembers = async () => {
         try {
-            const res = await axios.get('/api/members');
+            const res = await axios.get('/api/members?filter=all');
             // The API returns {members: [...]}, so we need to access res.data.members
             const membersData = Array.isArray(res.data.members) ? res.data.members : [];
             // Filter out any null/undefined members
