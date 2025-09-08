@@ -36,7 +36,8 @@ import {
   Checkbox,
   InputAdornment,
   IconButton,
-  Pagination
+  Pagination,
+  CircularProgress
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import {
@@ -82,6 +83,17 @@ const BiometricEnrollment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  
+  // Individual button loading states
+  const [buttonLoading, setButtonLoading] = useState({
+    enroll: new Set(), // Set of member IDs being enrolled
+    manual: new Set(), // Set of member IDs with manual enrollment loading
+    delete: new Set(), // Set of member IDs being deleted
+    reenroll: new Set(), // Set of member IDs being re-enrolled
+    cancel: false, // Global cancel loading state
+    stop: false, // Global stop loading state
+    deleteConfirm: false // Delete confirmation dialog loading
+  });
   
   // UI state
   const [currentTab, setCurrentTab] = useState(0);
@@ -642,7 +654,8 @@ const BiometricEnrollment = () => {
     
     // Set up WebSocket connection for real-time updates
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const backendPort = process.env.REACT_APP_BACKEND_PORT || '3001';
+    const wsUrl = `${protocol}//${window.location.hostname}:${backendPort}/ws`;
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -758,7 +771,29 @@ const BiometricEnrollment = () => {
     };
   }, [checkEnrollmentProgress, fetchMembersWithoutBiometric, fetchMembersWithBiometric, fetchDevices, fetchSystemStatus, fetchEnrollmentStatus, fetchBiometricEvents]);
 
+  // Helper functions for individual button loading states
+  const setButtonLoadingState = (action, memberId = null, isLoading = true) => {
+    setButtonLoading(prev => {
+      const newState = { ...prev };
+      if (memberId !== null) {
+        if (isLoading) {
+          newState[action].add(memberId);
+        } else {
+          newState[action].delete(memberId);
+        }
+      } else {
+        newState[action] = isLoading;
+      }
+      return newState;
+    });
+  };
 
+  const isButtonLoading = (action, memberId = null) => {
+    if (memberId !== null) {
+      return buttonLoading[action].has(memberId);
+    }
+    return buttonLoading[action];
+  };
 
   const startEnrollment = async (memberId, deviceId = null) => {
     if (deviceId && (!selectedMember || !selectedDevice)) {
@@ -766,7 +801,12 @@ const BiometricEnrollment = () => {
       return;
     }
     
-    setLoading(true);
+    // Determine if this is a re-enrollment by checking if member has biometric data
+    const member = membersWithBiometric.find(m => m.id === parseInt(memberId));
+    const isReenrollment = !!member;
+    const loadingKey = isReenrollment ? 'reenroll' : 'enroll';
+    
+    setButtonLoadingState(loadingKey, memberId, true);
     setError(null);
     setSuccess(null);
 
@@ -841,7 +881,7 @@ const BiometricEnrollment = () => {
         setActiveStep(1);
       }
     } finally {
-      setLoading(false);
+      setButtonLoadingState(loadingKey, memberId, false);
     }
   };
 
@@ -850,7 +890,7 @@ const BiometricEnrollment = () => {
   };
 
   const stopEnrollment = async () => {
-    setLoading(true);
+    setButtonLoadingState('stop', null, true);
     setError(null);
 
     try {
@@ -873,7 +913,7 @@ const BiometricEnrollment = () => {
       setSuccess(null); // Clear any existing success message
       setError('Error stopping enrollment: ' + error.message);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('stop', null, false);
     }
   };
 
@@ -887,7 +927,7 @@ const BiometricEnrollment = () => {
 
   const confirmDeleteBiometricData = async () => {
     const { memberId, memberName } = deleteConfirmDialog;
-    setLoading(true);
+    setButtonLoadingState('deleteConfirm', null, true);
     setError(null);
     closeDeleteConfirmDialog();
 
@@ -912,7 +952,7 @@ const BiometricEnrollment = () => {
       setSuccess(null); // Clear any existing success message
       setError(`❌ Error deleting biometric data: ${error.message}`);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('deleteConfirm', null, false);
     }
   };
 
@@ -921,7 +961,7 @@ const BiometricEnrollment = () => {
       return;
     }
     
-    setLoading(true);
+    setButtonLoadingState('cancel', null, true);
     setError(null);
 
     try {
@@ -953,7 +993,7 @@ const BiometricEnrollment = () => {
       setLastCheckedEventId(null);
       setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('cancel', null, false);
     }
   };
 
@@ -1001,7 +1041,7 @@ const BiometricEnrollment = () => {
       return;
     }
 
-    setLoading(true);
+    setButtonLoadingState('manual', manualMember, true);
     setError(null);
 
     try {
@@ -1031,7 +1071,7 @@ const BiometricEnrollment = () => {
       setSuccess(null); // Clear any existing success message
       setError('Error assigning biometric data: ' + error.message);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('manual', manualMember, false);
     }
   };
 
@@ -1121,10 +1161,10 @@ const BiometricEnrollment = () => {
                   <Button
                     variant="contained"
                     onClick={startDeviceEnrollment}
-              disabled={loading}
-                    startIcon={<FingerprintIcon />}
+              disabled={isButtonLoading('enroll', selectedMember)}
+                    startIcon={isButtonLoading('enroll', selectedMember) ? <CircularProgress size={16} /> : <FingerprintIcon />}
                   >
-                    Start Fingerprint Enrollment
+                    {isButtonLoading('enroll', selectedMember) ? 'Starting...' : 'Start Fingerprint Enrollment'}
                   </Button>
                 )}
               </Box>
@@ -1254,11 +1294,11 @@ const BiometricEnrollment = () => {
                       variant="outlined"
                       color="warning"
                       onClick={stopEnrollment}
-                      disabled={loading}
-                      startIcon={<CloseIcon />}
+                      disabled={isButtonLoading('stop')}
+                      startIcon={isButtonLoading('stop') ? <CircularProgress size={16} /> : <CloseIcon />}
                       size="small"
                     >
-                      Stop
+                      {isButtonLoading('stop') ? 'Stopping...' : 'Stop'}
                     </Button>
               )}
                 </Box>
@@ -1290,10 +1330,10 @@ const BiometricEnrollment = () => {
               color="inherit"
               size="small"
               onClick={cancelOngoingEnrollment}
-              disabled={loading}
-              startIcon={<CloseIcon />}
+              disabled={isButtonLoading('cancel')}
+              startIcon={isButtonLoading('cancel') ? <CircularProgress size={16} /> : <CloseIcon />}
             >
-              Cancel Enrollment
+              {isButtonLoading('cancel') ? 'Cancelling...' : 'Cancel Enrollment'}
             </Button>
           }
         >
@@ -1516,12 +1556,12 @@ const BiometricEnrollment = () => {
                                   variant="outlined"
                                   color="warning"
                                   onClick={cancelOngoingEnrollment}
-                                  disabled={loading}
-                                  startIcon={<CloseIcon />}
+                                  disabled={isButtonLoading('cancel')}
+                                  startIcon={isButtonLoading('cancel') ? <CircularProgress size={16} /> : <CloseIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                                 >
-                                Cancel
+                                {isButtonLoading('cancel') ? 'Cancelling...' : 'Cancel'}
                                 </Button>
                               </>
                             ) : (
@@ -1529,22 +1569,22 @@ const BiometricEnrollment = () => {
                                 <Button
                                   variant="contained"
                                   onClick={() => startEnrollment(member.id)}
-                                  disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                                  startIcon={<FingerprintIcon />}
+                                  disabled={isButtonLoading('enroll', member.id) || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                                  startIcon={isButtonLoading('enroll', member.id) ? <CircularProgress size={16} /> : <FingerprintIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                                 >
-                                Enroll
+                                {isButtonLoading('enroll', member.id) ? 'Starting...' : 'Enroll'}
                                 </Button>
                             <Button
                               variant="outlined"
                               onClick={() => openManualEnrollment(member)}
-                              disabled={loading || !!ongoingEnrollment}
-                              startIcon={<SettingsIcon />}
+                              disabled={isButtonLoading('manual', member.id) || !!ongoingEnrollment}
+                              startIcon={isButtonLoading('manual', member.id) ? <CircularProgress size={16} /> : <SettingsIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                             >
-                                Manual
+                                {isButtonLoading('manual', member.id) ? 'Loading...' : 'Manual'}
                             </Button>
                             </>
                           )}
@@ -1682,22 +1722,22 @@ const BiometricEnrollment = () => {
                               variant="outlined"
                               color="error"
                               onClick={() => openDeleteConfirmDialog(member.id, member.name)}
-                              disabled={loading || !!ongoingEnrollment}
-                              startIcon={<DeleteIcon />}
+                              disabled={isButtonLoading('delete', member.id) || !!ongoingEnrollment}
+                              startIcon={isButtonLoading('delete', member.id) ? <CircularProgress size={16} /> : <DeleteIcon />}
                             size="small"
                             sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                             >
-                            Delete
+                            {isButtonLoading('delete', member.id) ? 'Loading...' : 'Delete'}
                             </Button>
                             <Button
                               variant="outlined"
                               onClick={() => startEnrollment(member.id)}
-                              disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                              startIcon={<RefreshIcon />}
+                              disabled={isButtonLoading('reenroll', member.id) || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                              startIcon={isButtonLoading('reenroll', member.id) ? <CircularProgress size={16} /> : <RefreshIcon />}
                             size="small"
                             sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                             >
-                            Re-enroll
+                            {isButtonLoading('reenroll', member.id) ? 'Starting...' : 'Re-enroll'}
                             </Button>
                           </Box>
                       </Box>
@@ -1997,9 +2037,10 @@ const BiometricEnrollment = () => {
           <Button 
                 onClick={handleManualEnrollment}
             variant="contained"
-            disabled={loading || !manualMember || !deviceUserId}
+            disabled={isButtonLoading('manual', manualMember) || !manualMember || !deviceUserId}
+            startIcon={isButtonLoading('manual', manualMember) ? <CircularProgress size={16} /> : <FingerprintIcon />}
               >
-                {loading ? 'Assigning...' : 'Assign Biometric Data'}
+                {isButtonLoading('manual', manualMember) ? 'Assigning...' : 'Assign Biometric Data'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2031,9 +2072,10 @@ const BiometricEnrollment = () => {
             onClick={confirmDeleteBiometricData} 
             color="error" 
             variant="contained"
-            disabled={loading}
+            disabled={isButtonLoading('deleteConfirm')}
+            startIcon={isButtonLoading('deleteConfirm') ? <CircularProgress size={16} /> : <DeleteIcon />}
           >
-            Delete Enrollment
+            {isButtonLoading('deleteConfirm') ? 'Deleting...' : 'Delete Enrollment'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1179,10 +1179,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
           <Button 
             onClick={handleUnlockDevice} 
             variant="contained" 
-            startIcon={<LockOpenIcon />}
+            startIcon={loading ? <CircularProgress size={16} /> : <LockOpenIcon />}
             disabled={loading}
           >
-            Unlock Door
+            {loading ? 'Unlocking...' : 'Unlock Door'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1211,10 +1211,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
           <Button 
             onClick={handleRemoteEnrollment} 
             variant="contained" 
-            startIcon={<FingerprintIcon />}
+            startIcon={loading ? <CircularProgress size={16} /> : <FingerprintIcon />}
             disabled={loading || !enrollMemberId}
           >
-            Start Enrollment
+            {loading ? 'Starting...' : 'Start Enrollment'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -44,6 +44,23 @@ import SearchableMemberDropdown from './SearchableMemberDropdown';
 import { FormShimmer } from './ShimmerLoader';
 
 const Member = () => {
+    // Add CSS animation for pulsing effect
+    React.useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { opacity: 1; }
+                50% { opacity: 0.3; }
+                100% { opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
+
     const [members, setMembers] = useState([]);
     const location = useLocation();
     const queryParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -130,7 +147,14 @@ const Member = () => {
     
     // New state for biometric data
     const [memberBiometricStatus, setMemberBiometricStatus] = useState(null);
-    const [biometricLoading, setBiometricLoading] = useState(false);
+    // Individual biometric button loading states
+    const [biometricButtonLoading, setBiometricButtonLoading] = useState({
+        delete: false,
+        reenroll: false,
+        enroll: false,
+        cancel: false
+    });
+    const [biometricDataLoading, setBiometricDataLoading] = useState(false);
     const [biometricError, setBiometricError] = useState('');
     const [biometricSuccess, setBiometricSuccess] = useState('');
     
@@ -231,6 +255,7 @@ const Member = () => {
                 memberName: data.memberName,
                 startTime: new Date().toISOString()
             });
+            console.log('✅ Enrollment started for member:', data.memberName);
         } else if (data.type === 'enrollment_progress') {
             if (data.status === 'progress') {
                 // Map enrollment steps to user-friendly messages
@@ -305,7 +330,8 @@ const Member = () => {
     useEffect(() => {
         // Set up WebSocket connection for real-time updates
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const backendPort = process.env.REACT_APP_BACKEND_PORT || '3001';
+        const wsUrl = `${protocol}//${window.location.hostname}:${backendPort}/ws`;
         
         const ws = new WebSocket(wsUrl);
         wsRef.current = ws;
@@ -320,9 +346,20 @@ const Member = () => {
                 const data = JSON.parse(event.data);
                 console.log('📡 WebSocket message received in Member component:', data);
                 
-                // Only handle enrollment events for the current member
-                if (data.memberId && editingMember && data.memberId === editingMember.id) {
-                    handleEnrollmentWebSocketMessage(data);
+                // Handle enrollment events - be more flexible with member ID matching
+                if (data.type && data.type.startsWith('enrollment_')) {
+                    const messageMemberId = String(data.memberId || '');
+                    const currentMemberId = String(editingMember?.id || '');
+                    
+                    if (messageMemberId && currentMemberId && messageMemberId === currentMemberId) {
+                        console.log('📡 Processing enrollment message for current member');
+                        handleEnrollmentWebSocketMessage(data);
+                    } else if (data.type === 'enrollment_started' && !currentMemberId) {
+                        console.log('📡 Processing enrollment_started without current member (fallback)');
+                        handleEnrollmentWebSocketMessage(data);
+                    } else {
+                        console.log('📡 Skipping enrollment message - member ID mismatch');
+                    }
                 }
             } catch (error) {
                 console.error('Error parsing WebSocket message:', error);
@@ -514,7 +551,7 @@ const Member = () => {
         
         // Fetch member's biometric status
         try {
-            setBiometricLoading(true);
+            setBiometricDataLoading(true);
             const response = await axios.get(`/api/biometric/members/${member.id}/status`);
             if (response.data.success) {
                 setMemberBiometricStatus(response.data.data);
@@ -523,8 +560,20 @@ const Member = () => {
             console.error('Error fetching biometric status:', error);
             setBiometricError('Failed to fetch biometric status');
         } finally {
-            setBiometricLoading(false);
+            setBiometricDataLoading(false);
         }
+    };
+
+    // Helper functions for individual button loading states
+    const setBiometricButtonLoadingState = (action, isLoading = true) => {
+        setBiometricButtonLoading(prev => ({
+            ...prev,
+            [action]: isLoading
+        }));
+    };
+
+    const isBiometricButtonLoading = (action) => {
+        return biometricButtonLoading[action];
     };
 
     const startEnrollment = async () => {
@@ -533,7 +582,7 @@ const Member = () => {
         }
         
         try {
-            setBiometricLoading(true);
+            setBiometricButtonLoadingState('enroll', true);
             setBiometricError('');
             setBiometricSuccess('');
             
@@ -615,7 +664,7 @@ const Member = () => {
             
             setBiometricError(errorMessage);
         } finally {
-            setBiometricLoading(false);
+            setBiometricButtonLoadingState('enroll', false);
         }
     };
 
@@ -629,7 +678,7 @@ const Member = () => {
         }
         
         try {
-            setBiometricLoading(true);
+            setBiometricButtonLoadingState('delete', true);
             setBiometricError('');
             setBiometricSuccess('');
             
@@ -643,7 +692,7 @@ const Member = () => {
             console.error('Error deleting enrollment:', error);
             setBiometricError(error?.response?.data?.message || 'Failed to delete enrollment');
         } finally {
-            setBiometricLoading(false);
+            setBiometricButtonLoadingState('delete', false);
         }
     };
 
@@ -653,7 +702,7 @@ const Member = () => {
         }
         
         try {
-            setBiometricLoading(true);
+            setBiometricButtonLoadingState('reenroll', true);
             setBiometricError('');
             setBiometricSuccess('');
             
@@ -699,7 +748,7 @@ const Member = () => {
             console.error('Error starting re-enrollment:', error);
             setBiometricError(error?.response?.data?.message || 'Failed to start re-enrollment');
         } finally {
-            setBiometricLoading(false);
+            setBiometricButtonLoadingState('reenroll', false);
         }
     };
 
@@ -709,7 +758,7 @@ const Member = () => {
         }
         
         try {
-            setBiometricLoading(true);
+            setBiometricButtonLoadingState('cancel', true);
             setBiometricError('');
             setBiometricSuccess('');
             
@@ -738,7 +787,7 @@ const Member = () => {
             setOngoingEnrollment(null);
             setBiometricSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation). You can retry enrollment anytime.`);
         } finally {
-            setBiometricLoading(false);
+            setBiometricButtonLoadingState('cancel', false);
         }
     };
 
@@ -1547,7 +1596,20 @@ const Member = () => {
                 </>
             )}
 
-            <Dialog open={openBiometric} onClose={() => setOpenBiometric(false)} fullWidth maxWidth="sm">
+            <Dialog 
+                open={openBiometric} 
+                onClose={() => setOpenBiometric(false)} 
+                fullWidth 
+                maxWidth="sm"
+                PaperProps={{
+                    sx: {
+                        ...(ongoingEnrollment && {
+                            border: '2px solid #2196f3',
+                            boxShadow: '0 0 15px rgba(33, 150, 243, 0.4)'
+                        })
+                    }
+                }}
+            >
                 <DialogTitle>
                     Biometric data for {editingMember?.name || 'Member'}
                 </DialogTitle>
@@ -1564,7 +1626,7 @@ const Member = () => {
                         </Alert>
                     )}
                     
-                    {biometricLoading && !memberBiometricStatus && (
+                    {biometricDataLoading && !memberBiometricStatus && (
                         <Box sx={{ textAlign: 'center', py: 2 }}>
                             <FormShimmer />
                         </Box>
@@ -1611,7 +1673,24 @@ const Member = () => {
                                     Enrollment Status
                                 </Typography>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    {memberBiometricStatus.hasFingerprint ? (
+                                    {ongoingEnrollment ? (
+                                        <Chip
+                                            label="Enrolling"
+                                            color="primary"
+                                            size="small"
+                                            icon={
+                                                <Box
+                                                    sx={{
+                                                        width: 8,
+                                                        height: 8,
+                                                        borderRadius: '50%',
+                                                        bgcolor: 'white',
+                                                        animation: 'pulse 1.5s ease-in-out infinite'
+                                                    }}
+                                                />
+                                            }
+                                        />
+                                    ) : memberBiometricStatus.hasFingerprint ? (
                                         <Chip 
                                             icon={<FingerprintIcon />} 
                                             label="Enrolled" 
@@ -1663,21 +1742,21 @@ const Member = () => {
                                             variant="outlined"
                                             color="error"
                                             onClick={deleteEnrollment}
-                                            disabled={biometricLoading}
-                                            startIcon={<DeleteIcon />}
+                                            disabled={isBiometricButtonLoading('delete')}
+                                            startIcon={isBiometricButtonLoading('delete') ? <CircularProgress size={20} /> : <DeleteIcon />}
                                             sx={{ py: 1.5 }}
                                         >
-                                            Delete Enrollment
+                                            {isBiometricButtonLoading('delete') ? 'Deleting...' : 'Delete Enrollment'}
                                         </Button>
                                         <Button
                                             fullWidth
                                             variant="contained"
                                             onClick={reEnroll}
-                                            disabled={biometricLoading || !!ongoingEnrollment}
-                                            startIcon={biometricLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                                            disabled={isBiometricButtonLoading('reenroll') || !!ongoingEnrollment}
+                                            startIcon={isBiometricButtonLoading('reenroll') ? <CircularProgress size={20} /> : <RefreshIcon />}
                                             sx={{ py: 1.5 }}
                                         >
-                                            {biometricLoading ? 'Starting Re-enrollment...' : ongoingEnrollment ? 'Enrollment in Progress...' : 'Re-enroll Now'}
+                                            {isBiometricButtonLoading('reenroll') ? 'Starting Re-enrollment...' : ongoingEnrollment ? 'Enrollment in Progress...' : 'Re-enroll Now'}
                                         </Button>
                                     </Box>
                                 ) : (
@@ -1685,11 +1764,11 @@ const Member = () => {
                                         fullWidth
                                         variant="contained"
                                         onClick={startEnrollment}
-                                        disabled={biometricLoading || !!ongoingEnrollment}
-                                        startIcon={biometricLoading ? <CircularProgress size={20} /> : <FingerprintIcon />}
+                                        disabled={isBiometricButtonLoading('enroll') || !!ongoingEnrollment}
+                                        startIcon={isBiometricButtonLoading('enroll') ? <CircularProgress size={20} /> : <FingerprintIcon />}
                                         sx={{ py: 1.5 }}
                                     >
-                                        {biometricLoading ? 'Starting Enrollment...' : ongoingEnrollment ? 'Enrollment in Progress...' : 'Enroll Fingerprints'}
+                                        {isBiometricButtonLoading('enroll') ? 'Starting Enrollment...' : ongoingEnrollment ? 'Enrollment in Progress...' : 'Enroll Fingerprints'}
                                     </Button>
                                 )}
                                 
@@ -1701,11 +1780,11 @@ const Member = () => {
                                             variant="outlined"
                                             color="error"
                                             onClick={cancelEnrollment}
-                                            disabled={biometricLoading}
-                                            startIcon={<CancelIcon />}
+                                            disabled={isBiometricButtonLoading('cancel')}
+                                            startIcon={isBiometricButtonLoading('cancel') ? <CircularProgress size={20} /> : <CancelIcon />}
                                             sx={{ py: 1.5 }}
                                         >
-                                            Cancel Enrollment
+                                            {isBiometricButtonLoading('cancel') ? 'Cancelling...' : 'Cancel Enrollment'}
                                         </Button>
                                     </Box>
                                 )}
