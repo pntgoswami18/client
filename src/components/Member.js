@@ -385,7 +385,7 @@ const Member = () => {
                 ws.close();
             }
         };
-    }, [editingMember, handleEnrollmentWebSocketMessage]); // Include the memoized function
+    }, [editingMember]); // Remove handleEnrollmentWebSocketMessage from dependencies to avoid circular dependency
 
     const fetchPlans = async () => {
         try {
