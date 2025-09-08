@@ -863,7 +863,25 @@ const Member = () => {
 
         // Webcam functions
     const openCamera = async () => {
+        // Prevent multiple simultaneous camera initializations
+        if (cameraLoading || cameraOpen) {
+            console.log('Camera already initializing or open, skipping...');
+            return;
+        }
+        
         try {
+            // Clean up any existing stream first
+            if (stream) {
+                console.log('Cleaning up existing stream before opening camera');
+                stream.getTracks().forEach(track => track.stop());
+                setStream(null);
+            }
+            
+            // Clear video element if it exists
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+            
             setCameraLoading(true);
             setCameraError('');
             setVideoReady(false);
@@ -873,6 +891,17 @@ const Member = () => {
                 throw new Error('getUserMedia is not supported in this browser');
             }
 
+            // Check camera permissions
+            try {
+                const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+                if (permissionStatus.state === 'denied') {
+                    throw new Error('Camera access denied. Please enable camera permissions in your browser settings.');
+                }
+            } catch (permissionError) {
+                console.log('Permission check failed, proceeding anyway:', permissionError);
+            }
+
+            console.log('Requesting camera access...');
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: { 
                     width: { ideal: 640 },
@@ -881,14 +910,29 @@ const Member = () => {
                 }
             });
             
+            console.log('Camera stream obtained successfully');
             setStream(mediaStream);
             setCameraOpen(true);
+            
+            // Set loading to false immediately after getting the stream
+            // The video element will be rendered and can start loading
+            setCameraLoading(false);
             
             // Force stream setup after a short delay to ensure video element is mounted
             setTimeout(() => {
                 if (videoRef.current && mediaStream) {
+                    console.log('Setting video srcObject in timeout');
                     videoRef.current.srcObject = mediaStream;
                     // Don't call play() here - let the useEffect handle it
+                } else {
+                    console.log('Video element not ready, retrying...');
+                    // Retry after another short delay
+                    setTimeout(() => {
+                        if (videoRef.current && mediaStream) {
+                            console.log('Setting video srcObject in retry');
+                            videoRef.current.srcObject = mediaStream;
+                        }
+                    }, 200);
                 }
             }, 100);
             
@@ -903,6 +947,7 @@ const Member = () => {
     // Set video stream when camera opens and ensure it plays
     useEffect(() => {
         if (cameraOpen && stream && videoRef.current) {
+            console.log('Setting up video stream');
             videoRef.current.srcObject = stream;
             
             // Ensure video plays with proper error handling
@@ -910,14 +955,18 @@ const Member = () => {
                 try {
                     // Check if video is already playing
                     if (videoRef.current && !videoRef.current.paused) {
+                        console.log('Video already playing');
                         return; // Already playing
                     }
                     
+                    console.log('Attempting to play video');
                     await videoRef.current.play();
+                    console.log('Video play successful');
                 } catch (playError) {
                     // Only log non-abort errors
                     if (playError.name !== 'AbortError') {
                         console.error('Error playing video:', playError);
+                        setCameraError(`Video play error: ${playError.message}`);
                     }
                 }
             };
@@ -952,11 +1001,31 @@ const Member = () => {
         }
     }, [cameraLoading, cameraOpen, videoReady, stream]);
 
+    // Cleanup camera stream on component unmount
+    useEffect(() => {
+        return () => {
+            if (stream) {
+                console.log('Component unmounting, cleaning up camera stream');
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [stream]);
+
     const closeCamera = () => {
+        console.log('Closing camera...');
+        
         if (stream) {
+            console.log('Stopping camera stream tracks');
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
         }
+        
+        // Clear video element srcObject to prevent memory leaks
+        if (videoRef.current) {
+            console.log('Clearing video element srcObject');
+            videoRef.current.srcObject = null;
+        }
+        
         setCameraOpen(false);
         setCapturedImage(null);
         setCameraLoading(false);
@@ -1236,7 +1305,7 @@ const Member = () => {
                             ) : (
                                 <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
                             )}
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1, flexWrap: 'wrap' }}>
                                 <Button variant="outlined" component="label" size="small">
                                     Upload Photo
                                     <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; f && (() => { const url = URL.createObjectURL(f); openCropDialog(url) })() }} />
@@ -1420,7 +1489,7 @@ const Member = () => {
                             ) : (
                                 <Box sx={{ height: 64, width: 64, border: '1px dashed #ccc', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'text.secondary', fontSize: 12 }}>No Photo</Box>
                             )}
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1, flexWrap: 'wrap' }}>
                                 <Button variant="outlined" component="label" size="small">
                                     Upload Photo
                                     <input type="file" accept="image/*" hidden onChange={(e)=>{ const f = e.target.files?.[0]; f && (() => { const url = URL.createObjectURL(f); openCropDialog(url) })() }} />
@@ -1910,7 +1979,7 @@ const Member = () => {
                                     Initializing camera...
                                 </Typography>
                             </Box>
-                        ) : stream && !cameraError ? (
+                        ) : cameraError ? (
                             <Box sx={{ 
                                 width: '100%', 
                                 maxWidth: '400px', 
@@ -1927,7 +1996,7 @@ const Member = () => {
                                 <Typography color="error">{cameraError}</Typography>
                                 <Button variant="outlined" onClick={openCamera}>Retry</Button>
                             </Box>
-                        ) : capturedImage ? (
+                        ) : stream ? (
                             <>
                                 <video
                                     ref={videoRef}
@@ -1938,11 +2007,13 @@ const Member = () => {
                                         console.log('Video load started');
                                     }}
                                     onLoadedMetadata={() => {
+                                        console.log('Video metadata loaded');
                                         if (videoRef.current) {
                                             // Don't call play() here - let the useEffect handle it
                                         }
                                     }}
                                     onCanPlay={() => {
+                                        console.log('Video can play');
                                         setVideoReady(true);
                                     }}
                                     onCanPlayThrough={() => {
@@ -1950,8 +2021,14 @@ const Member = () => {
                                     }}
                                     onError={(e) => {
                                         console.error('Video error:', e);
-                                        setCameraError('Video playback error');
+                                        setCameraError('Video playback error: ' + (e.target.error?.message || 'Unknown error'));
                                         setVideoReady(false);
+                                    }}
+                                    onStalled={() => {
+                                        console.log('Video stalled');
+                                    }}
+                                    onSuspend={() => {
+                                        console.log('Video suspended');
                                     }}
                                     style={{
                                         width: '100%',
@@ -1981,7 +2058,7 @@ const Member = () => {
                                     </Button>
                                 </Box>
                             </>
-                        ) : (
+                        ) : capturedImage ? (
                             <>
                                 <img
                                     src={capturedImage}
@@ -2012,6 +2089,27 @@ const Member = () => {
                                     </Button>
                                 </Box>
                             </>
+                        ) : (
+                            <Box sx={{ 
+                                width: '100%', 
+                                maxWidth: '400px', 
+                                height: '300px',
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center',
+                                borderRadius: '8px',
+                                border: '2px solid #ddd',
+                                backgroundColor: '#f5f5f5',
+                                flexDirection: 'column',
+                                gap: 2
+                            }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Camera not initialized
+                                </Typography>
+                                <Button variant="contained" onClick={openCamera}>
+                                    Start Camera
+                                </Button>
+                            </Box>
                         )}
                         <canvas ref={canvasRef} style={{ display: 'none' }} />
                     </Box>
