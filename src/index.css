@@ -3,6 +3,7 @@
   --accent-secondary-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --accent-text-color: #333;
   --accent-header-color: #2c3e50;
+  --accent-secondary-color: #667eea;
 }
 
 body {

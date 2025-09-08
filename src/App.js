@@ -34,15 +34,11 @@ const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
       fontFamily: "-apple-system, 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif",
       h4: {
         fontWeight: 700,
-        background: 'var(--accent-secondary-bg)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
+        color: 'var(--accent-header-color)',
       },
       h5: {
         fontWeight: 700,
-        background: 'var(--accent-secondary-bg)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
+        color: 'var(--accent-header-color)',
       },
     },
     components: {

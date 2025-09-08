@@ -433,9 +433,9 @@ const Dashboard = () => {
             </style>
             <div style={{ position: 'relative' }}>
                 <h2 style={{
-                    background: 'var(--accent-secondary-bg)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent'
+                    color: 'var(--accent-header-color)',
+                    fontWeight: '700',
+                    marginBottom: '20px'
                 }}>Dashboard - Analytics & Reports</h2>
                 
                 {/* Quick Door Unlock Section */}
