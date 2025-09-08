@@ -24,7 +24,6 @@ const Dashboard = () => {
     const [birthdaysToday, setBirthdaysToday] = useState([]);
     const [showBirthdays, setShowBirthdays] = useState(false);
     const [paymentReminders, setPaymentReminders] = useState([]);
-    const [upcomingRenewals, setUpcomingRenewals] = useState([]);
     const [showPaymentReminders, setShowPaymentReminders] = useState(false);
     const [timeframe, setTimeframe] = useState('3m'); // all | 12m | 6m | 3m | 30d
     const [currency, setCurrency] = useState('INR');
@@ -165,7 +164,6 @@ const Dashboard = () => {
                 axios.get('/api/reports/revenue-stats'),
                 axios.get('/api/reports/birthdays-today'),
                 axios.get('/api/reports/payment-reminders'),
-                axios.get('/api/reports/upcoming-renewals')
             ]);
 
             setSummaryStats(summary.data || {});
@@ -178,9 +176,7 @@ const Dashboard = () => {
             
             // Handle payment reminders
             const overdueInvoices = Array.isArray(reminders.data?.overdue_invoices) ? reminders.data.overdue_invoices : [];
-            const upcomingRenewalsData = Array.isArray(renewals.data?.upcoming_renewals) ? renewals.data.upcoming_renewals : [];
             setPaymentReminders(overdueInvoices);
-            setUpcomingRenewals(upcomingRenewalsData);
             setShowPaymentReminders(false);
             
             setLoading(false);
@@ -599,7 +595,7 @@ const Dashboard = () => {
                 )}
 
                 {/* Payment Reminder Icon */}
-                {(paymentReminders.length > 0 || upcomingRenewals.length > 0) && (
+                {(paymentReminders.length > 0) && (
                     <div 
                         onClick={() => setShowPaymentReminders(!showPaymentReminders)}
                         style={{
@@ -626,7 +622,7 @@ const Dashboard = () => {
                             fontSize: '24px', 
                             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
                         }}>💳</span>
-                        {(paymentReminders.length + upcomingRenewals.length) > 1 && (
+                        {(paymentReminders.length) > 1 && (
                             <div style={{
                                 position: 'absolute',
                                 top: '-5px',
@@ -644,7 +640,7 @@ const Dashboard = () => {
                                 border: '2px solid #fff',
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
                             }}>
-                                {paymentReminders.length + upcomingRenewals.length}
+                                {paymentReminders.length}
                             </div>
                         )}
                     </div>
@@ -652,7 +648,7 @@ const Dashboard = () => {
             </div>
             
             {/* Summary Stats Cards */}
-            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', paddingBottom: '8px', flexWrap: 'nowrap', alignItems: 'stretch', overflowX: 'hidden', marginTop: (birthdaysToday.length > 0 || paymentReminders.length > 0 || upcomingRenewals.length > 0) ? '20px' : '0' }}>
+            <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', paddingBottom: '8px', flexWrap: 'nowrap', alignItems: 'stretch', overflowX: 'hidden', marginTop: (birthdaysToday.length > 0 || paymentReminders.length > 0) ? '20px' : '0' }}>
                 {renderCardsInOrder()}
             </div>
 
@@ -692,7 +688,7 @@ const Dashboard = () => {
             )}
 
             {/* Payment Reminder Popup */}
-            {showPaymentReminders && (paymentReminders.length > 0 || upcomingRenewals.length > 0) && (
+            {showPaymentReminders && (paymentReminders.length > 0) && (
                 <div style={{ position: 'fixed', top: 80, right: 24, zIndex: 1300, maxWidth: 420 }}>
                     <div style={{
                         background: '#7f1d1d',
@@ -764,67 +760,6 @@ const Dashboard = () => {
                                                         }}
                                                     >
                                                         View Details
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                            
-                            {upcomingRenewals.length > 0 && (
-                                <div>
-                                    <div style={{ fontWeight: 600, marginBottom: '10px', color: '#fbbf24' }}>Upcoming Renewals</div>
-                                    {upcomingRenewals.map((renewal) => {
-                                        const whatsappMessage = `Hi ${renewal.member_name}, your ${renewal.plan_name} membership is due for renewal on ${new Date(renewal.next_due_date).toLocaleDateString()}. Amount: ${formatCurrency(renewal.price, currency)}. Please renew to continue enjoying our services!`;
-                                        const whatsappUrl = renewal.phone ? `https://wa.me/${encodeURIComponent(renewal.phone.replace(/\D/g,''))}?text=${encodeURIComponent(whatsappMessage)}` : null;
-                                        
-                                        return (
-                                            <div key={renewal.member_id} style={{ 
-                                                padding: '10px', 
-                                                marginBottom: '8px', 
-                                                background: 'rgba(251, 191, 36, 0.1)', 
-                                                borderRadius: '6px',
-                                                border: '1px solid rgba(251, 191, 36, 0.3)'
-                                            }}>
-                                                <div style={{ fontWeight: 600, fontSize: '14px' }}>{renewal.member_name}</div>
-                                                <div style={{ opacity: 0.9, fontSize: '12px', margin: '4px 0' }}>
-                                                    {renewal.plan_name} • {formatCurrency(renewal.price, currency)} • Due: {new Date(renewal.next_due_date).toLocaleDateString()}
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                                    {whatsappUrl && (
-                                                        <a 
-                                                            href={whatsappUrl} 
-                                                            target="_blank" 
-                                                            rel="noreferrer"
-                                                            style={{
-                                                                background: '#25d366',
-                                                                color: '#fff',
-                                                                padding: '4px 8px',
-                                                                borderRadius: '4px',
-                                                                fontSize: '11px',
-                                                                textDecoration: 'none',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px'
-                                                            }}
-                                                        >
-                                                            📱 WhatsApp
-                                                        </a>
-                                                    )}
-                                                    <button
-                                                        onClick={() => navigate('/financials')}
-                                                        style={{
-                                                            background: '#1f2937',
-                                                            color: '#fff',
-                                                            border: '1px solid rgba(255,255,255,0.2)',
-                                                            padding: '4px 8px',
-                                                            borderRadius: '4px',
-                                                            fontSize: '11px',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        Create Invoice
                                                     </button>
                                                 </div>
                                             </div>

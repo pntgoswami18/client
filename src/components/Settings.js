@@ -62,7 +62,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [secondaryColorMode, setSecondaryColorMode] = useState('solid');
     const [primaryGradient, setPrimaryGradient] = useState('');
     const [secondaryGradient, setSecondaryGradient] = useState('');
-    const [paymentReminderDays, setPaymentReminderDays] = useState('7');
+    const [paymentReminderDaysAfterDue, setPaymentReminderDaysAfterDue] = useState('7');
     const [morningStart, setMorningStart] = useState('05:00');
     const [morningEnd, setMorningEnd] = useState('11:00');
     const [eveningStart, setEveningStart] = useState('16:00');
@@ -90,7 +90,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const fetchSettings = useCallback(async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
+            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days_after_due, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
             
             // Debug logging to see actual API values
             console.log('API Response for card settings:', {
@@ -110,7 +110,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (secondary_color_mode) { setSecondaryColorMode(secondary_color_mode); }
             if (primary_color_gradient !== undefined) { setPrimaryGradient(primary_color_gradient); }
             if (secondary_color_gradient !== undefined) { setSecondaryGradient(secondary_color_gradient); }
-            if (payment_reminder_days) { setPaymentReminderDays(String(payment_reminder_days)); }
+            if (payment_reminder_days_after_due) { setPaymentReminderDaysAfterDue(String(payment_reminder_days_after_due)); }
             if (morning_session_start) { setMorningStart(morning_session_start); }
             if (morning_session_end) { setMorningEnd(morning_session_end); }
             if (evening_session_start) { setEveningStart(evening_session_start); }
@@ -149,7 +149,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 secondaryColorMode: secondary_color_mode || 'solid',
                 primaryGradient: primary_color_gradient || '',
                 secondaryGradient: secondary_color_gradient || '',
-                paymentReminderDays: String(payment_reminder_days || '7'),
+                paymentReminderDaysAfterDue: String(payment_reminder_days_after_due || '7'),
                 morningStart: morning_session_start || '05:00',
                 morningEnd: morning_session_end || '11:00',
                 eveningStart: evening_session_start || '16:00',
@@ -206,7 +206,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 secondary_color_mode: secondaryColorMode,
                 primary_color_gradient: primaryGradient,
                 secondary_color_gradient: secondaryGradient,
-                payment_reminder_days: paymentReminderDays,
+                payment_reminder_days_after_due: paymentReminderDaysAfterDue,
                 morning_session_start: morningStart,
                 morning_session_end: morningEnd,
                 evening_session_start: eveningStart,
@@ -686,10 +686,10 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
 
                 <div style={{ marginTop: '30px' }}>
                     <TextField
-                        label="Payment Reminder (days before due date)"
+                        label="Payment Reminder (days after due date)"
                         type="number"
-                        value={paymentReminderDays}
-                        onChange={(e) => setPaymentReminderDays(e.target.value)}
+                        value={paymentReminderDaysAfterDue}
+                        onChange={(e) => setPaymentReminderDaysAfterDue(e.target.value)}
                         slotProps={{ htmlInput: { min: 1 } }}
                         fullWidth
                         margin="normal"
