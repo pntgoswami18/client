@@ -76,6 +76,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [askUnlockReason, setAskUnlockReason] = useState(true);
     const [referralSystemEnabled, setReferralSystemEnabled] = useState(false);
     const [referralDiscountAmount, setReferralDiscountAmount] = useState('100');
+    const [whatsappWelcomeEnabled, setWhatsappWelcomeEnabled] = useState(false);
+    const [whatsappWelcomeMessage, setWhatsappWelcomeMessage] = useState('Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!');
     const [cardOrder, setCardOrder] = useState([
         'total_members',
         'total_revenue', 
@@ -91,7 +93,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const fetchSettings = useCallback(async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days_after_due, payment_grace_period_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
+            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days_after_due, payment_grace_period_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount, whatsapp_welcome_enabled, whatsapp_welcome_message } = response.data;
             
             // Debug logging to see actual API values
             console.log('API Response for card settings:', {
@@ -133,6 +135,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
             if (referral_system_enabled !== undefined) { setReferralSystemEnabled(referral_system_enabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
+            if (whatsapp_welcome_enabled !== undefined) { setWhatsappWelcomeEnabled(whatsapp_welcome_enabled); }
+            if (whatsapp_welcome_message) { setWhatsappWelcomeMessage(whatsapp_welcome_message); }
             
             // Fetch card order
             if (response.data.card_order && Array.isArray(response.data.card_order)) {
@@ -164,6 +168,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 askUnlockReason: ask_unlock_reason,
                 referralSystemEnabled: referral_system_enabled,
                 referralDiscountAmount: String(referral_discount_amount || '100'),
+                whatsappWelcomeEnabled: whatsapp_welcome_enabled || false,
+                whatsappWelcomeMessage: whatsapp_welcome_message || 'Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!',
                 cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
                     'total_members',
                     'total_revenue', 
@@ -222,6 +228,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 ask_unlock_reason: askUnlockReason,
                 referral_system_enabled: referralSystemEnabled,
                 referral_discount_amount: referralDiscountAmount,
+                whatsapp_welcome_enabled: whatsappWelcomeEnabled,
+                whatsapp_welcome_message: whatsappWelcomeMessage,
                 card_order: cardOrder
             };
 
@@ -258,6 +266,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 askUnlockReason: askUnlockReason,
                 referralSystemEnabled: referralSystemEnabled,
                 referralDiscountAmount: referralDiscountAmount,
+                whatsappWelcomeEnabled: whatsappWelcomeEnabled,
+                whatsappWelcomeMessage: whatsappWelcomeMessage,
                 cardOrder: cardOrder
             };
             
@@ -303,6 +313,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             askUnlockReason,
             referralSystemEnabled,
             referralDiscountAmount,
+            whatsappWelcomeEnabled,
+            whatsappWelcomeMessage,
             cardOrder
         };
 
@@ -317,7 +329,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     }, [currency, gymName, gymLogo, primaryColor, secondaryColor, primaryColorMode, secondaryColorMode, 
         primaryGradient, secondaryGradient, paymentReminderDaysAfterDue, paymentGracePeriodDays, morningStart, morningEnd, eveningStart, 
         eveningEnd, showTotalMembers, showTotalRevenue, showNewMembersThisMonth, showUnpaidMembersThisMonth, 
-        showActiveSchedules, askUnlockReason, referralSystemEnabled, referralDiscountAmount, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
+        showActiveSchedules, askUnlockReason, referralSystemEnabled, referralDiscountAmount, whatsappWelcomeEnabled, whatsappWelcomeMessage, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
 
     // Sortable card component
     const SortableCard = ({ id, title, checked, onChange }) => {
@@ -559,6 +571,34 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                                 inputProps={{ min: 0, step: 0.01 }}
                                 helperText="Amount to be deducted from referrer's next payment"
                                 sx={{ width: '300px' }}
+                            />
+                        </Box>
+                    )}
+                </div>
+
+                <div style={{ marginTop: '30px' }}>
+                    <label>WhatsApp Welcome Message Settings</label>
+                    <FormGroup sx={{ mt: 1 }}>
+                        <FormControlLabel 
+                            control={<Checkbox checked={whatsappWelcomeEnabled} onChange={(e)=>setWhatsappWelcomeEnabled(e.target.checked)} />} 
+                            label="Enable WhatsApp welcome message for biometric enrollment" 
+                        />
+                    </FormGroup>
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        When enabled, a WhatsApp message will be automatically sent to members when they complete biometric enrollment for the first time.
+                    </Typography>
+                    
+                    {whatsappWelcomeEnabled && (
+                        <Box sx={{ mt: 2 }}>
+                            <TextField
+                                label="Welcome Message"
+                                multiline
+                                rows={4}
+                                value={whatsappWelcomeMessage}
+                                onChange={(e) => setWhatsappWelcomeMessage(e.target.value)}
+                                helperText="This message will be sent via WhatsApp when a member completes biometric enrollment"
+                                sx={{ width: '100%', maxWidth: '600px' }}
+                                placeholder="Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!"
                             />
                         </Box>
                     )}

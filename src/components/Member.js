@@ -28,7 +28,8 @@ import {
     FormControlLabel,
     Checkbox,
     Chip,
-    Pagination
+    Pagination,
+    CircularProgress
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
@@ -37,6 +38,7 @@ import StarIcon from '@mui/icons-material/Star';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import CancelIcon from '@mui/icons-material/Cancel';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import { FormShimmer } from './ShimmerLoader';
@@ -131,6 +133,11 @@ const Member = () => {
     const [biometricLoading, setBiometricLoading] = useState(false);
     const [biometricError, setBiometricError] = useState('');
     const [biometricSuccess, setBiometricSuccess] = useState('');
+    
+    // WebSocket and enrollment tracking state
+    const [wsConnected, setWsConnected] = useState(false);
+    const [ongoingEnrollment, setOngoingEnrollment] = useState(null); // { memberId, memberName, startTime }
+    const wsRef = useRef(null);
 
     // Pagination handlers
     const handlePageChange = (event, page) => {
@@ -212,6 +219,132 @@ const Member = () => {
     useEffect(() => {
         calculateDueDate();
     }, [calculateDueDate]);
+
+    // Handle WebSocket enrollment messages
+    const handleEnrollmentWebSocketMessage = useCallback((data) => {
+        console.log('📡 Handling enrollment WebSocket message:', data);
+        
+        if (data.type === 'enrollment_started') {
+            setBiometricSuccess(`📱 Enrollment started for ${data.memberName}. Please place your finger on the biometric device.`);
+            setOngoingEnrollment({
+                memberId: data.memberId,
+                memberName: data.memberName,
+                startTime: new Date().toISOString()
+            });
+        } else if (data.type === 'enrollment_progress') {
+            if (data.status === 'progress') {
+                // Map enrollment steps to user-friendly messages
+                const stepMessages = {
+                    'scanning_first_finger': `👆 ${data.memberName}, please place your finger on the biometric device for the first scan`,
+                    'first_finger_captured': `✅ First fingerprint captured successfully! Please remove your finger`,
+                    'remove_finger': `👆 Please remove your finger from the device`,
+                    'scanning_second_finger': `👆 ${data.memberName}, please place your finger on the biometric device again for the second scan`,
+                    'second_finger_captured': `✅ Second fingerprint captured successfully!`,
+                    'creating_model': `🔄 Creating your biometric model from both fingerprints...`,
+                    'prints_matched': `✅ Fingerprints matched! Creating your biometric profile...`,
+                    'storing_model': `💾 Saving your biometric data to the device...`,
+                    'model_stored': `✅ Biometric profile saved successfully!`,
+                    'timeout_first_finger': `⏰ Timeout waiting for first fingerprint scan`,
+                    'timeout_second_finger': `⏰ Timeout waiting for second fingerprint scan`,
+                    'timeout_finger_removal': `⏰ Timeout waiting for finger removal`,
+                    'communication_error': `❌ Communication error with biometric device`,
+                    'imaging_error': `❌ Fingerprint imaging error - please try again`,
+                    'template_creation_failed': `❌ Failed to create fingerprint template`,
+                    'second_template_failed': `❌ Failed to create second fingerprint template`,
+                    'prints_mismatch': `❌ Fingerprints don't match - please try again`,
+                    'storage_failed': `❌ Failed to save biometric data`,
+                    'unknown_error': `❌ Unknown error occurred during enrollment`,
+                    'enrollment_failed': `❌ Enrollment failed - please try again`
+                };
+                
+                const message = stepMessages[data.currentStep] || `🔄 Enrollment in progress: ${data.currentStep}`;
+                setBiometricSuccess(message);
+            } else if (data.status === 'retry') {
+                setBiometricSuccess(`🔄 ${data.message}`);
+            }
+        } else if (data.type === 'enrollment_complete') {
+            if (data.status === 'success') {
+                setBiometricSuccess(`🎉 ${data.memberName} has been successfully enrolled! They can now use their fingerprint to access the gym.`);
+                setOngoingEnrollment(null);
+                // Refresh biometric status
+                if (editingMember) {
+                    openBiometricDialog(editingMember);
+                }
+            } else if (data.status === 'failed') {
+                // Check if this is a retryable failure
+                const retryableErrors = ['timeout_first_finger', 'timeout_second_finger', 'timeout_finger_removal', 'imaging_error', 'prints_mismatch', 'communication_error'];
+                const isRetryable = retryableErrors.some(error => data.message?.includes(error));
+                
+                if (isRetryable) {
+                    setBiometricError(`❌ Enrollment failed for ${data.memberName}: ${data.message}. You can retry enrollment by clicking the enroll button again.`);
+                } else {
+                    setBiometricError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
+                }
+                setOngoingEnrollment(null);
+            } else if (data.status === 'cancelled') {
+                setBiometricSuccess(`⏹️ Enrollment cancelled for ${data.memberName}.`);
+                setOngoingEnrollment(null);
+            } else if (data.status === 'error') {
+                setBiometricError(`❌ Enrollment error for ${data.memberName}: ${data.message}`);
+                setOngoingEnrollment(null);
+            }
+        } else if (data.type === 'enrollment_stopped' && data.reason !== 'success') {
+            setBiometricSuccess(null);
+            setBiometricError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
+            setOngoingEnrollment(null);
+        } else if (data.type === 'whatsapp_welcome_sent') {
+            setBiometricSuccess(`📱 WhatsApp welcome message prepared for ${data.memberName}! The message is ready to be sent.`);
+        } else if (data.type === 'whatsapp_welcome_failed') {
+            setBiometricError(`📱 WhatsApp welcome message failed for ${data.memberName}: ${data.error}`);
+        } else if (data.type === 'whatsapp_welcome_error') {
+            setBiometricError(`📱 WhatsApp welcome message error for member ${data.memberId}: ${data.error}`);
+        }
+    }, [editingMember]);
+
+    // WebSocket setup for real-time enrollment updates
+    useEffect(() => {
+        // Set up WebSocket connection for real-time updates
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+        
+        ws.onopen = () => {
+            console.log('🔌 WebSocket connected for real-time enrollment updates (Member component)');
+            setWsConnected(true);
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('📡 WebSocket message received in Member component:', data);
+                
+                // Only handle enrollment events for the current member
+                if (data.memberId && editingMember && data.memberId === editingMember.id) {
+                    handleEnrollmentWebSocketMessage(data);
+                }
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+            }
+        };
+        
+        ws.onclose = () => {
+            console.log('🔌 WebSocket disconnected (Member component)');
+            setWsConnected(false);
+        };
+        
+        ws.onerror = (error) => {
+            console.error('WebSocket error (Member component):', error);
+            setWsConnected(false);
+        };
+
+        return () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        };
+    }, [editingMember, handleEnrollmentWebSocketMessage]); // Include the memoized function
 
     const fetchPlans = async () => {
         try {
@@ -404,15 +537,83 @@ const Member = () => {
             setBiometricError('');
             setBiometricSuccess('');
             
-            const response = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+            console.log('🚀 Starting enrollment for member:', editingMember.id, editingMember.name);
+            
+            // First, check if biometric service is available
+            console.log('🔐 Checking biometric service status...');
+            const statusResponse = await axios.get('/api/biometric/status');
+            console.log('🔐 Biometric service status:', statusResponse.data);
+            
+            if (!statusResponse.data.success || !statusResponse.data.data?.biometricServiceAvailable) {
+                throw new Error('Biometric service is not available. Please check if biometric integration is enabled.');
+            }
+            
+            // Check if there are any online ESP32 devices
+            console.log('📡 Fetching ESP32 devices...');
+            const devicesResponse = await axios.get('/api/biometric/devices');
+            console.log('📡 Devices response:', devicesResponse.data);
+            
+            let targetDeviceId = null;
+            
+            if (devicesResponse.data.success && devicesResponse.data.devices.length > 0) {
+                // Find the first online device
+                const onlineDevice = devicesResponse.data.devices.find(device => device.status === 'online');
+                console.log('📡 Online device found:', onlineDevice);
+                if (onlineDevice) {
+                    targetDeviceId = onlineDevice.device_id;
+                    console.log(`Auto-selecting device: ${targetDeviceId}`);
+                } else {
+                    console.log('⚠️ No online ESP32 devices found');
+                }
+            } else {
+                console.log('⚠️ No ESP32 devices found or devices not online');
+            }
+            
+            let response;
+            if (targetDeviceId) {
+                // Use ESP32 device-specific enrollment (same as BiometricEnrollment component)
+                console.log(`📱 Sending enrollment command to ESP32 device: ${targetDeviceId}`);
+                response = await axios.post(`/api/biometric/devices/${targetDeviceId}/enroll`, {
+                    memberId: editingMember.id
+                });
+                console.log('📱 ESP32 enrollment response:', response.data);
+            } else {
+                // Fallback to basic enrollment if no devices available
+                console.log('📱 Using fallback basic enrollment');
+                response = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+                console.log('📱 Basic enrollment response:', response.data);
+            }
+            
             if (response.data.success) {
-                setBiometricSuccess('Enrollment started successfully. Please ask the member to place their finger on the biometric device.');
+                const deviceInfo = targetDeviceId ? ` on ESP32 device ${targetDeviceId}` : '';
+                setBiometricSuccess(`Enrollment started for ${editingMember.name}${deviceInfo}. Please ask the member to place their finger on the biometric device and follow the prompts.`);
                 // Refresh biometric status
                 openBiometricDialog(editingMember);
+            } else {
+                setBiometricError(response.data.message || 'Failed to start enrollment');
             }
         } catch (error) {
-            console.error('Error starting enrollment:', error);
-            setBiometricError(error?.response?.data?.message || 'Failed to start enrollment');
+            console.error('❌ Error starting enrollment:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status,
+                statusText: error.response?.statusText
+            });
+            
+            // Provide more specific error messages
+            let errorMessage = 'Failed to start enrollment';
+            if (error.response?.status === 503) {
+                errorMessage = 'Biometric service is not available. Please check if biometric integration is enabled.';
+            } else if (error.response?.status === 404) {
+                errorMessage = 'Member not found or biometric service unavailable.';
+            } else if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            setBiometricError(errorMessage);
         } finally {
             setBiometricLoading(false);
         }
@@ -459,10 +660,33 @@ const Member = () => {
             // First delete existing enrollment
             const deleteResponse = await axios.delete(`/api/biometric/members/${editingMember.id}/biometric`);
             if (deleteResponse.data.success) {
-                // Then start new enrollment
-                const enrollResponse = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+                // Then start new enrollment using the same logic as startEnrollment
+                // First, check if there are any online ESP32 devices
+                const devicesResponse = await axios.get('/api/biometric/devices');
+                let targetDeviceId = null;
+                
+                if (devicesResponse.data.success && devicesResponse.data.devices.length > 0) {
+                    // Find the first online device
+                    const onlineDevice = devicesResponse.data.devices.find(device => device.status === 'online');
+                    if (onlineDevice) {
+                        targetDeviceId = onlineDevice.device_id;
+                        console.log(`Auto-selecting device for re-enrollment: ${targetDeviceId}`);
+                    }
+                }
+                
+                let enrollResponse;
+                if (targetDeviceId) {
+                    // Use ESP32 device-specific enrollment (same as BiometricEnrollment component)
+                    enrollResponse = await axios.post(`/api/biometric/devices/${targetDeviceId}/enroll`, {
+                        memberId: editingMember.id
+                    });
+                } else {
+                    // Fallback to basic enrollment if no devices available
+                    enrollResponse = await axios.post(`/api/biometric/members/${editingMember.id}/enroll`);
+                }
+                
                 if (enrollResponse.data.success) {
-                    setBiometricSuccess('Re-enrollment started successfully. Please ask the member to place their finger on the biometric device.');
+                    setBiometricSuccess(`Re-enrollment started for ${editingMember.name}. Please ask the member to place their finger on the biometric device and follow the prompts.`);
                     // Refresh biometric status
                     openBiometricDialog(editingMember);
                 } else {
@@ -474,6 +698,45 @@ const Member = () => {
         } catch (error) {
             console.error('Error starting re-enrollment:', error);
             setBiometricError(error?.response?.data?.message || 'Failed to start re-enrollment');
+        } finally {
+            setBiometricLoading(false);
+        }
+    };
+
+    const cancelEnrollment = async () => {
+        if (!ongoingEnrollment) {
+            return;
+        }
+        
+        try {
+            setBiometricLoading(true);
+            setBiometricError('');
+            setBiometricSuccess('');
+            
+            // Use the same endpoint as Biometric Management for consistency
+            const response = await axios.post('/api/biometric/enrollment/cancel', {
+                memberId: ongoingEnrollment.memberId,
+                reason: 'user_cancelled'
+            });
+            
+            // Always clear state and provide feedback (same as Biometric Management)
+            setOngoingEnrollment(null);
+            
+            if (response.data.success) {
+                setBiometricSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName}. You can retry enrollment anytime.`);
+            } else {
+                setBiometricSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation). You can retry enrollment anytime.`);
+            }
+            
+            // Refresh biometric status
+            if (editingMember) {
+                openBiometricDialog(editingMember);
+            }
+        } catch (error) {
+            console.error('Error cancelling enrollment:', error);
+            // Even on error, clear state and provide feedback
+            setOngoingEnrollment(null);
+            setBiometricSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation). You can retry enrollment anytime.`);
         } finally {
             setBiometricLoading(false);
         }
@@ -1289,12 +1552,6 @@ const Member = () => {
                     Biometric data for {editingMember?.name || 'Member'}
                 </DialogTitle>
                 <DialogContent>
-                    {biometricLoading && (
-                        <Box sx={{ textAlign: 'center', py: 2 }}>
-                            <FormShimmer />
-                        </Box>
-                    )}
-                    
                     {biometricError && (
                         <Alert severity="error" sx={{ mb: 2 }}>
                             {biometricError}
@@ -1307,8 +1564,47 @@ const Member = () => {
                         </Alert>
                     )}
                     
-                    {!biometricLoading && memberBiometricStatus && (
+                    {biometricLoading && !memberBiometricStatus && (
+                        <Box sx={{ textAlign: 'center', py: 2 }}>
+                            <FormShimmer />
+                        </Box>
+                    )}
+                    
+                    {memberBiometricStatus && (
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
+                            {/* System Status Indicator */}
+                            <Box sx={{ 
+                                p: 2, 
+                                backgroundColor: '#f5f5f5', 
+                                borderRadius: 1,
+                                border: '1px solid #e0e0e0'
+                            }}>
+                                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                    System Status
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                    <Chip 
+                                        label="Biometric Service" 
+                                        color="primary" 
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                    <Typography variant="body2" color="text.secondary">
+                                        Ready for enrollment
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Chip 
+                                        label="Real-time Updates" 
+                                        color={wsConnected ? "success" : "error"} 
+                                        size="small"
+                                        variant="outlined"
+                                    />
+                                    <Typography variant="body2" color="text.secondary">
+                                        {wsConnected ? "Connected" : "Disconnected"}
+                                    </Typography>
+                                </Box>
+                            </Box>
                             {/* Biometric Status Display */}
                             <Box>
                                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -1377,11 +1673,11 @@ const Member = () => {
                                             fullWidth
                                             variant="contained"
                                             onClick={reEnroll}
-                                            disabled={biometricLoading}
-                                            startIcon={<RefreshIcon />}
+                                            disabled={biometricLoading || !!ongoingEnrollment}
+                                            startIcon={biometricLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
                                             sx={{ py: 1.5 }}
                                         >
-                                            Re-enroll Now
+                                            {biometricLoading ? 'Starting Re-enrollment...' : ongoingEnrollment ? 'Enrollment in Progress...' : 'Re-enroll Now'}
                                         </Button>
                                     </Box>
                                 ) : (
@@ -1389,12 +1685,29 @@ const Member = () => {
                                         fullWidth
                                         variant="contained"
                                         onClick={startEnrollment}
-                                        disabled={biometricLoading}
-                                        startIcon={<FingerprintIcon />}
+                                        disabled={biometricLoading || !!ongoingEnrollment}
+                                        startIcon={biometricLoading ? <CircularProgress size={20} /> : <FingerprintIcon />}
                                         sx={{ py: 1.5 }}
                                     >
-                                        Enroll Fingerprints
+                                        {biometricLoading ? 'Starting Enrollment...' : ongoingEnrollment ? 'Enrollment in Progress...' : 'Enroll Fingerprints'}
                                     </Button>
+                                )}
+                                
+                                {/* Cancel Enrollment Button - Show when enrollment is ongoing */}
+                                {ongoingEnrollment && (
+                                    <Box sx={{ mt: 2 }}>
+                                        <Button
+                                            fullWidth
+                                            variant="outlined"
+                                            color="error"
+                                            onClick={cancelEnrollment}
+                                            disabled={biometricLoading}
+                                            startIcon={<CancelIcon />}
+                                            sx={{ py: 1.5 }}
+                                        >
+                                            Cancel Enrollment
+                                        </Button>
+                                    </Box>
                                 )}
                             </Box>
                         </Box>

@@ -722,6 +722,12 @@ const BiometricEnrollment = () => {
           setSuccess(null);
           setError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
           setOngoingEnrollment(null);
+        } else if (data.type === 'whatsapp_welcome_sent') {
+          setSuccess(`📱 WhatsApp welcome message prepared for ${data.memberName}! The message is ready to be sent.`);
+        } else if (data.type === 'whatsapp_welcome_failed') {
+          setError(`📱 WhatsApp welcome message failed for ${data.memberName}: ${data.error}`);
+        } else if (data.type === 'whatsapp_welcome_error') {
+          setError(`📱 WhatsApp welcome message error for member ${data.memberId}: ${data.error}`);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
