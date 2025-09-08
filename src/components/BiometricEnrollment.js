@@ -666,7 +666,32 @@ const BiometricEnrollment = () => {
           });
         } else if (data.type === 'enrollment_progress') {
           if (data.status === 'progress') {
-            setSuccess(`🔄 Enrollment in progress: ${data.currentStep}`);
+            // Map enrollment steps to user-friendly messages
+            const stepMessages = {
+              'scanning_first_finger': `👆 ${data.memberName}, please place your finger on the biometric device for the first scan`,
+              'first_finger_captured': `✅ First fingerprint captured successfully! Please remove your finger`,
+              'remove_finger': `👆 Please remove your finger from the device`,
+              'scanning_second_finger': `👆 ${data.memberName}, please place your finger on the biometric device again for the second scan`,
+              'second_finger_captured': `✅ Second fingerprint captured successfully!`,
+              'creating_model': `🔄 Creating your biometric model from both fingerprints...`,
+              'prints_matched': `✅ Fingerprints matched! Creating your biometric profile...`,
+              'storing_model': `💾 Saving your biometric data to the device...`,
+              'model_stored': `✅ Biometric profile saved successfully!`,
+              'timeout_first_finger': `⏰ Timeout waiting for first fingerprint scan`,
+              'timeout_second_finger': `⏰ Timeout waiting for second fingerprint scan`,
+              'timeout_finger_removal': `⏰ Timeout waiting for finger removal`,
+              'communication_error': `❌ Communication error with biometric device`,
+              'imaging_error': `❌ Fingerprint imaging error - please try again`,
+              'template_creation_failed': `❌ Failed to create fingerprint template`,
+              'second_template_failed': `❌ Failed to create second fingerprint template`,
+              'prints_mismatch': `❌ Fingerprints don't match - please try again`,
+              'storage_failed': `❌ Failed to save biometric data`,
+              'unknown_error': `❌ Unknown error occurred during enrollment`,
+              'enrollment_failed': `❌ Enrollment failed - please try again`
+            };
+            
+            const message = stepMessages[data.currentStep] || `🔄 Enrollment in progress: ${data.currentStep}`;
+            setSuccess(message);
           } else if (data.status === 'retry') {
             setSuccess(`🔄 ${data.message}`);
           }
@@ -676,7 +701,15 @@ const BiometricEnrollment = () => {
             setOngoingEnrollment(null);
             fetchMembersWithoutBiometric(); // Refresh members list
           } else if (data.status === 'failed') {
-            setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
+            // Check if this is a retryable failure
+            const retryableErrors = ['timeout_first_finger', 'timeout_second_finger', 'timeout_finger_removal', 'imaging_error', 'prints_mismatch', 'communication_error'];
+            const isRetryable = retryableErrors.some(error => data.message?.includes(error));
+            
+            if (isRetryable) {
+              setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}. You can retry enrollment by clicking the enroll button again.`);
+            } else {
+              setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
+            }
             setOngoingEnrollment(null);
           } else if (data.status === 'cancelled') {
             setSuccess(`⏹️ Enrollment cancelled for ${data.memberName}.`);
@@ -821,7 +854,9 @@ const BiometricEnrollment = () => {
       const data = await response.json();
 
       if (data.success) {
-        setSuccess('Enrollment stopped');
+        const memberName = ongoingEnrollment?.memberName || 'the member';
+        setSuccess(`⏹️ Enrollment manually aborted for ${memberName}. You can retry enrollment anytime.`);
+        setOngoingEnrollment(null);
         fetchEnrollmentStatus();
         fetchMembersWithoutBiometric();
       } else {
