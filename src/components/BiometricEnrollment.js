@@ -544,6 +544,31 @@ const BiometricEnrollment = () => {
     }
   }, []);
 
+  // Function to format event messages based on event type and reason
+  const formatEventMessage = useCallback((event) => {
+    const rawData = event.raw_data ? JSON.parse(event.raw_data) : {};
+    const { reason } = rawData;
+    
+    switch (event.event_type) {
+      case 'button_override':
+        return 'Door unlocked via physical button override';
+      case 'remote_unlock':
+        if (reason && reason !== 'admin_unlock') {
+          return `Door unlocked remotely - Reason: ${reason}`;
+        } else {
+          return 'Door unlocked remotely - Admin override';
+        }
+      case 'checkin':
+        return `Member check-in - ${event.member_name || 'Unknown'}`;
+      case 'enrollment':
+        return `Fingerprint enrollment - ${event.member_name || 'Unknown'}`;
+      case 'access_denied':
+        return `Access denied - ${event.member_name || 'Unknown'}`;
+      default:
+        return `${event.event_type} - ${event.member_name || 'Unknown'}`;
+    }
+  }, []);
+
   // Memoized event item component for virtual scrolling performance
   const EventItem = useCallback(({ index, style, data }) => {
     const event = data[index];
@@ -562,7 +587,7 @@ const BiometricEnrollment = () => {
             />
           </ListItemIcon>
           <ListItemText
-            primary={`${event.event_type} - ${event.member_name || 'Unknown'}`}
+            primary={formatEventMessage(event)}
             secondary={
               <Box>
                 <Typography variant="caption" display="block">
@@ -589,7 +614,7 @@ const BiometricEnrollment = () => {
         </ListItem>
       </div>
     );
-  }, [formatDateTime]);
+  }, [formatDateTime, formatEventMessage]);
 
   // Event filter handling
   const handleEventFilterChange = (eventType, checked) => {
@@ -1823,7 +1848,7 @@ const BiometricEnrollment = () => {
                       />
                     </ListItemIcon>
                     <ListItemText
-                      primary={`${event.event_type} - ${event.member_name || 'Unknown'}`}
+                      primary={formatEventMessage(event)}
                       secondary={
                         <Box>
                           <Typography variant="caption" display="block">

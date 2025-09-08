@@ -157,7 +157,7 @@ const Dashboard = () => {
 
     const fetchAllReports = async () => {
         try {
-            const [summary, growth, attendance, revenue, birthdays, reminders, renewals] = await Promise.all([
+            const [summary, growth, attendance, revenue, birthdays, reminders] = await Promise.all([
                 axios.get('/api/reports/summary'),
                 axios.get('/api/reports/member-growth'),
                 axios.get('/api/reports/attendance-stats'),

@@ -241,7 +241,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 secondaryColorMode: secondaryColorMode || 'solid',
                 primaryGradient: primaryGradient || '',
                 secondaryGradient: secondaryGradient || '',
-                paymentReminderDays: paymentReminderDays || '7',
+                paymentReminderDaysAfterDue: paymentReminderDaysAfterDue || '7',
                 morningStart: morningStart || '05:00',
                 morningEnd: morningEnd || '11:00',
                 eveningStart: eveningStart || '16:00',
@@ -285,7 +285,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             secondaryColorMode,
             primaryGradient,
             secondaryGradient,
-            paymentReminderDays,
+            paymentReminderDaysAfterDue,
             morningStart,
             morningEnd,
             eveningStart,
@@ -310,7 +310,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             }
         }
     }, [currency, gymName, gymLogo, primaryColor, secondaryColor, primaryColorMode, secondaryColorMode, 
-        primaryGradient, secondaryGradient, paymentReminderDays, morningStart, morningEnd, eveningStart, 
+        primaryGradient, secondaryGradient, paymentReminderDaysAfterDue, morningStart, morningEnd, eveningStart, 
         eveningEnd, showTotalMembers, showTotalRevenue, showNewMembersThisMonth, showUnpaidMembersThisMonth, 
         showActiveSchedules, askUnlockReason, referralSystemEnabled, referralDiscountAmount, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
 
