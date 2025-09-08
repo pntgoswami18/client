@@ -1168,6 +1168,35 @@ const Member = () => {
         setCroppedImageUrl(null);
     };
 
+    const retakeFromCrop = () => {
+        // Close crop dialog and clear crop-related state
+        setCropOpen(false);
+        setImageToCrop(null);
+        setCroppedImageUrl(null);
+        
+        // Clear any existing captured image
+        setCapturedImage(null);
+        setPhotoFile(null);
+        setPhotoUrl('');
+        setVideoReady(false);
+        
+        // Clean up any existing camera stream
+        if (stream) {
+            console.log('Cleaning up existing stream before retaking photo');
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+        
+        // Clear video element if it exists
+        if (videoRef.current) {
+            console.log('Clearing video element srcObject');
+            videoRef.current.srcObject = null;
+        }
+        
+        // Open camera for retaking photo
+        openCamera();
+    };
+
 
     return (
         <div>
@@ -2160,6 +2189,9 @@ const Member = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={cancelCrop}>Cancel</Button>
+                    <Button onClick={retakeFromCrop} variant="outlined" startIcon="📷">
+                        Retake Photo
+                    </Button>
                     <Button 
                         onClick={applyCrop} 
                         variant="contained" 
