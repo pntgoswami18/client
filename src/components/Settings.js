@@ -63,6 +63,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [primaryGradient, setPrimaryGradient] = useState('');
     const [secondaryGradient, setSecondaryGradient] = useState('');
     const [paymentReminderDaysAfterDue, setPaymentReminderDaysAfterDue] = useState('7');
+    const [paymentGracePeriodDays, setPaymentGracePeriodDays] = useState('3');
     const [morningStart, setMorningStart] = useState('05:00');
     const [morningEnd, setMorningEnd] = useState('11:00');
     const [eveningStart, setEveningStart] = useState('16:00');
@@ -90,7 +91,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const fetchSettings = useCallback(async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days_after_due, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
+            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days_after_due, payment_grace_period_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
             
             // Debug logging to see actual API values
             console.log('API Response for card settings:', {
@@ -150,6 +151,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 primaryGradient: primary_color_gradient || '',
                 secondaryGradient: secondary_color_gradient || '',
                 paymentReminderDaysAfterDue: String(payment_reminder_days_after_due || '7'),
+                paymentGracePeriodDays: String(payment_grace_period_days || '3'),
                 morningStart: morning_session_start || '05:00',
                 morningEnd: morning_session_end || '11:00',
                 eveningStart: evening_session_start || '16:00',
@@ -207,6 +209,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 primary_color_gradient: primaryGradient,
                 secondary_color_gradient: secondaryGradient,
                 payment_reminder_days_after_due: paymentReminderDaysAfterDue,
+                payment_grace_period_days: paymentGracePeriodDays,
                 morning_session_start: morningStart,
                 morning_session_end: morningEnd,
                 evening_session_start: eveningStart,
@@ -242,6 +245,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 primaryGradient: primaryGradient || '',
                 secondaryGradient: secondaryGradient || '',
                 paymentReminderDaysAfterDue: paymentReminderDaysAfterDue || '7',
+                paymentGracePeriodDays: paymentGracePeriodDays || '3',
                 morningStart: morningStart || '05:00',
                 morningEnd: morningEnd || '11:00',
                 eveningStart: eveningStart || '16:00',
@@ -286,6 +290,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             primaryGradient,
             secondaryGradient,
             paymentReminderDaysAfterDue,
+            paymentGracePeriodDays,
             morningStart,
             morningEnd,
             eveningStart,
@@ -310,7 +315,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             }
         }
     }, [currency, gymName, gymLogo, primaryColor, secondaryColor, primaryColorMode, secondaryColorMode, 
-        primaryGradient, secondaryGradient, paymentReminderDaysAfterDue, morningStart, morningEnd, eveningStart, 
+        primaryGradient, secondaryGradient, paymentReminderDaysAfterDue, paymentGracePeriodDays, morningStart, morningEnd, eveningStart, 
         eveningEnd, showTotalMembers, showTotalRevenue, showNewMembersThisMonth, showUnpaidMembersThisMonth, 
         showActiveSchedules, askUnlockReason, referralSystemEnabled, referralDiscountAmount, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
 
@@ -693,6 +698,17 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                         slotProps={{ htmlInput: { min: 1 } }}
                         fullWidth
                         margin="normal"
+                    />
+                    
+                    <TextField
+                        label="Payment Grace Period (days after due date)"
+                        type="number"
+                        value={paymentGracePeriodDays}
+                        onChange={(e) => setPaymentGracePeriodDays(e.target.value)}
+                        slotProps={{ htmlInput: { min: 0 } }}
+                        fullWidth
+                        margin="normal"
+                        helperText="Members will be automatically deactivated after this many days past their due date"
                     />
                 </div>
 
