@@ -385,7 +385,7 @@ const Member = () => {
                 ws.close();
             }
         };
-    }, [editingMember]); // Remove handleEnrollmentWebSocketMessage from dependencies to avoid circular dependency
+    }, [editingMember, handleEnrollmentWebSocketMessage]);
 
     const fetchPlans = async () => {
         try {
