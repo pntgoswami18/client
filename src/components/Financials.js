@@ -27,7 +27,8 @@ import {
     Select,
     MenuItem,
     Autocomplete,
-    Pagination
+    Pagination,
+    Chip
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import { TableShimmer } from './ShimmerLoader';
@@ -406,11 +407,19 @@ const Financials = () => {
 
     const fetchMembers = async () => {
         try {
-            const res = await axios.get('/api/members?filter=all');
-            // The API returns {members: [...]}, so we need to access res.data.members
-            const membersData = Array.isArray(res.data.members) ? res.data.members : [];
+            // Fetch both active and deactivated members for payment/invoice creation
+            // This allows recording payments against deactivated members with unpaid invoices
+            const activeRes = await axios.get('/api/members?filter=all&limit=1000');
+            const deactivatedRes = await axios.get('/api/members?filter=deactivated&limit=1000');
+            
+            const activeMembersData = Array.isArray(activeRes.data.members) ? activeRes.data.members : [];
+            const deactivatedMembersData = Array.isArray(deactivatedRes.data.members) ? deactivatedRes.data.members : [];
+            
+            // Combine both lists
+            const allMembersData = [...activeMembersData, ...deactivatedMembersData];
+            
             // Filter out any null/undefined members
-            const validMembers = membersData.filter(member => member && typeof member === 'object' && member.id);
+            const validMembers = allMembersData.filter(member => member && typeof member === 'object' && member.id);
             setMembers(validMembers);
         } catch (e) {
             console.error('Error fetching members', e);
@@ -1072,7 +1081,15 @@ const Financials = () => {
                                     setUnpaidInvoices([]);
                                 }
                             }}
-                            renderInput={(params) => <TextField {...params} label="Member" placeholder="Type member name" />}
+                            renderOption={(props, option) => (
+                                <Box component="li" {...props} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>{option.name}</span>
+                                    {option.is_active === 0 && (
+                                        <Chip label="Deactivated" size="small" color="error" sx={{ ml: 1 }} />
+                                    )}
+                                </Box>
+                            )}
+                            renderInput={(params) => <TextField {...params} label="Member" placeholder="Type member name (includes deactivated)" />}
                         />
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                             <TextField label="Invoice ID" type="number" value={manualInvoiceId} onChange={(e)=>setManualInvoiceId(e.target.value)} sx={{ flex: 1 }} />
