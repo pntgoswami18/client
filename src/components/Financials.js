@@ -1157,9 +1157,26 @@ const Financials = () => {
                                 member_id: manualMember?.id || undefined
                             };
                             if (manualInvoiceId) { payload.invoice_id = parseInt(manualInvoiceId,10); }
+                            
+                            // Record the payment
                             await axios.post('/api/payments/manual', payload);
+                            
+                            // If member is deactivated, reactivate them after successful payment
+                            if (manualMember && manualMember.is_active === 0) {
+                                try {
+                                    await axios.put(`/api/members/${manualMember.id}/status`, { is_active: 1 });
+                                    console.log(`✅ Member ${manualMember.id} reactivated after payment`);
+                                } catch (reactivateError) {
+                                    console.error('Error reactivating member:', reactivateError);
+                                    // Don't fail the payment if reactivation fails, but notify user
+                                    alert('Payment recorded successfully, but there was an error reactivating the member. Please activate them manually.');
+                                }
+                            }
+                            
                             setOpenManualPayment(false);
                             fetchFinancialSummary();
+                            fetchMembers(); // Refresh members list to show updated status
+                            alert('Payment recorded successfully!' + (manualMember && manualMember.is_active === 0 ? ' Member has been reactivated and can now access the door.' : ''));
                         } catch (e) {
                             console.error(e);
                             alert(e?.response?.data?.message || 'Error recording manual payment.');
