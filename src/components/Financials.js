@@ -289,6 +289,20 @@ const Financials = () => {
         fetchFinancialSummary('all', 1, itemsPerPage);
     }, [fetchFinancialSummary, itemsPerPage]);
 
+    // Listen for payment recorded events from other components
+    // This ensures data is refreshed after recording payments in member details modal
+    useEffect(() => {
+        const handlePaymentRecorded = () => {
+            console.log('Payment recorded event received, refreshing financial data...');
+            fetchFinancialSummary('payments', paymentsPage, itemsPerPage);
+            fetchFinancialSummary('outstanding', outstandingPage, itemsPerPage);
+            fetchFinancialSummary('members', membersPage, itemsPerPage);
+        };
+
+        window.addEventListener('paymentRecorded', handlePaymentRecorded);
+        return () => window.removeEventListener('paymentRecorded', handlePaymentRecorded);
+    }, [fetchFinancialSummary, paymentsPage, outstandingPage, membersPage, itemsPerPage]);
+
     useEffect(() => {
         const qp = new URLSearchParams(location.search);
         const section = qp.get('section');
@@ -650,7 +664,7 @@ const Financials = () => {
                     </Typography>
                 </Box>
                 {loadingStates.payments ? (
-                    <TableShimmer rows={5} columns={4} />
+                    <TableShimmer rows={5} columns={6} />
                 ) : financialSummary.paymentHistory.length > 0 ? (
                     <>
                         <TableContainer component={Paper}>
@@ -664,9 +678,11 @@ const Financials = () => {
                                         }
                                     }}>
                                         <TableCell>Payment ID</TableCell>
+                                        <TableCell>Invoice ID</TableCell>
                                         <TableCell>Member Name</TableCell>
                                         <TableCell>Amount</TableCell>
                                         <TableCell>Payment Date</TableCell>
+                                        <TableCell>Invoice Date</TableCell>
                                         <TableCell>Actions</TableCell>
                                     </TableRow>
                                 </TableHead>
@@ -674,9 +690,11 @@ const Financials = () => {
                                     {financialSummary.paymentHistory.map(payment => (
                                         <TableRow key={payment.id} hover>
                                             <TableCell>{payment.id}</TableCell>
+                                            <TableCell>#{payment.invoice_id}</TableCell>
                                             <TableCell>{payment.member_name}</TableCell>
                                             <TableCell>{formatCurrency(payment.amount, currency)}</TableCell>
                                             <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                                            <TableCell>{payment.invoice_date ? new Date(payment.invoice_date).toLocaleDateString() : 'N/A'}</TableCell>
                                             <TableCell>
                                                 <Box sx={{ display: 'flex', gap: 1 }}>
                                                     <Button
@@ -696,6 +714,13 @@ const Financials = () => {
                                                                 try {
                                                                     await axios.delete(`/api/payments/${payment.id}`);
                                                                     fetchFinancialSummary('payments', paymentsPage, itemsPerPage); // Refresh the data
+                                                                    
+                                                                    // Dispatch custom event to notify other components
+                                                                    const paymentDeletedEvent = new CustomEvent('paymentDeleted', {
+                                                                        detail: { paymentId: payment.id }
+                                                                    });
+                                                                    window.dispatchEvent(paymentDeletedEvent);
+                                                                    
                                                                     alert('Payment deleted successfully. Invoice status updated to unpaid.');
                                                                 } catch (error) {
                                                                     console.error('Error deleting payment:', error);

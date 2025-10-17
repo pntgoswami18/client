@@ -37,7 +37,8 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    IconButton
+    IconButton,
+    Snackbar
 } from '@mui/material';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
@@ -57,6 +58,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import ToggleOffIcon from '@mui/icons-material/ToggleOff';
 import ToggleOnIcon from '@mui/icons-material/ToggleOn';
+import PaymentIcon from '@mui/icons-material/Payment';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import { FormShimmer, CameraShimmer } from './ShimmerLoader';
 
@@ -114,6 +116,19 @@ const Member = () => {
     const [isAdmin, setIsAdmin] = useState(false);
     const [calculatedDueDate, setCalculatedDueDate] = useState('');
     const [dueDate, setDueDate] = useState('');
+
+    // Payment recording state
+    const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
+    const [paymentAmount, setPaymentAmount] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('cash');
+    const [paymentTransactionId, setPaymentTransactionId] = useState('');
+    const [paymentLoading, setPaymentLoading] = useState(false);
+    const [paymentError, setPaymentError] = useState('');
+    
+    // Toast notification state
+    const [toastOpen, setToastOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastSeverity, setToastSeverity] = useState('success');
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
@@ -211,6 +226,31 @@ const Member = () => {
         fetchPlans();
         fetchCurrency();
     }, [fetchMembers]);
+
+    // Listen for payment events (recorded or deleted) from other components
+    // This ensures member details refresh when payments are modified
+    useEffect(() => {
+        const handlePaymentChange = async () => {
+            // Only refresh if member details modal is currently open
+            if (openMemberDetails && currentViewingMember) {
+                console.log('Payment change detected, refreshing member details...');
+                try {
+                    const updatedDetails = await axios.get(`/api/members/${currentViewingMember.id}/details`);
+                    setMemberDetails(updatedDetails.data);
+                } catch (error) {
+                    console.error('Error refreshing member details:', error);
+                }
+            }
+        };
+
+        window.addEventListener('paymentRecorded', handlePaymentChange);
+        window.addEventListener('paymentDeleted', handlePaymentChange);
+        
+        return () => {
+            window.removeEventListener('paymentRecorded', handlePaymentChange);
+            window.removeEventListener('paymentDeleted', handlePaymentChange);
+        };
+    }, [openMemberDetails, currentViewingMember]);
 
     const calculateDueDate = useCallback(() => {
         if (!joinDate || !membershipPlanId || isAdmin) {
@@ -612,6 +652,117 @@ const Member = () => {
         } catch (e) {
             console.error('Failed to update status', e);
             alert('Failed to update member status');
+        }
+    };
+
+    const openPaymentRecordDialog = () => {
+        if (!currentViewingMember) return;
+        
+        // Pre-fill payment amount with the latest invoice amount if available
+        if (memberDetails?.latestInvoice && memberDetails.latestInvoice.status !== 'paid') {
+            setPaymentAmount(memberDetails.latestInvoice.amount);
+        } else if (currentViewingMember.membership_plan_id) {
+            // Find the plan and use its price
+            const plan = plans.find(p => p.id === currentViewingMember.membership_plan_id);
+            if (plan) {
+                setPaymentAmount(plan.price);
+            }
+        } else {
+            setPaymentAmount('');
+        }
+        
+        setPaymentMethod('cash');
+        setPaymentTransactionId('');
+        setPaymentError('');
+        setOpenPaymentDialog(true);
+    };
+
+    const handleRecordPayment = async () => {
+        if (!currentViewingMember) return;
+        
+        setPaymentError('');
+        
+        // Validation
+        if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+            setPaymentError('Please enter a valid payment amount');
+            return;
+        }
+        
+        try {
+            setPaymentLoading(true);
+            
+            // Record the payment
+            const paymentData = {
+                member_id: currentViewingMember.id,
+                amount: parseFloat(paymentAmount),
+                method: paymentMethod,
+                transaction_id: paymentTransactionId || null
+            };
+            
+            // Add plan_id if available
+            if (currentViewingMember.membership_plan_id) {
+                paymentData.plan_id = currentViewingMember.membership_plan_id;
+            }
+            
+            await axios.post('/api/payments/manual', paymentData);
+            
+            const wasInactive = currentViewingMember.is_active === 0;
+            
+            // If member is inactive, activate them
+            if (wasInactive) {
+                await axios.put(`/api/members/${currentViewingMember.id}/status`, { is_active: 1 });
+                
+                // Update the current viewing member state
+                setCurrentViewingMember(prev => ({
+                    ...prev,
+                    is_active: 1
+                }));
+                
+                // Update the member details
+                setMemberDetails(prev => ({
+                    ...prev,
+                    member: {
+                        ...prev.member,
+                        is_active: 1
+                    }
+                }));
+            }
+            
+            // Refresh member details and list
+            const updatedDetails = await axios.get(`/api/members/${currentViewingMember.id}/details`);
+            setMemberDetails(updatedDetails.data);
+            fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
+            
+            // Dispatch custom event to notify other components (e.g., Financials page)
+            const paymentEvent = new CustomEvent('paymentRecorded', {
+                detail: {
+                    memberId: currentViewingMember.id,
+                    amount: parseFloat(paymentAmount),
+                    method: paymentMethod
+                }
+            });
+            window.dispatchEvent(paymentEvent);
+            
+            // Close the payment dialog immediately
+            setOpenPaymentDialog(false);
+            setPaymentAmount('');
+            setPaymentMethod('cash');
+            setPaymentTransactionId('');
+            setPaymentError('');
+            
+            // Show success toast
+            const successMessage = wasInactive 
+                ? 'Payment recorded successfully! Member has been activated.'
+                : 'Payment recorded successfully!';
+            setToastMessage(successMessage);
+            setToastSeverity('success');
+            setToastOpen(true);
+            
+        } catch (error) {
+            console.error('Error recording payment:', error);
+            setPaymentError(error.response?.data?.message || 'Failed to record payment');
+        } finally {
+            setPaymentLoading(false);
         }
     };
 
@@ -2382,6 +2533,9 @@ const Member = () => {
                                                 }
                                             />
                                             <CardContent>
+                                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                    Invoice #{memberDetails.latestInvoice.id}
+                                                </Typography>
                                                 <Typography variant="body1" gutterBottom>
                                                     Amount: {formatCurrency(memberDetails.latestInvoice.amount, currency)}
                                                 </Typography>
@@ -2460,6 +2614,15 @@ const Member = () => {
                         </Button>
                         <Button 
                             variant="outlined" 
+                            color="success"
+                            startIcon={<PaymentIcon />}
+                            onClick={openPaymentRecordDialog}
+                            disabled={!currentViewingMember || currentViewingMember?.is_admin === 1}
+                        >
+                            Record Payment
+                        </Button>
+                        <Button 
+                            variant="outlined" 
                             color={currentViewingMember?.is_active === 0 ? 'success' : 'warning'}
                             startIcon={currentViewingMember?.is_active === 0 ? <ToggleOnIcon /> : <ToggleOffIcon />}
                             onClick={toggleMemberActiveStatus}
@@ -2497,6 +2660,110 @@ const Member = () => {
                     }}>Close</Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Payment Recording Dialog */}
+            <Dialog
+                open={openPaymentDialog}
+                onClose={() => !paymentLoading && setOpenPaymentDialog(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>
+                    Record Payment
+                    {currentViewingMember && (
+                        <Typography variant="body2" color="text.secondary">
+                            Member: {currentViewingMember.name} (ID: {currentViewingMember.id})
+                        </Typography>
+                    )}
+                </DialogTitle>
+                <DialogContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                        {paymentError && (
+                            <Alert severity="error" onClose={() => setPaymentError('')}>
+                                {paymentError}
+                            </Alert>
+                        )}
+                        
+                        <TextField
+                            label="Payment Amount"
+                            type="number"
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(e.target.value)}
+                            fullWidth
+                            required
+                            disabled={paymentLoading}
+                            InputProps={{
+                                startAdornment: <Typography sx={{ mr: 1 }}>{currency}</Typography>
+                            }}
+                        />
+                        
+                        <FormControl fullWidth required disabled={paymentLoading}>
+                            <InputLabel>Payment Method</InputLabel>
+                            <Select
+                                value={paymentMethod}
+                                label="Payment Method"
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                            >
+                                <MenuItem value="cash">Cash</MenuItem>
+                                <MenuItem value="bank_transfer">Bank Transfer</MenuItem>
+                                <MenuItem value="upi">UPI</MenuItem>
+                                <MenuItem value="card">Card</MenuItem>
+                                <MenuItem value="cheque">Cheque</MenuItem>
+                                <MenuItem value="other">Other</MenuItem>
+                            </Select>
+                        </FormControl>
+                        
+                        <TextField
+                            label="Transaction ID (Optional)"
+                            value={paymentTransactionId}
+                            onChange={(e) => setPaymentTransactionId(e.target.value)}
+                            fullWidth
+                            disabled={paymentLoading}
+                            helperText="Reference number for bank transfers, UPI, etc."
+                        />
+                        
+                        {currentViewingMember?.is_active === 0 && (
+                            <Alert severity="info">
+                                This member is currently deactivated. Recording this payment will automatically activate them.
+                            </Alert>
+                        )}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button 
+                        onClick={() => setOpenPaymentDialog(false)}
+                        disabled={paymentLoading}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleRecordPayment}
+                        variant="contained"
+                        color="primary"
+                        disabled={paymentLoading || !paymentAmount}
+                        startIcon={paymentLoading ? <CircularProgress size={20} /> : <PaymentIcon />}
+                    >
+                        {paymentLoading ? 'Recording...' : 'Record Payment'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Toast Notification */}
+            <Snackbar
+                open={toastOpen}
+                autoHideDuration={4000}
+                onClose={() => setToastOpen(false)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert 
+                    onClose={() => setToastOpen(false)} 
+                    severity={toastSeverity} 
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {toastMessage}
+                </Alert>
+            </Snackbar>
         </div>
     );
 };
