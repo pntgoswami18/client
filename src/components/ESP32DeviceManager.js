@@ -44,7 +44,8 @@ import {
   NetworkWifi as NetworkWifiIcon,
   Check as CheckIcon,
   Warning as WarningIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -99,6 +100,32 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     location: '',
     description: ''
   });
+
+  const normalizeHost = useCallback((host) => host?.trim().replace(/^https?:\/\//i, '') || '', []);
+
+  const buildControlPanelUrl = useCallback(
+    (host, port) => {
+      if (!host) {
+        return null;
+      }
+
+      const normalizedHost = normalizeHost(host);
+      if (!normalizedHost) {
+        return null;
+      }
+
+      const hasExplicitPort = normalizedHost.includes(':');
+      const effectivePort = String(port || '').trim();
+      const shouldAppendPort = !hasExplicitPort && effectivePort && effectivePort !== '80';
+      return `http://${normalizedHost}${shouldAppendPort ? `:${effectivePort}` : ''}`;
+    },
+    [normalizeHost]
+  );
+
+  const controlPanelUrl = React.useMemo(
+    () => buildControlPanelUrl(esp32Host, esp32Port),
+    [esp32Host, esp32Port, buildControlPanelUrl]
+  );
 
   useEffect(() => {
     fetchDevices();
@@ -752,6 +779,23 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
           </span>
         </Tooltip>
         <Tooltip 
+          title={device.status !== 'online' ? 'Device must be online to open control panel' : 'Open ESP32 control panel'}
+        >
+          <span>
+            <Button
+              size="small"
+              startIcon={<OpenInNewIcon />}
+              component="a"
+              href={buildControlPanelUrl(device.ip_address, esp32Port)}
+              target="_blank"
+              rel="noopener noreferrer"
+              disabled={device.status !== 'online' || !buildControlPanelUrl(device.ip_address, esp32Port)}
+            >
+              Control Panel
+            </Button>
+          </span>
+        </Tooltip>
+        <Tooltip 
           title={device.status !== 'online' ? 'Device must be online to enroll fingerprints' : 'Enroll new fingerprint'}
         >
           <span>
@@ -877,14 +921,38 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
         <Typography variant="h4" component="h1">
           ESP32 Device Manager
         </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={fetchDevices}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={fetchDevices}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+          <Tooltip
+            title={
+              controlPanelUrl
+                ? `Open ESP32 door control panel (${controlPanelUrl})`
+                : 'Set the ESP32 host address in the configuration tab'
+            }
+          >
+            <span>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<OpenInNewIcon />}
+                component="a"
+                href={controlPanelUrl || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                disabled={!controlPanelUrl}
+              >
+                Open Door Panel
+              </Button>
+            </span>
+          </Tooltip>
+        </Box>
       </Box>
 
       {/* Alerts */}
