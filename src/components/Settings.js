@@ -62,7 +62,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [secondaryColorMode, setSecondaryColorMode] = useState('solid');
     const [primaryGradient, setPrimaryGradient] = useState('');
     const [secondaryGradient, setSecondaryGradient] = useState('');
-    const [paymentReminderDays, setPaymentReminderDays] = useState('7');
+    const [paymentReminderDaysAfterDue, setPaymentReminderDaysAfterDue] = useState('7');
+    const [paymentGracePeriodDays, setPaymentGracePeriodDays] = useState('3');
     const [morningStart, setMorningStart] = useState('05:00');
     const [morningEnd, setMorningEnd] = useState('11:00');
     const [eveningStart, setEveningStart] = useState('16:00');
@@ -75,6 +76,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const [askUnlockReason, setAskUnlockReason] = useState(true);
     const [referralSystemEnabled, setReferralSystemEnabled] = useState(false);
     const [referralDiscountAmount, setReferralDiscountAmount] = useState('100');
+    const [whatsappWelcomeEnabled, setWhatsappWelcomeEnabled] = useState(false);
+    const [whatsappWelcomeMessage, setWhatsappWelcomeMessage] = useState('Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!');
+    const [crossSessionCheckinRestriction, setCrossSessionCheckinRestriction] = useState(true);
     const [cardOrder, setCardOrder] = useState([
         'total_members',
         'total_revenue', 
@@ -90,7 +94,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
     const fetchSettings = useCallback(async () => {
         try {
             const response = await axios.get('/api/settings');
-            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount } = response.data;
+            const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days_after_due, payment_grace_period_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount, whatsapp_welcome_enabled, whatsapp_welcome_message, cross_session_checkin_restriction } = response.data;
             
             // Debug logging to see actual API values
             console.log('API Response for card settings:', {
@@ -110,7 +114,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (secondary_color_mode) { setSecondaryColorMode(secondary_color_mode); }
             if (primary_color_gradient !== undefined) { setPrimaryGradient(primary_color_gradient); }
             if (secondary_color_gradient !== undefined) { setSecondaryGradient(secondary_color_gradient); }
-            if (payment_reminder_days) { setPaymentReminderDays(String(payment_reminder_days)); }
+            if (payment_reminder_days_after_due) { setPaymentReminderDaysAfterDue(String(payment_reminder_days_after_due)); }
             if (morning_session_start) { setMorningStart(morning_session_start); }
             if (morning_session_end) { setMorningEnd(morning_session_end); }
             if (evening_session_start) { setEveningStart(evening_session_start); }
@@ -129,9 +133,12 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 showUnpaidMembersThisMonth: show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true,
                 showActiveSchedules: show_card_active_schedules === 'true' || show_card_active_schedules === true
             });
-            if (ask_unlock_reason !== undefined) { setAskUnlockReason(ask_unlock_reason); }
+            if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
             if (referral_system_enabled !== undefined) { setReferralSystemEnabled(referral_system_enabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
+            if (whatsapp_welcome_enabled !== undefined) { setWhatsappWelcomeEnabled(whatsapp_welcome_enabled); }
+            if (whatsapp_welcome_message) { setWhatsappWelcomeMessage(whatsapp_welcome_message); }
+            if (cross_session_checkin_restriction !== undefined) { setCrossSessionCheckinRestriction(cross_session_checkin_restriction === 'true' || cross_session_checkin_restriction === true); }
             
             // Fetch card order
             if (response.data.card_order && Array.isArray(response.data.card_order)) {
@@ -149,7 +156,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 secondaryColorMode: secondary_color_mode || 'solid',
                 primaryGradient: primary_color_gradient || '',
                 secondaryGradient: secondary_color_gradient || '',
-                paymentReminderDays: String(payment_reminder_days || '7'),
+                paymentReminderDaysAfterDue: String(payment_reminder_days_after_due || '7'),
+                paymentGracePeriodDays: String(payment_grace_period_days || '3'),
                 morningStart: morning_session_start || '05:00',
                 morningEnd: morning_session_end || '11:00',
                 eveningStart: evening_session_start || '16:00',
@@ -162,6 +170,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 askUnlockReason: ask_unlock_reason,
                 referralSystemEnabled: referral_system_enabled,
                 referralDiscountAmount: String(referral_discount_amount || '100'),
+                whatsappWelcomeEnabled: whatsapp_welcome_enabled || false,
+                whatsappWelcomeMessage: whatsapp_welcome_message || 'Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!',
+                crossSessionCheckinRestriction: cross_session_checkin_restriction === 'true' || cross_session_checkin_restriction === true,
                 cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
                     'total_members',
                     'total_revenue', 
@@ -206,7 +217,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 secondary_color_mode: secondaryColorMode,
                 primary_color_gradient: primaryGradient,
                 secondary_color_gradient: secondaryGradient,
-                payment_reminder_days: paymentReminderDays,
+                payment_reminder_days_after_due: paymentReminderDaysAfterDue,
+                payment_grace_period_days: paymentGracePeriodDays,
                 morning_session_start: morningStart,
                 morning_session_end: morningEnd,
                 evening_session_start: eveningStart,
@@ -219,6 +231,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 ask_unlock_reason: askUnlockReason,
                 referral_system_enabled: referralSystemEnabled,
                 referral_discount_amount: referralDiscountAmount,
+                whatsapp_welcome_enabled: whatsappWelcomeEnabled,
+                whatsapp_welcome_message: whatsappWelcomeMessage,
+                cross_session_checkin_restriction: crossSessionCheckinRestriction,
                 card_order: cardOrder
             };
 
@@ -241,7 +256,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 secondaryColorMode: secondaryColorMode || 'solid',
                 primaryGradient: primaryGradient || '',
                 secondaryGradient: secondaryGradient || '',
-                paymentReminderDays: paymentReminderDays || '7',
+                paymentReminderDaysAfterDue: paymentReminderDaysAfterDue || '7',
+                paymentGracePeriodDays: paymentGracePeriodDays || '3',
                 morningStart: morningStart || '05:00',
                 morningEnd: morningEnd || '11:00',
                 eveningStart: eveningStart || '16:00',
@@ -254,6 +270,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 askUnlockReason: askUnlockReason,
                 referralSystemEnabled: referralSystemEnabled,
                 referralDiscountAmount: referralDiscountAmount,
+                whatsappWelcomeEnabled: whatsappWelcomeEnabled,
+                whatsappWelcomeMessage: whatsappWelcomeMessage,
                 cardOrder: cardOrder
             };
             
@@ -285,7 +303,8 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             secondaryColorMode,
             primaryGradient,
             secondaryGradient,
-            paymentReminderDays,
+            paymentReminderDaysAfterDue,
+            paymentGracePeriodDays,
             morningStart,
             morningEnd,
             eveningStart,
@@ -298,6 +317,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             askUnlockReason,
             referralSystemEnabled,
             referralDiscountAmount,
+            whatsappWelcomeEnabled,
+            whatsappWelcomeMessage,
+            crossSessionCheckinRestriction,
             cardOrder
         };
 
@@ -310,9 +332,9 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             }
         }
     }, [currency, gymName, gymLogo, primaryColor, secondaryColor, primaryColorMode, secondaryColorMode, 
-        primaryGradient, secondaryGradient, paymentReminderDays, morningStart, morningEnd, eveningStart, 
+        primaryGradient, secondaryGradient, paymentReminderDaysAfterDue, paymentGracePeriodDays, morningStart, morningEnd, eveningStart, 
         eveningEnd, showTotalMembers, showTotalRevenue, showNewMembersThisMonth, showUnpaidMembersThisMonth, 
-        showActiveSchedules, askUnlockReason, referralSystemEnabled, referralDiscountAmount, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
+        showActiveSchedules, askUnlockReason, referralSystemEnabled, referralDiscountAmount, whatsappWelcomeEnabled, whatsappWelcomeMessage, crossSessionCheckinRestriction, cardOrder, logoFile, hasUnsavedChanges, onUnsavedChanges]);
 
     // Sortable card component
     const SortableCard = ({ id, title, checked, onChange }) => {
@@ -559,6 +581,34 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     )}
                 </div>
 
+                <div style={{ marginTop: '30px' }}>
+                    <label>WhatsApp Welcome Message Settings</label>
+                    <FormGroup sx={{ mt: 1 }}>
+                        <FormControlLabel 
+                            control={<Checkbox checked={whatsappWelcomeEnabled} onChange={(e)=>setWhatsappWelcomeEnabled(e.target.checked)} />} 
+                            label="Enable WhatsApp welcome message for biometric enrollment" 
+                        />
+                    </FormGroup>
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        When enabled, a WhatsApp message will be automatically sent to members when they complete biometric enrollment for the first time.
+                    </Typography>
+                    
+                    {whatsappWelcomeEnabled && (
+                        <Box sx={{ mt: 2 }}>
+                            <TextField
+                                label="Welcome Message"
+                                multiline
+                                rows={4}
+                                value={whatsappWelcomeMessage}
+                                onChange={(e) => setWhatsappWelcomeMessage(e.target.value)}
+                                helperText="This message will be sent via WhatsApp when a member completes biometric enrollment"
+                                sx={{ width: '100%', maxWidth: '600px' }}
+                                placeholder="Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!"
+                            />
+                        </Box>
+                    )}
+                </div>
+
                 <Divider sx={{ my: 3 }} />
 
                 <div style={{ marginTop: '30px' }}>
@@ -607,6 +657,22 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     </Grid>
                     <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                         These values control check-in allowed hours used by Attendance.
+                    </Typography>
+                </div>
+
+                <Divider sx={{ my: 3 }} />
+
+                <div style={{ marginTop: '30px' }}>
+                    <label>Check-in Restrictions</label>
+                    <FormGroup sx={{ mt: 1 }}>
+                        <FormControlLabel 
+                            control={<Checkbox checked={crossSessionCheckinRestriction} onChange={(e)=>setCrossSessionCheckinRestriction(e.target.checked)} />} 
+                            label="Enforce cross-session check-in restriction" 
+                        />
+                    </FormGroup>
+                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        When enabled, members can only check in during either morning OR evening session per day, not both. 
+                        Members can still check in multiple times within the same session. Admin users are exempt from this restriction.
                     </Typography>
                 </div>
 
@@ -686,13 +752,24 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
 
                 <div style={{ marginTop: '30px' }}>
                     <TextField
-                        label="Payment Reminder (days before due date)"
+                        label="Payment Reminder (days after due date)"
                         type="number"
-                        value={paymentReminderDays}
-                        onChange={(e) => setPaymentReminderDays(e.target.value)}
+                        value={paymentReminderDaysAfterDue}
+                        onChange={(e) => setPaymentReminderDaysAfterDue(e.target.value)}
                         slotProps={{ htmlInput: { min: 1 } }}
                         fullWidth
                         margin="normal"
+                    />
+                    
+                    <TextField
+                        label="Payment Grace Period (days after due date)"
+                        type="number"
+                        value={paymentGracePeriodDays}
+                        onChange={(e) => setPaymentGracePeriodDays(e.target.value)}
+                        slotProps={{ htmlInput: { min: 0 } }}
+                        fullWidth
+                        margin="normal"
+                        helperText="Members will be automatically deactivated after this many days past their due date"
                     />
                 </div>
 

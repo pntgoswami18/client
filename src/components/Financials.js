@@ -27,7 +27,8 @@ import {
     Select,
     MenuItem,
     Autocomplete,
-    Pagination
+    Pagination,
+    Chip
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import { TableShimmer } from './ShimmerLoader';
@@ -289,6 +290,20 @@ const Financials = () => {
         fetchFinancialSummary('all', 1, itemsPerPage);
     }, [fetchFinancialSummary, itemsPerPage]);
 
+    // Listen for payment recorded events from other components
+    // This ensures data is refreshed after recording payments in member details modal
+    useEffect(() => {
+        const handlePaymentRecorded = () => {
+            console.log('Payment recorded event received, refreshing financial data...');
+            fetchFinancialSummary('payments', paymentsPage, itemsPerPage);
+            fetchFinancialSummary('outstanding', outstandingPage, itemsPerPage);
+            fetchFinancialSummary('members', membersPage, itemsPerPage);
+        };
+
+        window.addEventListener('paymentRecorded', handlePaymentRecorded);
+        return () => window.removeEventListener('paymentRecorded', handlePaymentRecorded);
+    }, [fetchFinancialSummary, paymentsPage, outstandingPage, membersPage, itemsPerPage]);
+
     useEffect(() => {
         const qp = new URLSearchParams(location.search);
         const section = qp.get('section');
@@ -392,11 +407,19 @@ const Financials = () => {
 
     const fetchMembers = async () => {
         try {
-            const res = await axios.get('/api/members');
-            // The API returns {members: [...]}, so we need to access res.data.members
-            const membersData = Array.isArray(res.data.members) ? res.data.members : [];
+            // Fetch both active and deactivated members for payment/invoice creation
+            // This allows recording payments against deactivated members with unpaid invoices
+            const activeRes = await axios.get('/api/members?filter=all&limit=1000');
+            const deactivatedRes = await axios.get('/api/members?filter=deactivated&limit=1000');
+            
+            const activeMembersData = Array.isArray(activeRes.data.members) ? activeRes.data.members : [];
+            const deactivatedMembersData = Array.isArray(deactivatedRes.data.members) ? deactivatedRes.data.members : [];
+            
+            // Combine both lists
+            const allMembersData = [...activeMembersData, ...deactivatedMembersData];
+            
             // Filter out any null/undefined members
-            const validMembers = membersData.filter(member => member && typeof member === 'object' && member.id);
+            const validMembers = allMembersData.filter(member => member && typeof member === 'object' && member.id);
             setMembers(validMembers);
         } catch (e) {
             console.error('Error fetching members', e);
@@ -650,7 +673,7 @@ const Financials = () => {
                     </Typography>
                 </Box>
                 {loadingStates.payments ? (
-                    <TableShimmer rows={5} columns={4} />
+                    <TableShimmer rows={5} columns={6} />
                 ) : financialSummary.paymentHistory.length > 0 ? (
                     <>
                         <TableContainer component={Paper}>
@@ -664,9 +687,11 @@ const Financials = () => {
                                         }
                                     }}>
                                         <TableCell>Payment ID</TableCell>
+                                        <TableCell>Invoice ID</TableCell>
                                         <TableCell>Member Name</TableCell>
                                         <TableCell>Amount</TableCell>
                                         <TableCell>Payment Date</TableCell>
+                                        <TableCell>Invoice Date</TableCell>
                                         <TableCell>Actions</TableCell>
                                     </TableRow>
                                 </TableHead>
@@ -674,9 +699,11 @@ const Financials = () => {
                                     {financialSummary.paymentHistory.map(payment => (
                                         <TableRow key={payment.id} hover>
                                             <TableCell>{payment.id}</TableCell>
+                                            <TableCell>#{payment.invoice_id}</TableCell>
                                             <TableCell>{payment.member_name}</TableCell>
                                             <TableCell>{formatCurrency(payment.amount, currency)}</TableCell>
                                             <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                                            <TableCell>{payment.invoice_date ? new Date(payment.invoice_date).toLocaleDateString() : 'N/A'}</TableCell>
                                             <TableCell>
                                                 <Box sx={{ display: 'flex', gap: 1 }}>
                                                     <Button
@@ -696,6 +723,13 @@ const Financials = () => {
                                                                 try {
                                                                     await axios.delete(`/api/payments/${payment.id}`);
                                                                     fetchFinancialSummary('payments', paymentsPage, itemsPerPage); // Refresh the data
+                                                                    
+                                                                    // Dispatch custom event to notify other components
+                                                                    const paymentDeletedEvent = new CustomEvent('paymentDeleted', {
+                                                                        detail: { paymentId: payment.id }
+                                                                    });
+                                                                    window.dispatchEvent(paymentDeletedEvent);
+                                                                    
                                                                     alert('Payment deleted successfully. Invoice status updated to unpaid.');
                                                                 } catch (error) {
                                                                     console.error('Error deleting payment:', error);
@@ -1047,7 +1081,15 @@ const Financials = () => {
                                     setUnpaidInvoices([]);
                                 }
                             }}
-                            renderInput={(params) => <TextField {...params} label="Member" placeholder="Type member name" />}
+                            renderOption={(props, option) => (
+                                <Box component="li" {...props} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>{option.name}</span>
+                                    {option.is_active === 0 && (
+                                        <Chip label="Deactivated" size="small" color="error" sx={{ ml: 1 }} />
+                                    )}
+                                </Box>
+                            )}
+                            renderInput={(params) => <TextField {...params} label="Member" placeholder="Type member name (includes deactivated)" />}
                         />
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                             <TextField label="Invoice ID" type="number" value={manualInvoiceId} onChange={(e)=>setManualInvoiceId(e.target.value)} sx={{ flex: 1 }} />
@@ -1115,9 +1157,26 @@ const Financials = () => {
                                 member_id: manualMember?.id || undefined
                             };
                             if (manualInvoiceId) { payload.invoice_id = parseInt(manualInvoiceId,10); }
+                            
+                            // Record the payment
                             await axios.post('/api/payments/manual', payload);
+                            
+                            // If member is deactivated, reactivate them after successful payment
+                            if (manualMember && manualMember.is_active === 0) {
+                                try {
+                                    await axios.put(`/api/members/${manualMember.id}/status`, { is_active: 1 });
+                                    console.log(`✅ Member ${manualMember.id} reactivated after payment`);
+                                } catch (reactivateError) {
+                                    console.error('Error reactivating member:', reactivateError);
+                                    // Don't fail the payment if reactivation fails, but notify user
+                                    alert('Payment recorded successfully, but there was an error reactivating the member. Please activate them manually.');
+                                }
+                            }
+                            
                             setOpenManualPayment(false);
                             fetchFinancialSummary();
+                            fetchMembers(); // Refresh members list to show updated status
+                            alert('Payment recorded successfully!' + (manualMember && manualMember.is_active === 0 ? ' Member has been reactivated and can now access the door.' : ''));
                         } catch (e) {
                             console.error(e);
                             alert(e?.response?.data?.message || 'Error recording manual payment.');

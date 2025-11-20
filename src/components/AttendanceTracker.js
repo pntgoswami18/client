@@ -52,7 +52,7 @@ const AttendanceTracker = () => {
 
     const fetchMembers = async () => {
         try {
-            const response = await axios.get('/api/members');
+            const response = await axios.get('/api/members?filter=all');
             // The API returns { members: [...], pagination: {...} }
             const membersData = response.data.members || response.data;
             setMembers(Array.isArray(membersData) ? membersData : []);

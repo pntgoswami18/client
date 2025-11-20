@@ -36,7 +36,8 @@ import {
   Checkbox,
   InputAdornment,
   IconButton,
-  Pagination
+  Pagination,
+  CircularProgress
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import {
@@ -82,6 +83,17 @@ const BiometricEnrollment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  
+  // Individual button loading states
+  const [buttonLoading, setButtonLoading] = useState({
+    enroll: new Set(), // Set of member IDs being enrolled
+    manual: new Set(), // Set of member IDs with manual enrollment loading
+    delete: new Set(), // Set of member IDs being deleted
+    reenroll: new Set(), // Set of member IDs being re-enrolled
+    cancel: false, // Global cancel loading state
+    stop: false, // Global stop loading state
+    deleteConfirm: false // Delete confirmation dialog loading
+  });
   
   // UI state
   const [currentTab, setCurrentTab] = useState(0);
@@ -544,6 +556,31 @@ const BiometricEnrollment = () => {
     }
   }, []);
 
+  // Function to format event messages based on event type and reason
+  const formatEventMessage = useCallback((event) => {
+    const rawData = event.raw_data ? JSON.parse(event.raw_data) : {};
+    const { reason } = rawData;
+    
+    switch (event.event_type) {
+      case 'button_override':
+        return 'Door unlocked via physical button override';
+      case 'remote_unlock':
+        if (reason && reason !== 'admin_unlock') {
+          return `Door unlocked remotely - Reason: ${reason}`;
+        } else {
+          return 'Door unlocked remotely - Admin override';
+        }
+      case 'checkin':
+        return `Member check-in - ${event.member_name || 'Unknown'}`;
+      case 'enrollment':
+        return `Fingerprint enrollment - ${event.member_name || 'Unknown'}`;
+      case 'access_denied':
+        return `Access denied - ${event.member_name || 'Unknown'}`;
+      default:
+        return `${event.event_type} - ${event.member_name || 'Unknown'}`;
+    }
+  }, []);
+
   // Memoized event item component for virtual scrolling performance
   const EventItem = useCallback(({ index, style, data }) => {
     const event = data[index];
@@ -562,7 +599,7 @@ const BiometricEnrollment = () => {
             />
           </ListItemIcon>
           <ListItemText
-            primary={`${event.event_type} - ${event.member_name || 'Unknown'}`}
+            primary={formatEventMessage(event)}
             secondary={
               <Box>
                 <Typography variant="caption" display="block">
@@ -589,7 +626,7 @@ const BiometricEnrollment = () => {
         </ListItem>
       </div>
     );
-  }, [formatDateTime]);
+  }, [formatDateTime, formatEventMessage]);
 
   // Event filter handling
   const handleEventFilterChange = (eventType, checked) => {
@@ -617,7 +654,8 @@ const BiometricEnrollment = () => {
     
     // Set up WebSocket connection for real-time updates
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const backendPort = process.env.REACT_APP_BACKEND_PORT || '3001';
+    const wsUrl = `${protocol}//${window.location.hostname}:${backendPort}/ws`;
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -641,7 +679,32 @@ const BiometricEnrollment = () => {
           });
         } else if (data.type === 'enrollment_progress') {
           if (data.status === 'progress') {
-            setSuccess(`🔄 Enrollment in progress: ${data.currentStep}`);
+            // Map enrollment steps to user-friendly messages
+            const stepMessages = {
+              'scanning_first_finger': `👆 ${data.memberName}, please place your finger on the biometric device for the first scan`,
+              'first_finger_captured': `✅ First fingerprint captured successfully! Please remove your finger`,
+              'remove_finger': `👆 Please remove your finger from the device`,
+              'scanning_second_finger': `👆 ${data.memberName}, please place your finger on the biometric device again for the second scan`,
+              'second_finger_captured': `✅ Second fingerprint captured successfully!`,
+              'creating_model': `🔄 Creating your biometric model from both fingerprints...`,
+              'prints_matched': `✅ Fingerprints matched! Creating your biometric profile...`,
+              'storing_model': `💾 Saving your biometric data to the device...`,
+              'model_stored': `✅ Biometric profile saved successfully!`,
+              'timeout_first_finger': `⏰ Timeout waiting for first fingerprint scan`,
+              'timeout_second_finger': `⏰ Timeout waiting for second fingerprint scan`,
+              'timeout_finger_removal': `⏰ Timeout waiting for finger removal`,
+              'communication_error': `❌ Communication error with biometric device`,
+              'imaging_error': `❌ Fingerprint imaging error - please try again`,
+              'template_creation_failed': `❌ Failed to create fingerprint template`,
+              'second_template_failed': `❌ Failed to create second fingerprint template`,
+              'prints_mismatch': `❌ Fingerprints don't match - please try again`,
+              'storage_failed': `❌ Failed to save biometric data`,
+              'unknown_error': `❌ Unknown error occurred during enrollment`,
+              'enrollment_failed': `❌ Enrollment failed - please try again`
+            };
+            
+            const message = stepMessages[data.currentStep] || `🔄 Enrollment in progress: ${data.currentStep}`;
+            setSuccess(message);
           } else if (data.status === 'retry') {
             setSuccess(`🔄 ${data.message}`);
           }
@@ -651,7 +714,15 @@ const BiometricEnrollment = () => {
             setOngoingEnrollment(null);
             fetchMembersWithoutBiometric(); // Refresh members list
           } else if (data.status === 'failed') {
-            setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
+            // Check if this is a retryable failure
+            const retryableErrors = ['timeout_first_finger', 'timeout_second_finger', 'timeout_finger_removal', 'imaging_error', 'prints_mismatch', 'communication_error'];
+            const isRetryable = retryableErrors.some(error => data.message?.includes(error));
+            
+            if (isRetryable) {
+              setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}. You can retry enrollment by clicking the enroll button again.`);
+            } else {
+              setError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
+            }
             setOngoingEnrollment(null);
           } else if (data.status === 'cancelled') {
             setSuccess(`⏹️ Enrollment cancelled for ${data.memberName}.`);
@@ -664,6 +735,12 @@ const BiometricEnrollment = () => {
           setSuccess(null);
           setError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
           setOngoingEnrollment(null);
+        } else if (data.type === 'whatsapp_welcome_sent') {
+          setSuccess(`📱 WhatsApp welcome message prepared for ${data.memberName}! The message is ready to be sent.`);
+        } else if (data.type === 'whatsapp_welcome_failed') {
+          setError(`📱 WhatsApp welcome message failed for ${data.memberName}: ${data.error}`);
+        } else if (data.type === 'whatsapp_welcome_error') {
+          setError(`📱 WhatsApp welcome message error for member ${data.memberId}: ${data.error}`);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -694,7 +771,29 @@ const BiometricEnrollment = () => {
     };
   }, [checkEnrollmentProgress, fetchMembersWithoutBiometric, fetchMembersWithBiometric, fetchDevices, fetchSystemStatus, fetchEnrollmentStatus, fetchBiometricEvents]);
 
+  // Helper functions for individual button loading states
+  const setButtonLoadingState = (action, memberId = null, isLoading = true) => {
+    setButtonLoading(prev => {
+      const newState = { ...prev };
+      if (memberId !== null) {
+        if (isLoading) {
+          newState[action].add(memberId);
+        } else {
+          newState[action].delete(memberId);
+        }
+      } else {
+        newState[action] = isLoading;
+      }
+      return newState;
+    });
+  };
 
+  const isButtonLoading = (action, memberId = null) => {
+    if (memberId !== null) {
+      return buttonLoading[action].has(memberId);
+    }
+    return buttonLoading[action];
+  };
 
   const startEnrollment = async (memberId, deviceId = null) => {
     if (deviceId && (!selectedMember || !selectedDevice)) {
@@ -702,7 +801,12 @@ const BiometricEnrollment = () => {
       return;
     }
     
-    setLoading(true);
+    // Determine if this is a re-enrollment by checking if member has biometric data
+    const member = membersWithBiometric.find(m => m.id === parseInt(memberId));
+    const isReenrollment = !!member;
+    const loadingKey = isReenrollment ? 'reenroll' : 'enroll';
+    
+    setButtonLoadingState(loadingKey, memberId, true);
     setError(null);
     setSuccess(null);
 
@@ -777,7 +881,7 @@ const BiometricEnrollment = () => {
         setActiveStep(1);
       }
     } finally {
-      setLoading(false);
+      setButtonLoadingState(loadingKey, memberId, false);
     }
   };
 
@@ -786,7 +890,7 @@ const BiometricEnrollment = () => {
   };
 
   const stopEnrollment = async () => {
-    setLoading(true);
+    setButtonLoadingState('stop', null, true);
     setError(null);
 
     try {
@@ -796,7 +900,9 @@ const BiometricEnrollment = () => {
       const data = await response.json();
 
       if (data.success) {
-        setSuccess('Enrollment stopped');
+        const memberName = ongoingEnrollment?.memberName || 'the member';
+        setSuccess(`⏹️ Enrollment manually aborted for ${memberName}. You can retry enrollment anytime.`);
+        setOngoingEnrollment(null);
         fetchEnrollmentStatus();
         fetchMembersWithoutBiometric();
       } else {
@@ -807,7 +913,7 @@ const BiometricEnrollment = () => {
       setSuccess(null); // Clear any existing success message
       setError('Error stopping enrollment: ' + error.message);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('stop', null, false);
     }
   };
 
@@ -821,7 +927,7 @@ const BiometricEnrollment = () => {
 
   const confirmDeleteBiometricData = async () => {
     const { memberId, memberName } = deleteConfirmDialog;
-    setLoading(true);
+    setButtonLoadingState('deleteConfirm', null, true);
     setError(null);
     closeDeleteConfirmDialog();
 
@@ -846,7 +952,7 @@ const BiometricEnrollment = () => {
       setSuccess(null); // Clear any existing success message
       setError(`❌ Error deleting biometric data: ${error.message}`);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('deleteConfirm', null, false);
     }
   };
 
@@ -855,7 +961,7 @@ const BiometricEnrollment = () => {
       return;
     }
     
-    setLoading(true);
+    setButtonLoadingState('cancel', null, true);
     setError(null);
 
     try {
@@ -887,7 +993,7 @@ const BiometricEnrollment = () => {
       setLastCheckedEventId(null);
       setSuccess(`⏹️ Enrollment cancelled for ${ongoingEnrollment.memberName} (local cancellation)`);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('cancel', null, false);
     }
   };
 
@@ -935,7 +1041,7 @@ const BiometricEnrollment = () => {
       return;
     }
 
-    setLoading(true);
+    setButtonLoadingState('manual', manualMember, true);
     setError(null);
 
     try {
@@ -965,7 +1071,7 @@ const BiometricEnrollment = () => {
       setSuccess(null); // Clear any existing success message
       setError('Error assigning biometric data: ' + error.message);
     } finally {
-      setLoading(false);
+      setButtonLoadingState('manual', manualMember, false);
     }
   };
 
@@ -1055,10 +1161,10 @@ const BiometricEnrollment = () => {
                   <Button
                     variant="contained"
                     onClick={startDeviceEnrollment}
-              disabled={loading}
-                    startIcon={<FingerprintIcon />}
+              disabled={isButtonLoading('enroll', selectedMember)}
+                    startIcon={isButtonLoading('enroll', selectedMember) ? <CircularProgress size={16} /> : <FingerprintIcon />}
                   >
-                    Start Fingerprint Enrollment
+                    {isButtonLoading('enroll', selectedMember) ? 'Starting...' : 'Start Fingerprint Enrollment'}
                   </Button>
                 )}
               </Box>
@@ -1081,7 +1187,12 @@ const BiometricEnrollment = () => {
   );
 
   return (
-    <Box>
+    <Box sx={{ 
+      maxWidth: 'none', 
+      mx: 0, 
+      px: 0,
+      position: 'relative'
+    }}>
       {/* Header with Tabs and Status Cards */}
       <Box sx={{ mb: 3 }}>
         {/* Title */}
@@ -1183,11 +1294,11 @@ const BiometricEnrollment = () => {
                       variant="outlined"
                       color="warning"
                       onClick={stopEnrollment}
-                      disabled={loading}
-                      startIcon={<CloseIcon />}
+                      disabled={isButtonLoading('stop')}
+                      startIcon={isButtonLoading('stop') ? <CircularProgress size={16} /> : <CloseIcon />}
                       size="small"
                     >
-                      Stop
+                      {isButtonLoading('stop') ? 'Stopping...' : 'Stop'}
                     </Button>
               )}
                 </Box>
@@ -1219,10 +1330,10 @@ const BiometricEnrollment = () => {
               color="inherit"
               size="small"
               onClick={cancelOngoingEnrollment}
-              disabled={loading}
-              startIcon={<CloseIcon />}
+              disabled={isButtonLoading('cancel')}
+              startIcon={isButtonLoading('cancel') ? <CircularProgress size={16} /> : <CloseIcon />}
             >
-              Cancel Enrollment
+              {isButtonLoading('cancel') ? 'Cancelling...' : 'Cancel Enrollment'}
             </Button>
           }
         >
@@ -1303,10 +1414,10 @@ const BiometricEnrollment = () => {
           </Card>
 
           {/* Member Cards Grid */}
-          <Grid container spacing={3}>
+          <Grid container spacing={3} sx={{ width: '100%' }}>
             <Grid item xs={12}>
-              <Card>
-                <CardContent>
+              <Card sx={{ width: '100%' }}>
+                <CardContent sx={{ width: '100%' }}>
                   <Typography variant="h6" gutterBottom>
                     Members Without Biometric Enrollment ({paginationMeta.membersWithoutBiometric.total})
                   </Typography>
@@ -1350,10 +1461,10 @@ const BiometricEnrollment = () => {
             </Alert>
           )
         ) : (
-                  <Box sx={{ overflowX: 'auto' }}>
+                  <Box sx={{ width: '100%' }}>
                     <Box sx={{ 
                       display: 'grid', 
-                      gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                      gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1fr 2fr',
                       gap: 1,
                       alignItems: 'center',
                       p: 1,
@@ -1361,7 +1472,8 @@ const BiometricEnrollment = () => {
                       borderRadius: 1,
                       mb: 1,
                       fontWeight: 'bold',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      width: '100%'
                     }}>
                       <Box>Name</Box>
                       <Box>Email</Box>
@@ -1375,7 +1487,7 @@ const BiometricEnrollment = () => {
                         key={member.id}
                         sx={{
                           display: 'grid',
-                          gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                          gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1fr 2fr',
                           gap: 1,
                           alignItems: 'center',
                           p: 1,
@@ -1384,6 +1496,7 @@ const BiometricEnrollment = () => {
                           borderRadius: 1,
                           mb: 1,
                           background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
+                          width: '100%',
                           ...(ongoingEnrollment && ongoingEnrollment.memberId === member.id && {
                             border: '2px solid #2196f3',
                             boxShadow: '0 0 10px rgba(33, 150, 243, 0.3)'
@@ -1443,12 +1556,12 @@ const BiometricEnrollment = () => {
                                   variant="outlined"
                                   color="warning"
                                   onClick={cancelOngoingEnrollment}
-                                  disabled={loading}
-                                  startIcon={<CloseIcon />}
+                                  disabled={isButtonLoading('cancel')}
+                                  startIcon={isButtonLoading('cancel') ? <CircularProgress size={16} /> : <CloseIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                                 >
-                                Cancel
+                                {isButtonLoading('cancel') ? 'Cancelling...' : 'Cancel'}
                                 </Button>
                               </>
                             ) : (
@@ -1456,22 +1569,22 @@ const BiometricEnrollment = () => {
                                 <Button
                                   variant="contained"
                                   onClick={() => startEnrollment(member.id)}
-                                  disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                                  startIcon={<FingerprintIcon />}
+                                  disabled={isButtonLoading('enroll', member.id) || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                                  startIcon={isButtonLoading('enroll', member.id) ? <CircularProgress size={16} /> : <FingerprintIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                                 >
-                                Enroll
+                                {isButtonLoading('enroll', member.id) ? 'Starting...' : 'Enroll'}
                                 </Button>
                             <Button
                               variant="outlined"
                               onClick={() => openManualEnrollment(member)}
-                              disabled={loading || !!ongoingEnrollment}
-                              startIcon={<SettingsIcon />}
+                              disabled={isButtonLoading('manual', member.id) || !!ongoingEnrollment}
+                              startIcon={isButtonLoading('manual', member.id) ? <CircularProgress size={16} /> : <SettingsIcon />}
                                 size="small"
                                 sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                             >
-                                Manual
+                                {isButtonLoading('manual', member.id) ? 'Loading...' : 'Manual'}
                             </Button>
                             </>
                           )}
@@ -1500,8 +1613,8 @@ const BiometricEnrollment = () => {
           
           {/* Members With Biometric Enrollment */}
           <Grid item xs={12}>
-            <Card>
-              <CardContent>
+            <Card sx={{ width: '100%' }}>
+              <CardContent sx={{ width: '100%' }}>
                 <Box display="flex" alignItems="center" mb={2}>
                   <FingerprintIcon color="success" sx={{ mr: 1 }} />
                   <Typography variant="h6">
@@ -1540,10 +1653,10 @@ const BiometricEnrollment = () => {
                     </Alert>
                   )
                 ) : membersWithBiometric && membersWithBiometric.length > 0 ? (
-                  <Box sx={{ overflowX: 'auto' }}>
+                  <Box sx={{ width: '100%' }}>
                     <Box sx={{ 
                       display: 'grid', 
-                      gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                      gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1.5fr 1fr 2fr',
                       gap: 1,
                       alignItems: 'center',
                       p: 1,
@@ -1551,7 +1664,8 @@ const BiometricEnrollment = () => {
                       borderRadius: 1,
                       mb: 1,
                       fontWeight: 'bold',
-                      fontSize: '0.875rem'
+                      fontSize: '0.875rem',
+                      width: '100%'
                     }}>
                       <Box>Name</Box>
                       <Box>Email</Box>
@@ -1566,7 +1680,7 @@ const BiometricEnrollment = () => {
                         key={member.id}
                             sx={{ 
                           display: 'grid',
-                          gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 2fr',
+                          gridTemplateColumns: '2fr 2fr 1.5fr 1.5fr 1.5fr 1fr 2fr',
                           gap: 1,
                               alignItems: 'center',
                           p: 1,
@@ -1575,7 +1689,8 @@ const BiometricEnrollment = () => {
                           borderRadius: 1,
                           mb: 1,
                           background: (member.is_admin === 1 || member.is_admin === true) ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)' : 'transparent',
-                          boxShadow: (member.is_admin === 1 || member.is_admin === true) ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)'
+                          boxShadow: (member.is_admin === 1 || member.is_admin === true) ? '0 0 10px rgba(255, 215, 0, 0.3)' : '0 0 10px rgba(76, 175, 80, 0.2)',
+                          width: '100%'
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1607,22 +1722,22 @@ const BiometricEnrollment = () => {
                               variant="outlined"
                               color="error"
                               onClick={() => openDeleteConfirmDialog(member.id, member.name)}
-                              disabled={loading || !!ongoingEnrollment}
-                              startIcon={<DeleteIcon />}
+                              disabled={isButtonLoading('delete', member.id) || !!ongoingEnrollment}
+                              startIcon={isButtonLoading('delete', member.id) ? <CircularProgress size={16} /> : <DeleteIcon />}
                             size="small"
                             sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                             >
-                            Delete
+                            {isButtonLoading('delete', member.id) ? 'Loading...' : 'Delete'}
                             </Button>
                             <Button
                               variant="outlined"
                               onClick={() => startEnrollment(member.id)}
-                              disabled={loading || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
-                              startIcon={<RefreshIcon />}
+                              disabled={isButtonLoading('reenroll', member.id) || enrollmentStatus?.active || !systemStatus?.biometricServiceAvailable || !!ongoingEnrollment}
+                              startIcon={isButtonLoading('reenroll', member.id) ? <CircularProgress size={16} /> : <RefreshIcon />}
                             size="small"
                             sx={{ minWidth: 'fit-content', whiteSpace: 'nowrap' }}
                             >
-                            Re-enroll
+                            {isButtonLoading('reenroll', member.id) ? 'Starting...' : 'Re-enroll'}
                             </Button>
                           </Box>
                       </Box>
@@ -1811,7 +1926,7 @@ const BiometricEnrollment = () => {
                       />
                     </ListItemIcon>
                     <ListItemText
-                      primary={`${event.event_type} - ${event.member_name || 'Unknown'}`}
+                      primary={formatEventMessage(event)}
                       secondary={
                         <Box>
                           <Typography variant="caption" display="block">
@@ -1922,9 +2037,10 @@ const BiometricEnrollment = () => {
           <Button 
                 onClick={handleManualEnrollment}
             variant="contained"
-            disabled={loading || !manualMember || !deviceUserId}
+            disabled={isButtonLoading('manual', manualMember) || !manualMember || !deviceUserId}
+            startIcon={isButtonLoading('manual', manualMember) ? <CircularProgress size={16} /> : <FingerprintIcon />}
               >
-                {loading ? 'Assigning...' : 'Assign Biometric Data'}
+                {isButtonLoading('manual', manualMember) ? 'Assigning...' : 'Assign Biometric Data'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1956,9 +2072,10 @@ const BiometricEnrollment = () => {
             onClick={confirmDeleteBiometricData} 
             color="error" 
             variant="contained"
-            disabled={loading}
+            disabled={isButtonLoading('deleteConfirm')}
+            startIcon={isButtonLoading('deleteConfirm') ? <CircularProgress size={16} /> : <DeleteIcon />}
           >
-            Delete Enrollment
+            {isButtonLoading('deleteConfirm') ? 'Deleting...' : 'Delete Enrollment'}
           </Button>
         </DialogActions>
       </Dialog>

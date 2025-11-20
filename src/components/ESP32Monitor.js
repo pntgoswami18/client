@@ -28,6 +28,7 @@ import {
   Timeline as TimelineIcon,
   Notifications as NotificationsIcon,
   NotificationsOff as NotificationsOffIcon,
+  TouchApp as TouchAppIcon,
   Pause as PauseIcon,
   PlayArrow as PlayIcon
 } from '@mui/icons-material';
@@ -117,6 +118,9 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       case 'enrollment':
         return <FingerprintIcon color="primary" />;
       case 'remote_unlock':
+        return <UnlockIcon color="warning" />;
+      case 'button_override':
+        return <TouchAppIcon color="warning" />;
       case 'emergency_unlock':
         return <UnlockIcon color="warning" />;
       case 'heartbeat':
@@ -138,6 +142,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       case 'enrollment':
         return 'primary';
       case 'remote_unlock':
+      case 'button_override':
       case 'emergency_unlock':
         return 'warning';
       case 'heartbeat':
@@ -150,6 +155,8 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   const formatEventMessage = (event) => {
     const deviceId = event.device_id || 'Unknown Device';
     const memberInfo = event.member_id ? ` (Member: ${event.member_id})` : '';
+    const rawData = event.raw_data ? JSON.parse(event.raw_data) : {};
+    const { reason } = rawData;
     
     switch (event.event_type) {
       case 'checkin':
@@ -159,7 +166,13 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       case 'enrollment':
         return `Fingerprint enrolled at ${deviceId}${memberInfo}`;
       case 'remote_unlock':
-        return `Door remotely unlocked at ${deviceId}`;
+        if (reason && reason !== 'admin_unlock') {
+          return `Door unlocked remotely at ${deviceId} - Reason: ${reason}`;
+        } else {
+          return `Door unlocked remotely at ${deviceId} - Admin override`;
+        }
+      case 'button_override':
+        return `Door unlocked via physical button at ${deviceId}`;
       case 'emergency_unlock':
         return `Emergency unlock at ${deviceId}`;
       case 'heartbeat':
@@ -177,7 +190,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       return ['checkin', 'checkout'].includes(event.event_type);
     }
     if (eventFilter === 'security') {
-      return ['remote_unlock', 'emergency_unlock', 'failed_access'].includes(event.event_type);
+      return ['remote_unlock', 'button_override', 'emergency_unlock', 'failed_access'].includes(event.event_type);
     }
     if (eventFilter === 'system') {
       return ['heartbeat', 'enrollment'].includes(event.event_type);
