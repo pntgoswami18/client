@@ -45,7 +45,10 @@ import {
   Check as CheckIcon,
   Warning as WarningIcon,
   Error as ErrorIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  CloudUpload as CloudUploadIcon,
+  SystemUpdateAlt as SystemUpdateAltIcon,
+  History as HistoryIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -101,6 +104,15 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     description: ''
   });
 
+  // Firmware update state
+  const [firmwares, setFirmwares] = useState([]);
+  const [firmwareLogs, setFirmwareLogs] = useState([]);
+  const [firmwareFile, setFirmwareFile] = useState(null);
+  const [firmwareVersion, setFirmwareVersion] = useState('');
+  const [firmwareDescription, setFirmwareDescription] = useState('');
+  const [uploadingFirmware, setUploadingFirmware] = useState(false);
+  const [updatingDevice, setUpdatingDevice] = useState(null);
+
   const normalizeHost = useCallback((host) => host?.trim().replace(/^https?:\/\//i, '') || '', []);
 
   const buildControlPanelUrl = useCallback(
@@ -131,6 +143,8 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     fetchDevices();
     fetchMembers();
     fetchEsp32Settings();
+    fetchFirmwares();
+    fetchFirmwareLogs();
     
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchDevices, 30000);
@@ -583,6 +597,87 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     }
   };
 
+  // Firmware management functions
+  const fetchFirmwares = async () => {
+    try {
+      const response = await axios.get('/api/firmware/list');
+      if (response.data.success) {
+        setFirmwares(response.data.firmwares || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch firmwares:', err);
+    }
+  };
+
+  const fetchFirmwareLogs = async () => {
+    try {
+      const response = await axios.get('/api/firmware/log');
+      if (response.data.success) {
+        setFirmwareLogs(response.data.logs || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch firmware logs:', err);
+    }
+  };
+
+  const handleFirmwareUpload = async () => {
+    if (!firmwareFile || !firmwareVersion.trim()) { return; }
+    setUploadingFirmware(true);
+    try {
+      const formData = new FormData();
+      formData.append('firmware', firmwareFile);
+      formData.append('version', firmwareVersion.trim());
+      formData.append('description', firmwareDescription.trim());
+      const response = await axios.post('/api/firmware/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (response.data.success) {
+        setSuccess('Firmware uploaded successfully');
+        setFirmwareFile(null);
+        setFirmwareVersion('');
+        setFirmwareDescription('');
+        fetchFirmwares();
+      } else {
+        setError(response.data.message || 'Upload failed');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to upload firmware');
+    } finally {
+      setUploadingFirmware(false);
+    }
+  };
+
+  const handleTriggerOTA = async (deviceId, firmwareId) => {
+    setUpdatingDevice(deviceId);
+    try {
+      const response = await axios.post(`/api/firmware/update/${deviceId}`, { firmwareId });
+      if (response.data.success) {
+        setSuccess(response.data.message);
+        fetchFirmwareLogs();
+      } else {
+        setError(response.data.message || 'Failed to trigger OTA');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to trigger OTA update');
+    } finally {
+      setUpdatingDevice(null);
+    }
+  };
+
+  const handleDeleteFirmware = async (id) => {
+    try {
+      const response = await axios.delete(`/api/firmware/${id}`);
+      if (response.data.success) {
+        setSuccess('Firmware deleted');
+        fetchFirmwares();
+      } else {
+        setError(response.data.message);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete firmware');
+    }
+  };
+
   // Check for changes in ESP32 configuration
   const checkForConfigChanges = useCallback(() => {
     if (!initialConfigValues.current || Object.keys(initialConfigValues.current).length === 0) {
@@ -719,6 +814,11 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
             <Typography variant="body2">
               Enrolled: {device.deviceData.enrolled_prints || 0} fingerprints
             </Typography>
+            {(device.firmware_version || device.deviceData.firmware_version) && (
+              <Typography variant="body2">
+                Firmware: v{device.firmware_version || device.deviceData.firmware_version}
+              </Typography>
+            )}
           </Box>
         )}
 
@@ -973,6 +1073,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
           <Tab label="Device Overview" />
           <Tab label="Device Details" />
           <Tab label="Configuration" />
+          <Tab label="Firmware Updates" />
         </Tabs>
       </Box>
 
@@ -1218,6 +1319,240 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                     </Alert>
                   </Box>
                 )}
+              </Card>
+            </Box>
+          )}
+
+          {activeTab === 3 && (
+            <Box>
+              <Typography variant="h5" gutterBottom>
+                Firmware Updates
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+                Upload new firmware binaries and push OTA updates to connected ESP32 devices.
+              </Typography>
+
+              {/* Upload Section */}
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CloudUploadIcon />
+                    Upload Firmware
+                  </Typography>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={3}>
+                      <TextField
+                        fullWidth
+                        label="Version"
+                        value={firmwareVersion}
+                        onChange={(e) => setFirmwareVersion(e.target.value)}
+                        placeholder="e.g. 1.1.0"
+                        required
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        fullWidth
+                        label="Description (optional)"
+                        value={firmwareDescription}
+                        onChange={(e) => setFirmwareDescription(e.target.value)}
+                        placeholder="What changed in this version"
+                        size="small"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={3}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        fullWidth
+                        size="medium"
+                      >
+                        {firmwareFile ? firmwareFile.name : 'Choose .bin file'}
+                        <input
+                          type="file"
+                          accept=".bin"
+                          hidden
+                          onChange={(e) => setFirmwareFile(e.target.files[0] || null)}
+                        />
+                      </Button>
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <Button
+                        variant="contained"
+                        onClick={handleFirmwareUpload}
+                        disabled={uploadingFirmware || !firmwareFile || !firmwareVersion.trim()}
+                        startIcon={uploadingFirmware ? <CircularProgress size={16} /> : <CloudUploadIcon />}
+                        fullWidth
+                      >
+                        {uploadingFirmware ? 'Uploading...' : 'Upload'}
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Available Firmware List */}
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SystemUpdateAltIcon />
+                      Available Firmware
+                    </Typography>
+                    <Button size="small" startIcon={<RefreshIcon />} onClick={fetchFirmwares}>
+                      Refresh
+                    </Button>
+                  </Box>
+                  {firmwares.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No firmware binaries uploaded yet.
+                    </Typography>
+                  ) : (
+                    <List>
+                      {firmwares.map((fw) => (
+                        <ListItem
+                          key={fw.id}
+                          secondaryAction={
+                            <IconButton edge="end" color="error" onClick={() => handleDeleteFirmware(fw.id)}>
+                              <DeleteIcon />
+                            </IconButton>
+                          }
+                          divider
+                        >
+                          <ListItemIcon>
+                            <SystemUpdateAltIcon />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={`v${fw.version}`}
+                            secondary={
+                              <>
+                                {fw.description && <>{fw.description} &mdash; </>}
+                                {fw.file_size ? `${(fw.file_size / 1024).toFixed(1)} KB` : ''} &middot; Uploaded{' '}
+                                {fw.uploaded_at ? formatDistanceToNow(new Date(fw.uploaded_at), { addSuffix: true }) : 'unknown'}
+                              </>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Device Firmware Status */}
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <DeviceHubIcon />
+                    Device Firmware Status
+                  </Typography>
+                  {devices.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No devices found.
+                    </Typography>
+                  ) : (
+                    <List>
+                      {devices.map((device) => {
+                        const latestFw = firmwares.length > 0 ? firmwares[0] : null;
+                        const currentVersion = device.firmware_version || device.deviceData?.firmware_version || 'unknown';
+                        const isUpToDate = latestFw && currentVersion === latestFw.version;
+                        return (
+                          <ListItem key={device.device_id} divider>
+                            <ListItemIcon>
+                              {device.status === 'online' ? <WifiIcon color="success" /> : <WifiOffIcon color="error" />}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={device.device_id}
+                              secondary={
+                                <>
+                                  Current: <strong>v{currentVersion}</strong>
+                                  {latestFw && (
+                                    <> &middot; Latest: <strong>v{latestFw.version}</strong></>
+                                  )}
+                                  {isUpToDate && (
+                                    <Chip label="Up to date" color="success" size="small" sx={{ ml: 1 }} />
+                                  )}
+                                </>
+                              }
+                            />
+                            {latestFw && !isUpToDate && device.status === 'online' && (
+                              <Tooltip title={`Push v${latestFw.version} to this device`}>
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  startIcon={
+                                    updatingDevice === device.device_id
+                                      ? <CircularProgress size={16} />
+                                      : <SystemUpdateAltIcon />
+                                  }
+                                  disabled={updatingDevice === device.device_id}
+                                  onClick={() => handleTriggerOTA(device.device_id, latestFw.id)}
+                                >
+                                  {updatingDevice === device.device_id ? 'Updating...' : 'Update'}
+                                </Button>
+                              </Tooltip>
+                            )}
+                            {device.status !== 'online' && latestFw && !isUpToDate && (
+                              <Chip label="Offline" color="error" size="small" variant="outlined" />
+                            )}
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Update Log */}
+              <Card>
+                <CardContent>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                    <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HistoryIcon />
+                      Update History
+                    </Typography>
+                    <Button size="small" startIcon={<RefreshIcon />} onClick={fetchFirmwareLogs}>
+                      Refresh
+                    </Button>
+                  </Box>
+                  {firmwareLogs.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No firmware updates have been triggered yet.
+                    </Typography>
+                  ) : (
+                    <List>
+                      {firmwareLogs.map((log) => (
+                        <ListItem key={log.id} divider>
+                          <ListItemIcon>
+                            {log.status === 'completed' && <CheckIcon color="success" />}
+                            {log.status === 'pending' && <CircularProgress size={20} />}
+                            {log.status === 'failed' && <ErrorIcon color="error" />}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={`${log.device_id} → v${log.firmware_version}`}
+                            secondary={
+                              <>
+                                Status: <Chip
+                                  label={log.status}
+                                  size="small"
+                                  color={log.status === 'completed' ? 'success' : log.status === 'failed' ? 'error' : 'warning'}
+                                  sx={{ mr: 1 }}
+                                />
+                                {log.started_at && (
+                                  <>Started {formatDistanceToNow(new Date(log.started_at), { addSuffix: true })}</>
+                                )}
+                                {log.error_message && (
+                                  <> &mdash; {log.error_message}</>
+                                )}
+                              </>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </CardContent>
               </Card>
             </Box>
           )}
