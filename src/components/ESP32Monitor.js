@@ -42,15 +42,23 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   const [notifications, setNotifications] = useState(true);
   const [eventFilter, setEventFilter] = useState('all');
   const eventSourceRef = useRef(null);
+  const pollIntervalRef = useRef(null);
   const maxEvents = 100;
 
   useEffect(() => {
     if (!isPaused) {
       connectToEventStream();
+    } else if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
     
-    const eventSource = eventSourceRef.current;
     return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      const eventSource = eventSourceRef.current;
       if (eventSource) {
         eventSource.close();
       }
@@ -67,17 +75,23 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   }, []);
 
   const connectToEventStream = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+
     // Note: In a real implementation, you'd set up Server-Sent Events (SSE) or WebSocket
     // For now, we'll simulate with polling
-    const pollInterval = setInterval(async () => {
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch('/api/biometric/events?limit=10');
         const data = await response.json();
+        const events = Array.isArray(data.events) ? data.events : Array.isArray(data.data) ? data.data : [];
         
-        if (data.success && data.events) {
+        if (data.success && events.length > 0) {
           // Add new events to the beginning of the array
           setRealtimeEvents(prev => {
-            const newEvents = data.events.filter(event => 
+            const newEvents = events.filter(event => 
               !prev.some(existing => existing.id === event.id)
             );
             return [...newEvents, ...prev].slice(0, maxEvents);
@@ -89,8 +103,6 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
         setIsConnected(false);
       }
     }, 2000);
-
-    return () => clearInterval(pollInterval);
   };
 
   const fetchDeviceStatuses = async () => {
