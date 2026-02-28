@@ -109,15 +109,6 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                     'active_schedules'
                 ];
             
-            // Debug logging to see actual API values
-            console.log('API Response for card settings:', {
-                show_card_total_members,
-                show_card_total_revenue,
-                show_card_new_members_this_month,
-                show_card_unpaid_members_this_month,
-                show_card_active_schedules
-            });
-            
             if (currency) { setCurrency(currency); }
             if (gym_name) { setGymName(gym_name); }
             if (gym_logo) { setGymLogo(gym_logo); }
@@ -139,14 +130,6 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             setShowUnpaidMembersThisMonth(show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true);
             setShowActiveSchedules(show_card_active_schedules === 'true' || show_card_active_schedules === true);
             
-            // Debug logging to see what string/boolean conversion produces
-            console.log('String/Boolean conversion results:', {
-                showTotalMembers: show_card_total_members === 'true' || show_card_total_members === true,
-                showTotalRevenue: show_card_total_revenue === 'true' || show_card_total_revenue === true,
-                showNewMembersThisMonth: show_card_new_members_this_month === 'true' || show_card_new_members_this_month === true,
-                showUnpaidMembersThisMonth: show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true,
-                showActiveSchedules: show_card_active_schedules === 'true' || show_card_active_schedules === true
-            });
             if (ask_unlock_reason !== undefined) { setAskUnlockReason(normalizedAskUnlockReason); }
             if (referral_system_enabled !== undefined) { setReferralSystemEnabled(normalizedReferralSystemEnabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
@@ -210,7 +193,11 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                logoUrl = uploadRes.data.logoUrl;
+                if (uploadRes.data.success && uploadRes.data.logoUrl) {
+                    logoUrl = uploadRes.data.logoUrl;
+                } else {
+                    throw new Error(uploadRes.data.message || 'Logo upload failed');
+                }
             }
             
             const settingsToUpdate = {

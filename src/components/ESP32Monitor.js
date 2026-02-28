@@ -167,7 +167,10 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   const formatEventMessage = (event) => {
     const deviceId = event.device_id || 'Unknown Device';
     const memberInfo = event.member_id ? ` (Member: ${event.member_id})` : '';
-    const rawData = event.raw_data ? JSON.parse(event.raw_data) : {};
+    const rawData = (() => {
+      if (!event.raw_data) return {};
+      try { return JSON.parse(event.raw_data); } catch { return {}; }
+    })();
     const { reason } = rawData;
     
     switch (event.event_type) {

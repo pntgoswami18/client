@@ -209,7 +209,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
             const config = await fetchDeviceConfig(device.ip_address);
             configs[device.device_id] = {
               ...config,
-              wifi_password_masked: maskPassword(config.wifi_ssid || ''),
+              wifi_password_masked: maskPassword(config.wifi_password || ''),
               configStatus: config.wifi_ssid ? 'configured' : 'default'
             };
           } catch (error) {
@@ -670,6 +670,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
 
   const handleFirmwareUpload = async () => {
     if (!firmwareFile || !firmwareVersion.trim()) { return; }
+    if (!firmwareFile.name.toLowerCase().endsWith('.bin')) {
+      setError('Only .bin firmware files are accepted');
+      return;
+    }
     setUploadingFirmware(true);
     try {
       const formData = new FormData();
@@ -850,7 +854,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
         
         {device.last_seen && (
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Last seen: {formatDistanceToNow(new Date(device.last_seen), { addSuffix: true })}
+            Last seen: {formatDistanceToNow(parseSqliteDate(device.last_seen), { addSuffix: true })}
           </Typography>
         )}
         
@@ -1053,7 +1057,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                 <ListItemIcon><RefreshIcon /></ListItemIcon>
                 <ListItemText 
                   primary="Last Heartbeat" 
-                  secondary={device.last_seen ? formatDistanceToNow(new Date(device.last_seen), { addSuffix: true }) : 'Never'} 
+                  secondary={device.last_seen ? formatDistanceToNow(parseSqliteDate(device.last_seen), { addSuffix: true }) : 'Never'} 
                 />
               </ListItem>
             </List>
