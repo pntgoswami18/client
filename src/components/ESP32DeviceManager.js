@@ -165,8 +165,13 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     }
 
     try {
-      const openedTab = window.open(url, '_blank', 'noopener,noreferrer');
-      if (!openedTab) {
+      // Open a blank tab first so popup-block detection is reliable.
+      // Some browsers return null when noopener is used even if tab opens.
+      const openedTab = window.open('', '_blank');
+      if (openedTab) {
+        openedTab.opener = null;
+        openedTab.location.href = url;
+      } else {
         setError('Unable to open door panel in a new tab. Please allow popups for this site and try again.');
       }
     } catch (error) {
