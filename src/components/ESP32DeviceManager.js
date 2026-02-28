@@ -145,15 +145,32 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     () => buildControlPanelUrl(esp32Host, esp32Port),
     [esp32Host, esp32Port, buildControlPanelUrl]
   );
+  const hasOnlineESP32Devices = React.useMemo(
+    () => devices.some((device) => device.status === 'online'),
+    [devices]
+  );
+  const openDoorPanelDisabledReason = React.useMemo(() => {
+    if (!hasOnlineESP32Devices) {
+      return 'No ESP32 device is online. Bring a device online to open the door panel.';
+    }
+    if (!controlPanelUrl) {
+      return 'Set the ESP32 host address in the configuration tab';
+    }
+    return null;
+  }, [hasOnlineESP32Devices, controlPanelUrl]);
+
   const openControlPanel = useCallback((url) => {
     if (!url) {
       return;
     }
 
-    const openedTab = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!openedTab) {
-      // Fallback for browsers/extensions that block popup tabs.
-      window.location.assign(url);
+    try {
+      const openedTab = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!openedTab) {
+        setError('Unable to open door panel in a new tab. Please allow popups for this site and try again.');
+      }
+    } catch (error) {
+      setError(`Unable to open door panel: ${error.message}`);
     }
   }, []);
 
@@ -1051,9 +1068,9 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
           </Button>
           <Tooltip
             title={
-              controlPanelUrl
+              !openDoorPanelDisabledReason
                 ? `Open ESP32 door control panel (${controlPanelUrl})`
-                : 'Set the ESP32 host address in the configuration tab'
+                : openDoorPanelDisabledReason
             }
           >
             <span>
@@ -1062,7 +1079,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                 color="primary"
                 startIcon={<OpenInNewIcon />}
                 onClick={() => openControlPanel(controlPanelUrl)}
-                disabled={!controlPanelUrl}
+                disabled={!!openDoorPanelDisabledReason}
               >
                 Open Door Panel
               </Button>
