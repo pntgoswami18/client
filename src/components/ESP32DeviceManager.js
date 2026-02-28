@@ -138,6 +138,17 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     () => buildControlPanelUrl(esp32Host, esp32Port),
     [esp32Host, esp32Port, buildControlPanelUrl]
   );
+  const openControlPanel = useCallback((url) => {
+    if (!url) {
+      return;
+    }
+
+    const openedTab = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!openedTab) {
+      // Fallback for browsers/extensions that block popup tabs.
+      window.location.assign(url);
+    }
+  }, []);
 
   useEffect(() => {
     fetchDevices();
@@ -778,7 +789,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     }
   };
 
-  const DeviceCard = ({ device }) => (
+  const DeviceCard = ({ device }) => {
+    const deviceControlPanelUrl = buildControlPanelUrl(device.ip_address, esp32Port);
+
+    return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardContent sx={{ flexGrow: 1 }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
@@ -885,11 +899,8 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
             <Button
               size="small"
               startIcon={<OpenInNewIcon />}
-              component="a"
-              href={buildControlPanelUrl(device.ip_address, esp32Port)}
-              target="_blank"
-              rel="noopener noreferrer"
-              disabled={device.status !== 'online' || !buildControlPanelUrl(device.ip_address, esp32Port)}
+              onClick={() => openControlPanel(deviceControlPanelUrl)}
+              disabled={device.status !== 'online' || !deviceControlPanelUrl}
             >
               Control Panel
             </Button>
@@ -956,7 +967,8 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
         </Tooltip>
       </CardActions>
     </Card>
-  );
+    );
+  };
 
   const DeviceDetails = ({ device }) => (
     <Card>
@@ -1042,10 +1054,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                 variant="contained"
                 color="primary"
                 startIcon={<OpenInNewIcon />}
-                component="a"
-                href={controlPanelUrl || undefined}
-                target="_blank"
-                rel="noopener noreferrer"
+                onClick={() => openControlPanel(controlPanelUrl)}
                 disabled={!controlPanelUrl}
               >
                 Open Door Panel
