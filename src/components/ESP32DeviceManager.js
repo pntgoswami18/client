@@ -114,6 +114,13 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [updatingDevice, setUpdatingDevice] = useState(null);
 
   const normalizeHost = useCallback((host) => host?.trim().replace(/^https?:\/\//i, '') || '', []);
+  const normalizePort = useCallback((port) => {
+    const parsedPort = Number.parseInt(String(port || '').trim(), 10);
+    if (!Number.isFinite(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
+      return '';
+    }
+    return String(parsedPort);
+  }, []);
 
   const buildControlPanelUrl = useCallback(
     (host, port) => {
@@ -127,11 +134,11 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       }
 
       const hasExplicitPort = normalizedHost.includes(':');
-      const effectivePort = String(port || '').trim();
+      const effectivePort = normalizePort(port);
       const shouldAppendPort = !hasExplicitPort && effectivePort && effectivePort !== '80';
       return `http://${normalizedHost}${shouldAppendPort ? `:${effectivePort}` : ''}`;
     },
-    [normalizeHost]
+    [normalizeHost, normalizePort]
   );
 
   const controlPanelUrl = React.useMemo(
