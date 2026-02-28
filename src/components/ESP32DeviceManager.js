@@ -52,6 +52,14 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 
+// Parse SQLite datetime: stores "YYYY-MM-DD HH:MM:SS" (UTC) without timezone.
+// Treat as UTC by converting to ISO format; ISO strings with Z are passed through.
+const parseSqliteDate = (str) => {
+  if (!str) return null;
+  if (str.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(str)) return new Date(str);
+  return new Date(str.replace(' ', 'T') + 'Z');
+};
+
 const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
@@ -1467,7 +1475,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                               <>
                                 {fw.description && <>{fw.description} &mdash; </>}
                                 {fw.file_size ? `${(fw.file_size / 1024).toFixed(1)} KB` : ''} &middot; Uploaded{' '}
-                                {fw.uploaded_at ? formatDistanceToNow(new Date(fw.uploaded_at), { addSuffix: true }) : 'unknown'}
+                                {fw.uploaded_at ? formatDistanceToNow(parseSqliteDate(fw.uploaded_at), { addSuffix: true }) : 'unknown'}
                               </>
                             }
                           />
@@ -1578,7 +1586,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                                   sx={{ mr: 1 }}
                                 />
                                 {log.started_at && (
-                                  <>Started {formatDistanceToNow(new Date(log.started_at), { addSuffix: true })}</>
+                                  <>Started {formatDistanceToNow(parseSqliteDate(log.started_at), { addSuffix: true })}</>
                                 )}
                                 {log.error_message && (
                                   <> &mdash; {log.error_message}</>
