@@ -95,15 +95,19 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
         try {
             const response = await axios.get('/api/settings');
             const { currency, gym_name, gym_logo, primary_color, secondary_color, primary_color_mode, secondary_color_mode, primary_color_gradient, secondary_color_gradient, payment_reminder_days_after_due, payment_grace_period_days, morning_session_start, morning_session_end, evening_session_start, evening_session_end, show_card_total_members, show_card_total_revenue, show_card_new_members_this_month, show_card_unpaid_members_this_month, show_card_active_schedules, ask_unlock_reason, referral_system_enabled, referral_discount_amount, whatsapp_welcome_enabled, whatsapp_welcome_message, cross_session_checkin_restriction } = response.data;
-            
-            // Debug logging to see actual API values
-            console.log('API Response for card settings:', {
-                show_card_total_members,
-                show_card_total_revenue,
-                show_card_new_members_this_month,
-                show_card_unpaid_members_this_month,
-                show_card_active_schedules
-            });
+            const normalizedAskUnlockReason = String(ask_unlock_reason) !== 'false';
+            const normalizedReferralSystemEnabled = referral_system_enabled === 'true' || referral_system_enabled === true;
+            const normalizedWhatsappWelcomeEnabled = whatsapp_welcome_enabled === 'true' || whatsapp_welcome_enabled === true;
+            const normalizedCrossSessionCheckinRestriction = cross_session_checkin_restriction === 'true' || cross_session_checkin_restriction === true;
+            const normalizedCardOrder = response.data.card_order && Array.isArray(response.data.card_order)
+                ? response.data.card_order
+                : [
+                    'total_members',
+                    'total_revenue',
+                    'new_members_this_month',
+                    'unpaid_members_this_month',
+                    'active_schedules'
+                ];
             
             if (currency) { setCurrency(currency); }
             if (gym_name) { setGymName(gym_name); }
@@ -115,6 +119,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             if (primary_color_gradient !== undefined) { setPrimaryGradient(primary_color_gradient); }
             if (secondary_color_gradient !== undefined) { setSecondaryGradient(secondary_color_gradient); }
             if (payment_reminder_days_after_due) { setPaymentReminderDaysAfterDue(String(payment_reminder_days_after_due)); }
+            if (payment_grace_period_days !== undefined) { setPaymentGracePeriodDays(String(payment_grace_period_days)); }
             if (morning_session_start) { setMorningStart(morning_session_start); }
             if (morning_session_end) { setMorningEnd(morning_session_end); }
             if (evening_session_start) { setEveningStart(evening_session_start); }
@@ -125,25 +130,15 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             setShowUnpaidMembersThisMonth(show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true);
             setShowActiveSchedules(show_card_active_schedules === 'true' || show_card_active_schedules === true);
             
-            // Debug logging to see what string/boolean conversion produces
-            console.log('String/Boolean conversion results:', {
-                showTotalMembers: show_card_total_members === 'true' || show_card_total_members === true,
-                showTotalRevenue: show_card_total_revenue === 'true' || show_card_total_revenue === true,
-                showNewMembersThisMonth: show_card_new_members_this_month === 'true' || show_card_new_members_this_month === true,
-                showUnpaidMembersThisMonth: show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true,
-                showActiveSchedules: show_card_active_schedules === 'true' || show_card_active_schedules === true
-            });
-            if (ask_unlock_reason !== undefined) { setAskUnlockReason(String(ask_unlock_reason) !== 'false'); }
-            if (referral_system_enabled !== undefined) { setReferralSystemEnabled(referral_system_enabled); }
+            if (ask_unlock_reason !== undefined) { setAskUnlockReason(normalizedAskUnlockReason); }
+            if (referral_system_enabled !== undefined) { setReferralSystemEnabled(normalizedReferralSystemEnabled); }
             if (referral_discount_amount) { setReferralDiscountAmount(String(referral_discount_amount)); }
-            if (whatsapp_welcome_enabled !== undefined) { setWhatsappWelcomeEnabled(whatsapp_welcome_enabled); }
+            if (whatsapp_welcome_enabled !== undefined) { setWhatsappWelcomeEnabled(normalizedWhatsappWelcomeEnabled); }
             if (whatsapp_welcome_message) { setWhatsappWelcomeMessage(whatsapp_welcome_message); }
-            if (cross_session_checkin_restriction !== undefined) { setCrossSessionCheckinRestriction(cross_session_checkin_restriction === 'true' || cross_session_checkin_restriction === true); }
+            if (cross_session_checkin_restriction !== undefined) { setCrossSessionCheckinRestriction(normalizedCrossSessionCheckinRestriction); }
             
             // Fetch card order
-            if (response.data.card_order && Array.isArray(response.data.card_order)) {
-                setCardOrder(response.data.card_order);
-            }
+            setCardOrder(normalizedCardOrder);
 
             // Store initial values after loading with the actual fetched values
             initialValues.current = {
@@ -167,19 +162,13 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 showNewMembersThisMonth: show_card_new_members_this_month === 'true' || show_card_new_members_this_month === true,
                 showUnpaidMembersThisMonth: show_card_unpaid_members_this_month === 'true' || show_card_unpaid_members_this_month === true,
                 showActiveSchedules: show_card_active_schedules === 'true' || show_card_active_schedules === true,
-                askUnlockReason: ask_unlock_reason,
-                referralSystemEnabled: referral_system_enabled,
+                askUnlockReason: normalizedAskUnlockReason,
+                referralSystemEnabled: normalizedReferralSystemEnabled,
                 referralDiscountAmount: String(referral_discount_amount || '100'),
-                whatsappWelcomeEnabled: whatsapp_welcome_enabled || false,
+                whatsappWelcomeEnabled: normalizedWhatsappWelcomeEnabled,
                 whatsappWelcomeMessage: whatsapp_welcome_message || 'Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!',
-                crossSessionCheckinRestriction: cross_session_checkin_restriction === 'true' || cross_session_checkin_restriction === true,
-                cardOrder: response.data.card_order && Array.isArray(response.data.card_order) ? response.data.card_order : [
-                    'total_members',
-                    'total_revenue', 
-                    'new_members_this_month',
-                    'unpaid_members_this_month',
-                    'active_schedules'
-                ]
+                crossSessionCheckinRestriction: normalizedCrossSessionCheckinRestriction,
+                cardOrder: normalizedCardOrder
             };
 
         } catch (error) {
@@ -204,7 +193,11 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                         'Content-Type': 'multipart/form-data'
                     }
                 });
-                logoUrl = uploadRes.data.logoUrl;
+                if (uploadRes.data.success && uploadRes.data.logoUrl) {
+                    logoUrl = uploadRes.data.logoUrl;
+                } else {
+                    throw new Error(uploadRes.data.message || 'Logo upload failed');
+                }
             }
             
             const settingsToUpdate = {
@@ -272,6 +265,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
                 referralDiscountAmount: referralDiscountAmount,
                 whatsappWelcomeEnabled: whatsappWelcomeEnabled,
                 whatsappWelcomeMessage: whatsappWelcomeMessage,
+                crossSessionCheckinRestriction: crossSessionCheckinRestriction,
                 cardOrder: cardOrder
             };
             
