@@ -358,7 +358,7 @@ const Member = () => {
           setOngoingEnrollment(null);
           // Refresh biometric status
           if (editingMember) {
-            openBiometricDialog(editingMember);
+            openBiometricDialog(editingMember, { preserveFeedback: true });
           }
         } else if (data.status === 'failed') {
           // Check if this is a retryable failure
@@ -645,12 +645,15 @@ const Member = () => {
     setOpenEdit(true);
   };
 
-  const openBiometricDialog = async (member) => {
+  const openBiometricDialog = async (member, options = {}) => {
+    const { preserveFeedback = false } = options;
     setEditingMember(member);
     setOpenBiometric(true);
     setMemberBiometricStatus(null);
-    setBiometricError('');
-    setBiometricSuccess('');
+    if (!preserveFeedback) {
+      setBiometricError('');
+      setBiometricSuccess('');
+    }
 
     // Fetch member's biometric status
     try {
@@ -929,7 +932,7 @@ const Member = () => {
           `Enrollment started for ${editingMember.name}${deviceInfo}. Please ask the member to place their finger on the biometric device and follow the prompts.`
         );
         // Refresh biometric status
-        openBiometricDialog(editingMember);
+        openBiometricDialog(editingMember, { preserveFeedback: true });
       } else {
         setBiometricError(response.data.message || 'Failed to start enrollment');
       }
@@ -985,7 +988,7 @@ const Member = () => {
           'Biometric enrollment deleted successfully. The member can now be re-enrolled.'
         );
         // Refresh biometric status
-        openBiometricDialog(editingMember);
+        openBiometricDialog(editingMember, { preserveFeedback: true });
       }
     } catch (error) {
       console.error('Error deleting enrollment:', error);
@@ -1042,7 +1045,7 @@ const Member = () => {
             `Re-enrollment started for ${editingMember.name}. Please ask the member to place their finger on the biometric device and follow the prompts.`
           );
           // Refresh biometric status
-          openBiometricDialog(editingMember);
+          openBiometricDialog(editingMember, { preserveFeedback: true });
         } else {
           setBiometricError('Failed to start enrollment after deletion');
         }
@@ -1088,7 +1091,7 @@ const Member = () => {
 
       // Refresh biometric status
       if (editingMember) {
-        openBiometricDialog(editingMember);
+        openBiometricDialog(editingMember, { preserveFeedback: true });
       }
     } catch (error) {
       console.error('Error cancelling enrollment:', error);
