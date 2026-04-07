@@ -182,6 +182,32 @@ const Member = () => {
   const [wsConnected, setWsConnected] = useState(false);
   const [ongoingEnrollment, setOngoingEnrollment] = useState(null); // { memberId, memberName, startTime }
   const wsRef = useRef(null);
+  const enrollmentFailureStickyUntilRef = useRef(0);
+  const enrollmentFailureTimerRef = useRef(null);
+
+  const clearEnrollmentFailureStickyState = useCallback(() => {
+    enrollmentFailureStickyUntilRef.current = 0;
+    if (enrollmentFailureTimerRef.current) {
+      clearTimeout(enrollmentFailureTimerRef.current);
+      enrollmentFailureTimerRef.current = null;
+    }
+  }, []);
+
+  const pinEnrollmentFailureMessage = useCallback(
+    (message) => {
+      setBiometricSuccess(null);
+      setBiometricError(message);
+      enrollmentFailureStickyUntilRef.current = Date.now() + 60000;
+      if (enrollmentFailureTimerRef.current) {
+        clearTimeout(enrollmentFailureTimerRef.current);
+      }
+      enrollmentFailureTimerRef.current = setTimeout(() => {
+        enrollmentFailureStickyUntilRef.current = 0;
+        enrollmentFailureTimerRef.current = null;
+      }, 60000);
+    },
+    [setBiometricError, setBiometricSuccess]
+  );
 
   // Pagination handlers
   const handlePageChange = (event, page) => {
@@ -307,8 +333,10 @@ const Member = () => {
   const handleEnrollmentWebSocketMessage = useCallback(
     (data) => {
       console.log('📡 Handling enrollment WebSocket message:', data);
+      const isFailurePinned = Date.now() < enrollmentFailureStickyUntilRef.current;
 
       if (data.type === 'enrollment_started') {
+        clearEnrollmentFailureStickyState();
         setBiometricSuccess(
           `📱 Enrollment started for ${data.memberName}. Please place your finger on the biometric device.`
         );
@@ -346,12 +374,19 @@ const Member = () => {
 
           const message =
             stepMessages[data.currentStep] || `🔄 Enrollment in progress: ${data.currentStep}`;
-          setBiometricSuccess(message);
+          if (data.currentStep === 'prints_mismatch') {
+            pinEnrollmentFailureMessage(message);
+          } else if (!isFailurePinned) {
+            setBiometricSuccess(message);
+          }
         } else if (data.status === 'retry') {
-          setBiometricSuccess(`🔄 ${data.message}`);
+          if (!isFailurePinned) {
+            setBiometricSuccess(`🔄 ${data.message}`);
+          }
         }
       } else if (data.type === 'enrollment_complete') {
         if (data.status === 'success') {
+          clearEnrollmentFailureStickyState();
           setBiometricSuccess(
             `🎉 ${data.memberName} has been successfully enrolled! They can now use their fingerprint to access the gym.`
           );
@@ -373,23 +408,30 @@ const Member = () => {
           const isRetryable = retryableErrors.some((error) => data.message?.includes(error));
 
           if (isRetryable) {
-            setBiometricError(
+            pinEnrollmentFailureMessage(
               `❌ Enrollment failed for ${data.memberName}: ${data.message}. You can retry enrollment by clicking the enroll button again.`
             );
           } else {
-            setBiometricError(`❌ Enrollment failed for ${data.memberName}: ${data.message}`);
+            pinEnrollmentFailureMessage(
+              `❌ Enrollment failed for ${data.memberName}: ${data.message}`
+            );
           }
           setOngoingEnrollment(null);
         } else if (data.status === 'cancelled') {
+          clearEnrollmentFailureStickyState();
           setBiometricSuccess(`⏹️ Enrollment cancelled for ${data.memberName}.`);
           setOngoingEnrollment(null);
         } else if (data.status === 'error') {
-          setBiometricError(`❌ Enrollment error for ${data.memberName}: ${data.message}`);
+          if (!isFailurePinned) {
+            setBiometricError(`❌ Enrollment error for ${data.memberName}: ${data.message}`);
+          }
           setOngoingEnrollment(null);
         }
       } else if (data.type === 'enrollment_stopped' && data.reason !== 'success') {
-        setBiometricSuccess(null);
-        setBiometricError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
+        if (!isFailurePinned) {
+          setBiometricSuccess(null);
+          setBiometricError(`⏹️ Enrollment stopped for ${data.memberName}: ${data.reason}`);
+        }
         setOngoingEnrollment(null);
       } else if (data.type === 'whatsapp_welcome_sent') {
         setBiometricSuccess(
@@ -405,7 +447,7 @@ const Member = () => {
         );
       }
     },
-    [editingMember]
+    [editingMember, clearEnrollmentFailureStickyState, pinEnrollmentFailureMessage]
   );
 
   // WebSocket setup for real-time enrollment updates
@@ -464,6 +506,12 @@ const Member = () => {
       }
     };
   }, [editingMember, handleEnrollmentWebSocketMessage]);
+
+  useEffect(() => {
+    return () => {
+      clearEnrollmentFailureStickyState();
+    };
+  }, [clearEnrollmentFailureStickyState]);
 
   const fetchPlans = async () => {
     try {
