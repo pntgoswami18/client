@@ -2080,7 +2080,7 @@ const Member = () => {
       </Dialog>
 
       <Typography variant="h5" gutterBottom>
-        Current Members
+        Current Members ({paginationMeta.total})
       </Typography>
       {members.length === 0 ? (
         <Box
