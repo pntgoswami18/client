@@ -129,6 +129,9 @@ const Member = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastSeverity, setToastSeverity] = useState('success');
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteMemberLoading, setDeleteMemberLoading] = useState(false);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -676,6 +679,32 @@ const Member = () => {
       alert('Failed to load member details');
     } finally {
       setMemberDetailsLoading(false);
+    }
+  };
+
+  const handleConfirmDeleteMember = async () => {
+    if (!currentViewingMember) return;
+    setDeleteMemberLoading(true);
+    try {
+      await axios.delete(`/api/members/${currentViewingMember.id}`);
+      setToastMessage(`Member "${currentViewingMember.name}" was deleted`);
+      setToastSeverity('success');
+      setToastOpen(true);
+      setDeleteConfirmOpen(false);
+      setOpenMemberDetails(false);
+      setCurrentViewingMember(null);
+      setMemberDetails(null);
+      fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
+    } catch (error) {
+      const msg =
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to delete member. They may still be referenced by other records.';
+      setToastMessage(msg);
+      setToastSeverity('error');
+      setToastOpen(true);
+    } finally {
+      setDeleteMemberLoading(false);
     }
   };
 
@@ -2766,6 +2795,7 @@ const Member = () => {
         onClose={() => {
           setOpenMemberDetails(false);
           setCurrentViewingMember(null);
+          setDeleteConfirmOpen(false);
         }}
         fullWidth
         maxWidth="md"
@@ -3082,14 +3112,60 @@ const Member = () => {
             >
               Biometric Data
             </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={() => setDeleteConfirmOpen(true)}
+              disabled={!currentViewingMember}
+            >
+              Delete member
+            </Button>
           </Box>
           <Button
             onClick={() => {
               setOpenMemberDetails(false);
               setCurrentViewingMember(null);
+              setDeleteConfirmOpen(false);
             }}
           >
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => !deleteMemberLoading && setDeleteConfirmOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete member?</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            This cannot be undone. The member will be removed from the system; related records
+            (attendance, bookings, invoices, etc.) may be deleted or updated according to database
+            rules.
+          </Alert>
+          <Typography variant="body1">
+            Delete <strong>{currentViewingMember?.name || 'this member'}</strong>
+            {currentViewingMember?.id != null ? ` (ID: ${currentViewingMember.id})` : ''}?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleteMemberLoading}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteMember}
+            disabled={deleteMemberLoading}
+            startIcon={
+              deleteMemberLoading ? <CircularProgress size={18} color="inherit" /> : <DeleteIcon />
+            }
+          >
+            {deleteMemberLoading ? 'Deleting…' : 'Delete permanently'}
           </Button>
         </DialogActions>
       </Dialog>
