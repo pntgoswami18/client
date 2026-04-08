@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link as RouterLink } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
@@ -794,8 +794,11 @@ const Member = () => {
   const openPaymentRecordDialog = () => {
     if (!currentViewingMember) return;
 
-    // Pre-fill payment amount with the latest invoice amount if available
-    if (memberDetails?.latestInvoice && memberDetails.latestInvoice.status !== 'paid') {
+    // Pre-fill from earliest-due unpaid invoice, else latest invoice snapshot
+    const firstPending = memberDetails?.pendingInvoices?.[0];
+    if (firstPending) {
+      setPaymentAmount(firstPending.amount);
+    } else if (memberDetails?.latestInvoice && memberDetails.latestInvoice.status !== 'paid') {
       setPaymentAmount(memberDetails.latestInvoice.amount);
     } else if (currentViewingMember.membership_plan_id) {
       // Find the plan and use its price
@@ -3022,6 +3025,73 @@ const Member = () => {
                     </Card>
                   </Grid>
                 )}
+
+                {/* All unpaid invoices */}
+                <Grid item xs={12}>
+                  <Card>
+                    <CardHeader title="Pending payment invoices" />
+                    <CardContent>
+                      {(memberDetails.pendingInvoices ?? []).length > 0 ? (
+                        <TableContainer component={Paper} variant="outlined">
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Invoice</TableCell>
+                                <TableCell>Amount</TableCell>
+                                <TableCell>Due date</TableCell>
+                                <TableCell>Plan</TableCell>
+                                <TableCell align="right"> </TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {(memberDetails.pendingInvoices ?? []).map((inv) => {
+                                const due = new Date(inv.due_date);
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                const dueDay = new Date(due);
+                                dueDay.setHours(0, 0, 0, 0);
+                                const overdue = inv.status === 'unpaid' && dueDay < today;
+                                return (
+                                  <TableRow key={inv.id}>
+                                    <TableCell>#{inv.id}</TableCell>
+                                    <TableCell>{formatCurrency(inv.amount, currency)}</TableCell>
+                                    <TableCell>
+                                      {formatDateToLocalString(due)}
+                                      {overdue && (
+                                        <Chip
+                                          label="Overdue"
+                                          color="error"
+                                          size="small"
+                                          sx={{ ml: 1 }}
+                                        />
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{inv.plan_name || '—'}</TableCell>
+                                    <TableCell align="right">
+                                      <Button
+                                        component={RouterLink}
+                                        to={`/invoices/${inv.id}`}
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => setOpenMemberDetails(false)}
+                                      >
+                                        View
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No unpaid invoices.
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
 
                 {/* Latest Invoice Status */}
                 {memberDetails.latestInvoice && (
