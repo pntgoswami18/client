@@ -30,7 +30,7 @@ import {
   NotificationsOff as NotificationsOffIcon,
   TouchApp as TouchAppIcon,
   Pause as PauseIcon,
-  PlayArrow as PlayIcon
+  PlayArrow as PlayIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -52,7 +52,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
-    
+
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
@@ -68,7 +68,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   useEffect(() => {
     // Fetch initial device statuses
     fetchDeviceStatuses();
-    
+
     // Update device statuses every 30 seconds
     const statusInterval = setInterval(fetchDeviceStatuses, 30000);
     return () => clearInterval(statusInterval);
@@ -86,13 +86,17 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       try {
         const response = await fetch('/api/biometric/events?limit=10');
         const data = await response.json();
-        const events = Array.isArray(data.events) ? data.events : Array.isArray(data.data) ? data.data : [];
-        
+        const events = Array.isArray(data.events)
+          ? data.events
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
+
         if (data.success && events.length > 0) {
           // Add new events to the beginning of the array
-          setRealtimeEvents(prev => {
-            const newEvents = events.filter(event => 
-              !prev.some(existing => existing.id === event.id)
+          setRealtimeEvents((prev) => {
+            const newEvents = events.filter(
+              (event) => !prev.some((existing) => existing.id === event.id)
             );
             return [...newEvents, ...prev].slice(0, maxEvents);
           });
@@ -109,10 +113,10 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     try {
       const response = await fetch('/api/biometric/devices');
       const data = await response.json();
-      
+
       if (data.success) {
         const statusMap = {};
-        data.devices.forEach(device => {
+        data.devices.forEach((device) => {
           statusMap[device.device_id] = device;
         });
         setDeviceStatuses(statusMap);
@@ -146,7 +150,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     if (!success) {
       return 'error';
     }
-    
+
     switch (eventType) {
       case 'checkin':
       case 'checkout':
@@ -164,15 +168,29 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     }
   };
 
+  const formatMemberSuffix = (event) => {
+    const id = event.member_id;
+    if (id == null || id === '') return '';
+    const name = (event.member_name || '').trim();
+    if (name) {
+      return ` (Member: ${name} · ID ${id})`;
+    }
+    return ` (Member: ${id})`;
+  };
+
   const formatEventMessage = (event) => {
     const deviceId = event.device_id || 'Unknown Device';
-    const memberInfo = event.member_id ? ` (Member: ${event.member_id})` : '';
+    const memberInfo = formatMemberSuffix(event);
     const rawData = (() => {
       if (!event.raw_data) return {};
-      try { return JSON.parse(event.raw_data); } catch { return {}; }
+      try {
+        return JSON.parse(event.raw_data);
+      } catch {
+        return {};
+      }
     })();
     const { reason } = rawData;
-    
+
     switch (event.event_type) {
       case 'checkin':
         return `Member checked in at ${deviceId}${memberInfo}`;
@@ -197,7 +215,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     }
   };
 
-  const filteredEvents = realtimeEvents.filter(event => {
+  const filteredEvents = realtimeEvents.filter((event) => {
     if (eventFilter === 'all') {
       return true;
     }
@@ -205,7 +223,9 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
       return ['checkin', 'checkout'].includes(event.event_type);
     }
     if (eventFilter === 'security') {
-      return ['remote_unlock', 'button_override', 'emergency_unlock', 'failed_access'].includes(event.event_type);
+      return ['remote_unlock', 'button_override', 'emergency_unlock', 'failed_access'].includes(
+        event.event_type
+      );
     }
     if (eventFilter === 'system') {
       return ['heartbeat', 'enrollment'].includes(event.event_type);
@@ -217,11 +237,11 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     if (!device || device.status !== 'online') {
       return 0;
     }
-    
+
     let health = 100;
     const lastSeen = new Date(device.last_seen);
     const minutesAgo = (Date.now() - lastSeen.getTime()) / (1000 * 60);
-    
+
     // Reduce health based on last heartbeat
     if (minutesAgo > 5) {
       health -= 20;
@@ -229,7 +249,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     if (minutesAgo > 10) {
       health -= 30;
     }
-    
+
     // Consider signal strength
     if (device.deviceData?.wifi_rssi < -70) {
       health -= 20;
@@ -237,12 +257,12 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     if (device.deviceData?.wifi_rssi < -80) {
       health -= 30;
     }
-    
+
     // Consider memory usage
     if (device.deviceData?.free_heap < 50000) {
       health -= 20;
     }
-    
+
     return Math.max(0, health);
   };
 
@@ -265,16 +285,13 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
             }
             label="Notifications"
           />
-          <IconButton
-            onClick={() => setIsPaused(!isPaused)}
-            color={isPaused ? "error" : "success"}
-          >
+          <IconButton onClick={() => setIsPaused(!isPaused)} color={isPaused ? 'error' : 'success'}>
             {isPaused ? <PlayIcon /> : <PauseIcon />}
           </IconButton>
           <Chip
             icon={<StatusIcon />}
-            label={isConnected ? "Connected" : "Disconnected"}
-            color={isConnected ? "success" : "error"}
+            label={isConnected ? 'Connected' : 'Disconnected'}
+            color={isConnected ? 'success' : 'error'}
             variant="outlined"
           />
         </Box>
@@ -304,7 +321,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
                       />
                     </Badge>
                   </Box>
-                  
+
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Health Score: {health}%
                   </Typography>
@@ -314,14 +331,12 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
                     color={health > 70 ? 'success' : health > 40 ? 'warning' : 'error'}
                     sx={{ mb: 2 }}
                   />
-                  
+
                   {device.deviceData && (
                     <Box>
                       <Box display="flex" alignItems="center" gap={1} mb={1}>
                         <WifiIcon fontSize="small" />
-                        <Typography variant="body2">
-                          {device.deviceData.wifi_rssi}dBm
-                        </Typography>
+                        <Typography variant="body2">{device.deviceData.wifi_rssi}dBm</Typography>
                       </Box>
                       <Box display="flex" alignItems="center" gap={1} mb={1}>
                         <MemoryIcon fontSize="small" />
@@ -367,33 +382,24 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Event Stream
-            <Chip
-              size="small"
-              label={`${filteredEvents.length} events`}
-              sx={{ ml: 2 }}
-            />
+            <Chip size="small" label={`${filteredEvents.length} events`} sx={{ ml: 2 }} />
           </Typography>
-          
+
           {isPaused && (
             <Alert severity="info" sx={{ mb: 2 }}>
               Event monitoring is paused. Click the play button to resume.
             </Alert>
           )}
-          
+
           <List sx={{ maxHeight: 400, overflow: 'auto' }}>
             {filteredEvents.length === 0 ? (
               <ListItem>
-                <ListItemText
-                  primary="No events"
-                  secondary="Waiting for device activity..."
-                />
+                <ListItemText primary="No events" secondary="Waiting for device activity..." />
               </ListItem>
             ) : (
               filteredEvents.map((event, index) => (
                 <ListItem key={event.id || index} divider>
-                  <ListItemIcon>
-                    {getEventIcon(event.event_type, event.success)}
-                  </ListItemIcon>
+                  <ListItemIcon>{getEventIcon(event.event_type, event.success)}</ListItemIcon>
                   <ListItemText
                     primary={formatEventMessage(event)}
                     secondary={
