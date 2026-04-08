@@ -132,6 +132,12 @@ const Member = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteMemberLoading, setDeleteMemberLoading] = useState(false);
 
+  // Multi-select state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState(new Set());
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -756,6 +762,56 @@ const Member = () => {
       setToastOpen(true);
     } finally {
       setDeleteMemberLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleteLoading(true);
+    const ids = Array.from(selectedMemberIds);
+    let successCount = 0;
+    let failCount = 0;
+    for (const id of ids) {
+      try {
+        await axios.delete(`/api/members/${id}`);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setBulkDeleteLoading(false);
+    setBulkDeleteConfirmOpen(false);
+    setSelectionMode(false);
+    setSelectedMemberIds(new Set());
+    if (failCount === 0) {
+      setToastMessage(`${successCount} member${successCount !== 1 ? 's' : ''} deleted`);
+      setToastSeverity('success');
+    } else {
+      setToastMessage(
+        `${successCount} deleted, ${failCount} failed (may still be referenced by other records)`
+      );
+      setToastSeverity('warning');
+    }
+    setToastOpen(true);
+    fetchMembers(currentPage, itemsPerPage, searchTerm, filter);
+  };
+
+  const toggleMemberSelection = (id) => {
+    setSelectedMemberIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedMemberIds.size === members.length) {
+      setSelectedMemberIds(new Set());
+    } else {
+      setSelectedMemberIds(new Set(members.map((m) => m.id)));
     }
   };
 
@@ -2162,9 +2218,58 @@ const Member = () => {
         </DialogActions>
       </Dialog>
 
-      <Typography variant="h5" gutterBottom>
-        Current Members ({paginationMeta.total})
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h5">Current Members ({paginationMeta.total})</Typography>
+        {members.length > 0 && (
+          <Button
+            variant={selectionMode ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => {
+              setSelectionMode((v) => !v);
+              setSelectedMemberIds(new Set());
+            }}
+          >
+            {selectionMode ? 'Cancel' : 'Select'}
+          </Button>
+        )}
+      </Box>
+
+      {selectionMode && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            mb: 2,
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor: 'action.selected',
+          }}
+        >
+          <Checkbox
+            checked={selectedMemberIds.size === members.length && members.length > 0}
+            indeterminate={selectedMemberIds.size > 0 && selectedMemberIds.size < members.length}
+            onChange={toggleSelectAll}
+            size="small"
+          />
+          <Typography variant="body2" sx={{ flex: 1 }}>
+            {selectedMemberIds.size === 0
+              ? 'Select members to delete'
+              : `${selectedMemberIds.size} selected`}
+          </Typography>
+          <Button
+            variant="contained"
+            color="error"
+            size="small"
+            startIcon={<DeleteIcon />}
+            disabled={selectedMemberIds.size === 0}
+            onClick={() => setBulkDeleteConfirmOpen(true)}
+          >
+            Delete selected
+          </Button>
+        </Box>
+      )}
+
       {members.length === 0 ? (
         <Box
           sx={{
@@ -2202,18 +2307,23 @@ const Member = () => {
                     cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
                     background:
-                      member.is_admin === 1
-                        ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)'
-                        : member.has_overdue_payments === 1
-                          ? 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)'
-                          : 'background.paper',
+                      selectionMode && selectedMemberIds.has(member.id)
+                        ? 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)'
+                        : member.is_admin === 1
+                          ? 'linear-gradient(135deg, #fff9c4 0%, #fffde7 100%)'
+                          : member.has_overdue_payments === 1
+                            ? 'linear-gradient(135deg, #ffebee 0%, #fce4ec 100%)'
+                            : 'background.paper',
                     border:
-                      member.is_admin === 1
-                        ? '2px solid #ffd700'
-                        : member.has_overdue_payments === 1
-                          ? '2px solid #f44336'
-                          : '1px solid',
-                    borderColor: 'divider',
+                      selectionMode && selectedMemberIds.has(member.id)
+                        ? '2px solid #1976d2'
+                        : member.is_admin === 1
+                          ? '2px solid #ffd700'
+                          : member.has_overdue_payments === 1
+                            ? '2px solid #f44336'
+                            : '1px solid',
+                    borderColor:
+                      selectionMode && selectedMemberIds.has(member.id) ? '#1976d2' : 'divider',
                     '&:hover': {
                       transform: 'translateY(-2px)',
                       boxShadow: 3,
@@ -2225,7 +2335,13 @@ const Member = () => {
                             : 'action.hover',
                     },
                   }}
-                  onClick={() => openMemberDetailsDialog(member)}
+                  onClick={() => {
+                    if (selectionMode) {
+                      toggleMemberSelection(member.id);
+                    } else {
+                      openMemberDetailsDialog(member);
+                    }
+                  }}
                 >
                   <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                     <Box
@@ -2235,6 +2351,15 @@ const Member = () => {
                         justifyContent: 'space-between',
                       }}
                     >
+                      {selectionMode && (
+                        <Checkbox
+                          checked={selectedMemberIds.has(member.id)}
+                          onChange={() => toggleMemberSelection(member.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          size="small"
+                          sx={{ mr: 1 }}
+                        />
+                      )}
                       <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                         <Avatar
                           src={member.photo_url || undefined}
@@ -2312,40 +2437,42 @@ const Member = () => {
                           </Typography>
                         </Box>
                       </Box>
-                      <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
-                        {whatsappHref && (
+                      {!selectionMode && (
+                        <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+                          {whatsappHref && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              href={whatsappHref}
+                              target="_blank"
+                              rel="noreferrer"
+                              startIcon={<WhatsAppIcon />}
+                              onClick={(e) => e.stopPropagation()}
+                              sx={{
+                                color: '#25D366',
+                                borderColor: '#25D366',
+                                '&:hover': {
+                                  backgroundColor: '#25D366',
+                                  color: 'white',
+                                },
+                              }}
+                            >
+                              Message
+                            </Button>
+                          )}
                           <Button
                             size="small"
                             variant="outlined"
-                            href={whatsappHref}
-                            target="_blank"
-                            rel="noreferrer"
-                            startIcon={<WhatsAppIcon />}
-                            onClick={(e) => e.stopPropagation()}
-                            sx={{
-                              color: '#25D366',
-                              borderColor: '#25D366',
-                              '&:hover': {
-                                backgroundColor: '#25D366',
-                                color: 'white',
-                              },
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBiometricDialog(member);
                             }}
+                            startIcon={<FingerprintIcon />}
                           >
-                            Message
+                            Biometric
                           </Button>
-                        )}
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openBiometricDialog(member);
-                          }}
-                          startIcon={<FingerprintIcon />}
-                        >
-                          Biometric
-                        </Button>
-                      </Box>
+                        </Box>
+                      )}
                     </Box>
                   </CardContent>
                 </Card>
@@ -3287,6 +3414,45 @@ const Member = () => {
             }
           >
             {deleteMemberLoading ? 'Deleting…' : 'Delete permanently'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog
+        open={bulkDeleteConfirmOpen}
+        onClose={() => !bulkDeleteLoading && setBulkDeleteConfirmOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Delete {selectedMemberIds.size} member{selectedMemberIds.size !== 1 ? 's' : ''}?
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            This cannot be undone. All selected members will be permanently removed from the system.
+            Related records (attendance, bookings, invoices, etc.) may be deleted or updated
+            according to database rules.
+          </Alert>
+          <Typography variant="body1">
+            You are about to delete <strong>{selectedMemberIds.size}</strong> member
+            {selectedMemberIds.size !== 1 ? 's' : ''}. Are you sure?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDeleteConfirmOpen(false)} disabled={bulkDeleteLoading}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleteLoading}
+            startIcon={
+              bulkDeleteLoading ? <CircularProgress size={18} color="inherit" /> : <DeleteIcon />
+            }
+          >
+            {bulkDeleteLoading ? 'Deleting…' : `Delete ${selectedMemberIds.size} permanently`}
           </Button>
         </DialogActions>
       </Dialog>
