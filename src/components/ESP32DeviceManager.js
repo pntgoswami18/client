@@ -79,7 +79,9 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [testConnectionResult, setTestConnectionResult] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [enrollmentProgress, setEnrollmentProgress] = useState(null); // { message, severity }
   const initialConfigValues = useRef({});
+  const wsRef = useRef(null);
 
   // Dialog states
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
@@ -201,6 +203,95 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchDevices, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // WebSocket for real-time enrollment progress feedback
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const backendPort = process.env.REACT_APP_BACKEND_PORT || '3001';
+    const ws = new WebSocket(`${protocol}//${window.location.hostname}:${backendPort}/ws`);
+    wsRef.current = ws;
+
+    const stepMessages = {
+      scanning_first_finger: 'Place your finger on the biometric device for the first scan',
+      first_finger_captured: 'First fingerprint captured — please remove your finger',
+      remove_finger: 'Please remove your finger from the device',
+      scanning_second_finger: 'Place your finger on the device again for the second scan',
+      second_finger_captured: 'Second fingerprint captured',
+      creating_model: 'Creating biometric model from both fingerprints...',
+      prints_matched: 'Fingerprints matched — saving biometric profile...',
+      storing_model: 'Saving biometric data to the device...',
+      model_stored: 'Biometric profile saved',
+      prints_mismatch:
+        'The two fingerprint scans did not match — please try enrolling again and ensure the same finger is pressed consistently in both scans',
+      imaging_error: 'Fingerprint imaging error — please try again',
+      template_creation_failed: 'Failed to create fingerprint template — please try again',
+      timeout_first_finger: 'Timed out waiting for first fingerprint scan',
+      timeout_second_finger: 'Timed out waiting for second fingerprint scan',
+      storage_failed: 'Failed to save biometric data',
+      enrollment_failed: 'Enrollment failed — please try again',
+    };
+
+    // Track the last failed step so the final failure message can be specific
+    let lastFailedStep = null;
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'enrollment_started') {
+          lastFailedStep = null;
+          setEnrollmentProgress({
+            message: `Enrollment started for ${data.memberName} — waiting for fingerprint scans...`,
+            severity: 'info',
+          });
+        } else if (data.type === 'enrollment_progress') {
+          if (data.status === 'progress' && data.currentStep) {
+            const isErrorStep =
+              data.currentStep.includes('mismatch') ||
+              data.currentStep.includes('error') ||
+              data.currentStep.includes('failed') ||
+              data.currentStep.includes('timeout');
+            if (isErrorStep) lastFailedStep = data.currentStep;
+            setEnrollmentProgress({
+              message: stepMessages[data.currentStep] || `Step: ${data.currentStep}`,
+              severity: isErrorStep ? 'warning' : 'info',
+            });
+          }
+        } else if (data.type === 'enrollment_complete') {
+          if (data.status === 'success') {
+            lastFailedStep = null;
+            setEnrollmentProgress({
+              message: `Enrollment successful for ${data.memberName}`,
+              severity: 'success',
+            });
+            fetchDevices();
+          } else {
+            // Use the last known failed step for a specific message when available
+            const specificMessage = lastFailedStep ? stepMessages[lastFailedStep] : null;
+            setEnrollmentProgress({
+              message: specificMessage
+                ? `Enrollment failed — ${specificMessage}`
+                : `Enrollment failed for ${data.memberName}. Please try again.`,
+              severity: 'error',
+            });
+          }
+        } else if (data.type === 'enrollment_stopped' && data.reason && data.reason !== 'success') {
+          // Only update if no more specific message was already shown
+          if (!lastFailedStep) {
+            setEnrollmentProgress({
+              message: `Enrollment stopped: ${data.reason}`,
+              severity: 'warning',
+            });
+          }
+        }
+      } catch (_e) {
+        // ignore parse errors
+      }
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) ws.close();
+    };
   }, []);
 
   // Fetch device configurations when devices change
@@ -874,6 +965,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
 
     try {
       setLoading(true);
+      setEnrollmentProgress(null);
       const response = await fetch(`/api/biometric/devices/${selectedDevice.device_id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1256,6 +1348,15 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
           {success}
+        </Alert>
+      )}
+      {enrollmentProgress && (
+        <Alert
+          severity={enrollmentProgress.severity}
+          sx={{ mb: 2 }}
+          onClose={() => setEnrollmentProgress(null)}
+        >
+          {enrollmentProgress.message}
         </Alert>
       )}
 
