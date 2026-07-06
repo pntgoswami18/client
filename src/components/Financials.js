@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../api/client';
 import { formatCurrency } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
 import {

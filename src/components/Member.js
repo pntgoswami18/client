@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useLocation, Link as RouterLink } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../api/client';
 import { formatCurrency } from '../utils/formatting';
 import { formatDateToLocalString } from '../utils/formatting';
 import ReactCrop from 'react-image-crop';

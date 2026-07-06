@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../api/client';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import {
   LineChart,

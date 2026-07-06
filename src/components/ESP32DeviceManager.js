@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import axios from '../api/client';
 import { CardShimmer, FormShimmer } from './ShimmerLoader';
 import {
   Box,
