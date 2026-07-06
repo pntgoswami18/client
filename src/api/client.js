@@ -19,4 +19,14 @@ client.interceptors.response.use(
   }
 );
 
+// For call sites still using raw fetch() against /api/* routes — routes them
+// through the same 401 handler as the axios client above.
+export async function apiFetch(url, options) {
+  const response = await fetch(url, options);
+  if (response.status === 401 && onUnauthorized) {
+    onUnauthorized();
+  }
+  return response;
+}
+
 export default client;

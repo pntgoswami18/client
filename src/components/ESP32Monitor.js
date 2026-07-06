@@ -33,6 +33,7 @@ import {
   PlayArrow as PlayIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import { apiFetch } from '../api/client';
 
 const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   const [realtimeEvents, setRealtimeEvents] = useState([]);
@@ -84,7 +85,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
     // For now, we'll simulate with polling
     pollIntervalRef.current = setInterval(async () => {
       try {
-        const response = await fetch('/api/biometric/events?limit=10');
+        const response = await apiFetch('/api/biometric/events?limit=10');
         const data = await response.json();
         const events = Array.isArray(data.events)
           ? data.events
@@ -111,7 +112,7 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
 
   const fetchDeviceStatuses = async () => {
     try {
-      const response = await fetch('/api/biometric/devices');
+      const response = await apiFetch('/api/biometric/devices');
       const data = await response.json();
 
       if (data.success) {

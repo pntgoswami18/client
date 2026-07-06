@@ -30,8 +30,11 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await axios.post('/api/auth/logout');
-    setStaff(null);
+    try {
+      await axios.post('/api/auth/logout');
+    } finally {
+      setStaff(null);
+    }
   };
 
   return (
