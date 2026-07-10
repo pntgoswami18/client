@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import axios, { apiFetch } from '../api/client';
 import { CardShimmer, FormShimmer } from './ShimmerLoader';
 import {
   Box,
@@ -421,7 +421,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
 
       try {
         // Test ESP32 device connectivity via backend
-        const response = await fetch(`/api/biometric/test-connection`, {
+        const response = await apiFetch(`/api/biometric/test-connection`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -691,7 +691,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const handleUpdateDevice = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/biometric/devices/${selectedDevice.device_id}`, {
+      const response = await apiFetch(`/api/biometric/devices/${selectedDevice.device_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -724,7 +724,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const confirmDeleteDevice = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/biometric/devices/${selectedDevice.device_id}`, {
+      const response = await apiFetch(`/api/biometric/devices/${selectedDevice.device_id}`, {
         method: 'DELETE',
       });
 
@@ -745,7 +745,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
 
   const fetchDevices = async () => {
     try {
-      const response = await fetch('/api/biometric/devices');
+      const response = await apiFetch('/api/biometric/devices');
       const data = await response.json();
 
       if (data.success) {
@@ -762,7 +762,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
 
   const fetchMembers = async () => {
     try {
-      const response = await fetch('/api/biometric/members/without-biometric');
+      const response = await apiFetch('/api/biometric/members/without-biometric');
       const data = await response.json();
       if (data.success) {
         setMembers(data.data || []);
@@ -932,7 +932,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/biometric/devices/${targetDevice.device_id}/unlock`, {
+      const response = await apiFetch(`/api/biometric/devices/${targetDevice.device_id}/unlock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -966,7 +966,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     try {
       setLoading(true);
       setEnrollmentProgress(null);
-      const response = await fetch(`/api/biometric/devices/${selectedDevice.device_id}/enroll`, {
+      const response = await apiFetch(`/api/biometric/devices/${selectedDevice.device_id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ memberId: enrollMemberId }),
@@ -993,7 +993,7 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     try {
       setSyncing(true);
       setSyncResult(null);
-      const response = await fetch('/api/biometric/sync', { method: 'POST' });
+      const response = await apiFetch('/api/biometric/sync', { method: 'POST' });
       const data = await response.json();
       if (data.success) {
         setSyncResult(data.data);

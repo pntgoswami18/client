@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import axios from 'axios';
+import axios from '../api/client';
 import {
   Box,
   Typography,
