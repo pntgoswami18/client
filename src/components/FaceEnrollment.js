@@ -21,6 +21,7 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import { apiFetch } from '../api/client';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import faceEngine from '../utils/faceEngine';
+import { captureDecision } from '../utils/faceAlign';
 
 /**
  * Face enrollment tab (plan Section 2.3). Captures 3 poses in the admin's
@@ -69,10 +70,21 @@ const FaceEnrollment = () => {
 
   useEffect(() => {
     (async () => {
+      // The members endpoint hard-caps limit at 100 per page, so walk the
+      // pages to build the full list the dropdown searches over — otherwise
+      // gyms with >100 members can't enroll everyone.
       try {
-        const response = await apiFetch('/api/members?limit=100');
-        const data = await response.json();
-        setMembers(data.data || data.members || []);
+        const all = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const response = await apiFetch(`/api/members?filter=all&limit=100&page=${page}`);
+          const data = await response.json();
+          all.push(...(data.data || data.members || []));
+          totalPages = data.pagination?.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages && page <= 100); // 100-page guard (10k members)
+        setMembers(all);
       } catch {
         setMembers([]);
       }
@@ -121,17 +133,21 @@ const FaceEnrollment = () => {
       return;
     }
 
-    const poseNow = detection.pose.label;
-    setHint(POSE_HINTS[needed]);
+    const poseNow = detection.pose.label; // 'front' | 'left' | 'right' | null
+    const sideCaptured = POSES.some((p) => p !== 'front' && capturesRef.current[p]);
+    setHint(
+      needed === 'front'
+        ? POSE_HINTS.front
+        : sideCaptured
+          ? POSE_HINTS.right // "…turn to the other side"
+          : POSE_HINTS.left // "…turn your head to one side"
+    );
 
-    // "left"/"right" capture order doesn't matter — accept whichever side
-    // shows up first and relabel the remaining side to whatever's left.
-    const sidesNeeded = POSES.filter((p) => p !== 'front' && !capturesRef.current[p]);
-    const accepted =
-      (needed === 'front' && poseNow === 'front') ||
-      (needed !== 'front' && poseNow && poseNow !== 'front' && sidesNeeded.length > 0);
-
-    if (!accepted) {
+    // captureDecision (unit-tested in faceAlign.test.js) picks the slot this
+    // orientation fills, or null to reject — it enforces front-first and that
+    // the two side slots hold genuinely different orientations.
+    const label = captureDecision(capturesRef.current, poseNow);
+    if (!label) {
       stableRef.current = { pose: null, count: 0 };
       loopRef.current = requestAnimationFrame(captureLoop);
       return;
@@ -150,7 +166,6 @@ const FaceEnrollment = () => {
         setHint('Hold still — image is blurry');
         busyRef.current = false;
       } else {
-        const label = needed === 'front' ? 'front' : sidesNeeded[0];
         const thumbnail = canvas.toDataURL('image/jpeg', 0.8);
         faceEngine
           .embed(imageData)
@@ -165,7 +180,12 @@ const FaceEnrollment = () => {
             }));
             stableRef.current = { pose: null, count: 0 };
           })
-          .catch((err) => setCameraError(`Embedding failed: ${err.message}`))
+          .catch((err) => {
+            // Reset stability so a transient failure doesn't immediately
+            // re-fire a capture on the same held pose every few frames.
+            stableRef.current = { pose: null, count: 0 };
+            setCameraError(`Embedding failed: ${err.message}`);
+          })
           .finally(() => {
             busyRef.current = false;
           });
@@ -190,6 +210,12 @@ const FaceEnrollment = () => {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
       });
+      if (!videoRef.current) {
+        // Unmounted or navigated away during init/getUserMedia — release the
+        // camera we just acquired instead of leaking the track.
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
@@ -220,7 +246,7 @@ const FaceEnrollment = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modelVersion: faceEngine.modelVersion,
-          consent: true,
+          consent,
           samples: POSES.map((pose) => ({
             embedding: captures[pose].embedding,
             pose,

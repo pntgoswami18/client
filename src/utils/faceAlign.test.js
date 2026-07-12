@@ -7,6 +7,7 @@ import {
   frameQuality,
   laplacianVariance,
   l2Normalize,
+  captureDecision,
 } from './faceAlign';
 
 describe('similarityTransform', () => {
@@ -129,5 +130,40 @@ describe('l2Normalize', () => {
   it('returns a unit vector', () => {
     const v = l2Normalize([3, 4]);
     expect(Math.hypot(...v)).toBeCloseTo(1, 10);
+  });
+});
+
+describe('captureDecision', () => {
+  it('requires the front pose first', () => {
+    expect(captureDecision({}, 'front')).toBe('front');
+    expect(captureDecision({}, 'left')).toBeNull(); // sides rejected until front is done
+    expect(captureDecision({}, 'right')).toBeNull();
+  });
+
+  it('rejects an ambiguous (null) pose', () => {
+    expect(captureDecision({}, null)).toBeNull();
+    expect(captureDecision({ front: {} }, null)).toBeNull();
+  });
+
+  it('labels a side capture by its actual orientation', () => {
+    expect(captureDecision({ front: {} }, 'right')).toBe('right');
+    expect(captureDecision({ front: {} }, 'left')).toBe('left');
+  });
+
+  it('does not let one orientation fill both side slots (the regression)', () => {
+    // Front + one side captured; holding that same side must NOT fill the other.
+    expect(captureDecision({ front: {}, right: {} }, 'right')).toBeNull();
+    expect(captureDecision({ front: {}, left: {} }, 'left')).toBeNull();
+    // The genuinely different side is still accepted.
+    expect(captureDecision({ front: {}, right: {} }, 'left')).toBe('left');
+    expect(captureDecision({ front: {}, left: {} }, 'right')).toBe('right');
+  });
+
+  it('never re-captures the front slot', () => {
+    expect(captureDecision({ front: {} }, 'front')).toBeNull();
+  });
+
+  it('returns null once all poses are captured', () => {
+    expect(captureDecision({ front: {}, left: {}, right: {} }, 'left')).toBeNull();
   });
 });

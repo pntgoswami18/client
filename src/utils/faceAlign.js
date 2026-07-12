@@ -129,6 +129,29 @@ export function poseLabel(fivePoints, { frontBand = 0.12, sideBand = 0.3 } = {})
   return { label, ratio };
 }
 
+// Canonical capture order for the enrollment flow: front, then the two sides.
+export const CAPTURE_ORDER = ['front', 'left', 'right'];
+
+/**
+ * Decide which capture slot the currently-detected pose should fill, given the
+ * poses captured so far. Returns the slot label ('front'|'left'|'right') to
+ * capture, or null to reject the current frame.
+ *
+ * Rules: front must be captured first; each capture is labeled by its *actual*
+ * detected orientation (poseNow), so a slot already filled is never captured
+ * again. This guarantees the two side samples are genuinely different poses —
+ * labeling by capture order instead let a user who only turned one way fill
+ * both side slots with the same orientation.
+ */
+export function captureDecision(captured, poseNow) {
+  const needed = CAPTURE_ORDER.find((p) => !captured[p]) || null;
+  if (needed == null) return null; // all poses captured
+  if (poseNow == null) return null; // ambiguous / no confident pose
+  if (captured[poseNow]) return null; // that orientation already captured
+  if (needed === 'front') return poseNow === 'front' ? 'front' : null;
+  return poseNow !== 'front' ? poseNow : null; // a side slot, labeled by orientation
+}
+
 /**
  * Frame-level capture gate. box is {originX, originY, width, height} in pixels
  * (MediaPipe convention). Returns { ok, reasons } — reasons drive UI hints.
