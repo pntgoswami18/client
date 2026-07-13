@@ -124,4 +124,30 @@ describe('submitCheckIn — sends the probe for server-side re-scoring', () => {
     });
     await expect(submitCheckIn('s3cret', { memberId: 1, embedding: [] })).rejects.toThrow();
   });
+
+  it('does NOT throw on a 4xx — surfaces the structured denial so the kiosk shows the reason', async () => {
+    // 403/400 (disabled, bad claim, invalid_probe_embedding) are business
+    // denials, not outages: the hook renders resp.reason and keeps the door
+    // locked. Throwing here would flip a specific denial into a generic
+    // "offline" screen.
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ authorized: false, reason: 'invalid_probe_embedding' }),
+    });
+    const resp = await submitCheckIn('s3cret', { memberId: 1, embedding: [] });
+    expect(resp.authorized).toBe(false);
+    expect(resp.reason).toBe('invalid_probe_embedding');
+  });
+
+  it('returns a 2xx-but-unauthorized body as-is (deny path, no throw)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ authorized: false, reason: 'below_match_threshold' }),
+    });
+    const resp = await submitCheckIn('s3cret', { memberId: 1, embedding: [0.1, 0.2] });
+    expect(resp.authorized).toBe(false);
+    expect(resp.reason).toBe('below_match_threshold');
+  });
 });
