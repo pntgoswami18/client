@@ -131,7 +131,10 @@ export async function syncGallery(deviceSecret, since) {
 
 /**
  * Submit a local match claim for server re-validation (plan 3.5). The server
- * decides authorization and, only on success, sends the door-unlock command;
+ * re-scores the match itself from `embedding` (the probe that triggered the
+ * accept) against its stored gallery — the local `matchScore` is advisory
+ * only, and without a valid probe the server denies (check-in trust model).
+ * It decides authorization and, only on success, sends the door-unlock command;
  * the client never unlocks anything itself. Returns
  * { authorized, action, reason, memberId, memberName, doorCommandSent }.
  * Network/5xx failures throw so the kiosk shows "system offline" and stays
@@ -139,13 +142,13 @@ export async function syncGallery(deviceSecret, since) {
  */
 export async function submitCheckIn(
   deviceSecret,
-  { memberId, matchScore, livenessPassed, deviceId }
+  { memberId, matchScore, livenessPassed, deviceId, embedding }
 ) {
   const res = await fetch(API.checkIn, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...secretHeaders(deviceSecret) },
     credentials: 'include',
-    body: JSON.stringify({ memberId, matchScore, livenessPassed, deviceId }),
+    body: JSON.stringify({ memberId, matchScore, livenessPassed, deviceId, embedding }),
   });
   const body = await readJson(res);
   if (!res.ok && res.status >= 500) {
