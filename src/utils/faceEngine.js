@@ -25,6 +25,18 @@ import {
 
 const MANIFEST_URL = '/api/biometric/face/model-manifest';
 
+// Pull the eyeBlink blendshape scores out of a MediaPipe faceBlendshapes entry.
+// Returns { left, right } in 0..1 (0 = open, 1 = closed), defaulting to open
+// when the categories are absent so a missing signal never reads as a blink.
+function blinkScores(blendshapes) {
+  const out = { left: 0, right: 0 };
+  for (const cat of blendshapes?.categories || []) {
+    if (cat.categoryName === 'eyeBlinkLeft') out.left = cat.score;
+    else if (cat.categoryName === 'eyeBlinkRight') out.right = cat.score;
+  }
+  return out;
+}
+
 class FaceEngine {
   constructor() {
     this.model = null;
@@ -83,7 +95,10 @@ class FaceEngine {
       baseOptions: { modelAssetPath: manifest.landmarker.url },
       runningMode: 'VIDEO',
       numFaces: 2, // 2 so "more than one face in frame" is detectable
-      outputFaceBlendshapes: false,
+      // Blendshapes give the eyeBlink scores the check-in kiosk's liveness
+      // challenge needs (plan Section 5). Enrollment ignores them; the extra
+      // per-frame cost is negligible for the small landmarker.
+      outputFaceBlendshapes: true,
     });
     return this;
   }
@@ -94,14 +109,22 @@ class FaceEngine {
 
   /**
    * Detect + gate a video frame. Returns:
-   * { ok, reasons, fivePoints, pose, faceCount }
+   * { ok, reasons, fivePoints, pose, faceCount, blink }
+   * `blink` is { left, right } eyeBlink blendshape scores (0..1) for the single
+   * detected face, used by the kiosk liveness challenge; null when faceCount!==1.
    */
   detect(video, timestampMs) {
     const result = this.landmarker.detectForVideo(video, timestampMs);
     const faces = result.faceLandmarks || [];
     const faceCount = faces.length;
     if (faceCount !== 1) {
-      return { ...frameQuality({ faceCount }), fivePoints: null, pose: null, faceCount };
+      return {
+        ...frameQuality({ faceCount }),
+        fivePoints: null,
+        pose: null,
+        faceCount,
+        blink: null,
+      };
     }
 
     const w = video.videoWidth;
@@ -128,7 +151,14 @@ class FaceEngine {
 
     const gate = frameQuality({ faceCount, box, videoWidth: w, videoHeight: h });
     const fivePoints = fivePointsFromLandmarks(landmarks, w, h);
-    return { ...gate, fivePoints, pose: poseLabel(fivePoints), faceCount, box };
+    return {
+      ...gate,
+      fivePoints,
+      pose: poseLabel(fivePoints),
+      faceCount,
+      box,
+      blink: blinkScores(result.faceBlendshapes?.[0]),
+    };
   }
 
   /**
