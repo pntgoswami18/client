@@ -18,6 +18,7 @@ import { MatchAccumulator, DEFAULT_MATCH_CONFIG } from '../utils/faceMatching';
 import { LivenessChallenge, pickChallenge } from '../utils/faceLiveness';
 import { applySyncDelta, computeCursor, toGalleryArray } from '../utils/faceCacheDb';
 import * as cacheDb from '../utils/faceCacheDb';
+import { renderOverlay, clearOverlay } from '../utils/faceOverlayDraw';
 import {
   loadStationConfig,
   hasStationSecret,
@@ -39,15 +40,31 @@ const REASON_HINTS = {
   off_center: 'Center your face in the frame',
 };
 
+// Keyed on the exact reason strings the backend returns (checkInService +
+// faceBiometricController) so a denial never falls through to the generic
+// internal_error message. Keep this in sync with those two files.
 const DENY_MESSAGES = {
+  // Liveness (server reason + client-side timeout)
   liveness_not_passed: "Couldn't confirm liveness — please try again",
   liveness_failed: "Couldn't confirm liveness — please try again",
+  // Recognition / identity
   below_match_threshold: 'Not recognized — please try again or see the front desk',
   not_recognized: 'Not recognized — please try again or see the front desk',
   not_enrolled: 'Not enrolled for face check-in — see the front desk',
   model_version_mismatch: 'Please re-enroll your face at the front desk',
-  inactive_plan: 'Your membership is inactive — please see the front desk',
-  session_window: 'Outside your allowed session time — see the front desk',
+  invalid_member_id: 'Not recognized — please see the front desk',
+  member_not_found: 'Not recognized — please see the front desk',
+  invalid_probe_embedding: "Couldn't read your face clearly — please try again",
+  // Membership / payment
+  member_inactive: 'Your membership is inactive — please see the front desk',
+  payment_overdue_grace_expired: 'Your membership payment is overdue — please see the front desk',
+  // Session rules
+  outside_session_windows: 'Outside your allowed check-in hours — see the front desk',
+  cross_session_violation: 'You already checked in this session — see the front desk',
+  already_completed: "You've already completed today's session",
+  // Attendance-record edge cases
+  invalid_attendance_record: 'Your attendance record needs attention — please see the front desk',
+  // System
   face_checkin_disabled: 'Face check-in is currently disabled',
   offline: 'System offline — please see the front desk',
   internal_error: 'Something went wrong — please try again',
@@ -65,6 +82,10 @@ export default function useFaceCheckin() {
   const [debug, setDebug] = useState({ backend: null, galleryCount: 0, modelVersion: '' });
 
   const videoRef = useRef(null);
+  const overlayCanvasRef = useRef(null);
+  // Overlay draw state (mutated in place by renderOverlay): smoothed rect +
+  // reduced-motion preference, resolved once on mount.
+  const overlayStateRef = useRef({ lastRect: null, reducedMotion: false });
 
   // Loop-internal refs.
   const streamRef = useRef(null);
@@ -159,7 +180,11 @@ export default function useFaceCheckin() {
         });
         if (!mountedRef.current) return;
         if (resp.authorized) {
-          setWelcome({ memberName: resp.memberName || member.name, action: resp.action });
+          setWelcome({
+            memberName: resp.memberName || member.name,
+            action: resp.action,
+            minutesUntilCheckout: resp.minutesUntilCheckout,
+          });
           setPhaseBoth('welcome');
           startCooldown(WELCOME_COOLDOWN_MS);
         } else {
@@ -202,11 +227,26 @@ export default function useFaceCheckin() {
     // Only 'idle' and 'liveness' actively process frames; other phases (welcome,
     // denied, verifying) just hold until their cooldown flips back to idle.
     if ((p !== 'idle' && p !== 'liveness') || !video || video.readyState < 2) {
+      // Not scanning (welcome/denied/verifying or camera warming up): wipe any
+      // lingering reticle so it doesn't hang over a success/deny screen.
+      clearOverlay(overlayCanvasRef.current, overlayStateRef.current);
       schedule();
       return;
     }
 
     const det = faceEngine.detect(video, performance.now());
+
+    // Face-tracking overlay: reticle on the detected face, plus the turn arrow /
+    // blink cue during a liveness challenge. Imperative (no per-frame setState).
+    renderOverlay(
+      overlayCanvasRef.current,
+      video,
+      det,
+      p,
+      challengeRef.current?.type,
+      performance.now(),
+      overlayStateRef.current
+    );
 
     if (p === 'liveness') {
       const challenge = challengeRef.current;
@@ -437,6 +477,9 @@ export default function useFaceCheckin() {
 
   useEffect(() => {
     mountedRef.current = true;
+    overlayStateRef.current.reducedMotion = !!(
+      window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
     start();
     return () => {
       mountedRef.current = false;
@@ -472,6 +515,7 @@ export default function useFaceCheckin() {
     errorMessage,
     debug,
     videoRef,
+    overlayCanvasRef,
     retry,
     resetStation,
   };
