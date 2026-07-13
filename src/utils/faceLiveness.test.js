@@ -62,16 +62,18 @@ describe('blink challenge', () => {
 });
 
 describe('head-turn challenge', () => {
-  it('turn_left passes on a negative yaw beyond threshold', () => {
+  // Prompts are in the SUBJECT's frame: turning to your OWN left moves the nose
+  // toward image-right, i.e. a POSITIVE yawRatio (see faceLiveness _satisfied).
+  it('turn_left passes on a positive yaw beyond threshold (subject turns own left)', () => {
     const c = new LivenessChallenge('turn_left', cfg, 0);
-    expect(c.observe({ now: 0, yawRatio: -0.05 }).state).toBe('waiting');
-    expect(c.observe({ now: 100, yawRatio: -0.3 }).state).toBe('passed');
+    expect(c.observe({ now: 0, yawRatio: 0.05 }).state).toBe('waiting');
+    expect(c.observe({ now: 100, yawRatio: 0.3 }).state).toBe('passed');
   });
 
-  it('turn_right requires the correct side — a left turn does not satisfy it', () => {
+  it('turn_right requires the correct side — an own-left turn does not satisfy it', () => {
     const c = new LivenessChallenge('turn_right', cfg, 0);
-    expect(c.observe({ now: 0, yawRatio: -0.5 }).state).toBe('waiting'); // wrong way
-    expect(c.observe({ now: 100, yawRatio: 0.3 }).state).toBe('passed'); // correct way
+    expect(c.observe({ now: 0, yawRatio: 0.5 }).state).toBe('waiting'); // wrong way (own left)
+    expect(c.observe({ now: 100, yawRatio: -0.3 }).state).toBe('passed'); // correct way (own right)
   });
 
   it('fails a head-turn challenge on timeout if the face never turns', () => {
@@ -89,7 +91,7 @@ describe('head-turn challenge', () => {
 describe('challenge lifecycle', () => {
   it('is terminal — once passed, later frames do not flip it back', () => {
     const c = new LivenessChallenge('turn_right', cfg, 0);
-    c.observe({ now: 0, yawRatio: 0.3 }); // passed
+    c.observe({ now: 0, yawRatio: -0.3 }); // passed (own-right = negative yaw)
     const later = c.observe({ now: 5000, yawRatio: 0 }); // well past timeout
     expect(later.state).toBe('passed');
   });

@@ -167,17 +167,30 @@ function PhaseContent({ kiosk }) {
         </Centered>
       );
     case 'welcome': {
-      const { memberName, action } = kiosk.welcome || {};
+      const { memberName, action, minutesUntilCheckout } = kiosk.welcome || {};
       const isCheckout = action === 'checkout';
+      const isReentry = action === 'reentry';
+      const firstName = memberName ? `, ${memberName.split(' ')[0]}` : '';
+      const title = isCheckout ? 'Goodbye' : isReentry ? 'Welcome back' : 'Welcome';
+      let subtitle;
+      if (isCheckout) {
+        subtitle = 'Checked out · the door is unlocking';
+      } else if (isReentry) {
+        subtitle = minutesUntilCheckout
+          ? `Already checked in · door unlocking · check out in ${minutesUntilCheckout} min`
+          : 'Already checked in · the door is unlocking';
+      } else {
+        subtitle = 'Checked in · the door is unlocking';
+      }
       return (
         <Centered>
           <CheckCircleRoundedIcon sx={{ fontSize: 120, color: '#4caf50' }} />
           <Typography variant="h2" fontWeight={800} mt={2}>
-            {isCheckout ? 'Goodbye' : 'Welcome'}
-            {memberName ? `, ${memberName.split(' ')[0]}` : ''}!
+            {title}
+            {firstName}!
           </Typography>
           <Typography variant="h5" mt={1} sx={{ opacity: 0.85 }}>
-            {isCheckout ? 'Checked out' : 'Checked in'} · the door is unlocking
+            {subtitle}
           </Typography>
         </Centered>
       );

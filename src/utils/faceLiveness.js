@@ -102,14 +102,20 @@ export class LivenessChallenge {
       // A blink is only complete once eyes have gone closed THEN reopened.
       return this._eyesClosed && bothOpen;
     }
+    // Prompts name the SUBJECT's own left/right (the natural reading on the
+    // mirrored selfie view the kiosk shows), but yawRatio is image-space:
+    // faceAlign sets ratio > 0 when the nose sits toward image-right, which is
+    // exactly what happens when the subject turns to their OWN left (their left
+    // side faces the camera's right). So own-left = positive ratio, and
+    // own-right = negative ratio. (Getting this backwards asks the user to turn
+    // the opposite way from the prompt.)
     if (this.type === 'turn_left') {
       if (obs.yawRatio == null) return false;
-      // Image-left = negative yaw ratio.
-      return obs.yawRatio <= -this.config.turnRatio;
+      return obs.yawRatio >= this.config.turnRatio;
     }
     if (this.type === 'turn_right') {
       if (obs.yawRatio == null) return false;
-      return obs.yawRatio >= this.config.turnRatio;
+      return obs.yawRatio <= -this.config.turnRatio;
     }
     return false;
   }
