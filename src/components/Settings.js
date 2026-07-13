@@ -231,7 +231,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
       if (face_checkin_enabled !== undefined) {
         setFaceCheckinEnabled(normalizedFaceCheckinEnabled);
       }
-      if (face_match_threshold) {
+      if (face_match_threshold !== undefined) {
         setFaceMatchThreshold(String(face_match_threshold));
       }
       if (face_liveness_mode) {
@@ -240,7 +240,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
       if (face_door_device_id !== undefined) {
         setFaceDoorDeviceId(face_door_device_id || '');
       }
-      if (face_checkout_min_dwell_minutes) {
+      if (face_checkout_min_dwell_minutes !== undefined) {
         setFaceCheckoutMinDwellMinutes(String(face_checkout_min_dwell_minutes));
       }
       setFaceModelVersion(face_model_version || '');
@@ -283,10 +283,14 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
           'Welcome to our gym! Your biometric enrollment is complete. You can now access the gym using your fingerprint. Enjoy your workouts!',
         crossSessionCheckinRestriction: normalizedCrossSessionCheckinRestriction,
         faceCheckinEnabled: normalizedFaceCheckinEnabled,
-        faceMatchThreshold: String(face_match_threshold || '0.55'),
+        faceMatchThreshold:
+          face_match_threshold !== undefined ? String(face_match_threshold) : '0.55',
         faceLivenessMode: face_liveness_mode || 'challenge',
         faceDoorDeviceId: face_door_device_id || '',
-        faceCheckoutMinDwellMinutes: String(face_checkout_min_dwell_minutes || '15'),
+        faceCheckoutMinDwellMinutes:
+          face_checkout_min_dwell_minutes !== undefined
+            ? String(face_checkout_min_dwell_minutes)
+            : '15',
         cardOrder: normalizedCardOrder,
       };
     } catch (error) {
@@ -318,6 +322,25 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
         }
       }
 
+      // Clamp/validate the numeric face check-in fields before persisting.
+      // The min/max on the number inputs are hints only — users can still
+      // type out-of-range values or clear the field — so an empty or invalid
+      // entry must not reach the backend where it could break face matching.
+      const parsedThreshold = parseFloat(faceMatchThreshold);
+      const sanitizedFaceMatchThreshold = Number.isNaN(parsedThreshold)
+        ? '0.55'
+        : String(Math.min(1, Math.max(0, parsedThreshold)));
+      const parsedDwell = parseInt(faceCheckoutMinDwellMinutes, 10);
+      const sanitizedFaceCheckoutMinDwellMinutes = Number.isNaN(parsedDwell)
+        ? '15'
+        : String(Math.max(0, parsedDwell));
+      if (sanitizedFaceMatchThreshold !== faceMatchThreshold) {
+        setFaceMatchThreshold(sanitizedFaceMatchThreshold);
+      }
+      if (sanitizedFaceCheckoutMinDwellMinutes !== faceCheckoutMinDwellMinutes) {
+        setFaceCheckoutMinDwellMinutes(sanitizedFaceCheckoutMinDwellMinutes);
+      }
+
       const settingsToUpdate = {
         currency,
         gym_name: gymName,
@@ -346,10 +369,10 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
         whatsapp_welcome_message: whatsappWelcomeMessage,
         cross_session_checkin_restriction: crossSessionCheckinRestriction,
         face_checkin_enabled: faceCheckinEnabled,
-        face_match_threshold: faceMatchThreshold,
+        face_match_threshold: sanitizedFaceMatchThreshold,
         face_liveness_mode: faceLivenessMode,
         face_door_device_id: faceDoorDeviceId,
-        face_checkout_min_dwell_minutes: faceCheckoutMinDwellMinutes,
+        face_checkout_min_dwell_minutes: sanitizedFaceCheckoutMinDwellMinutes,
         card_order: cardOrder,
       };
 
@@ -394,10 +417,10 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
         whatsappWelcomeMessage: whatsappWelcomeMessage,
         crossSessionCheckinRestriction: crossSessionCheckinRestriction,
         faceCheckinEnabled: faceCheckinEnabled,
-        faceMatchThreshold: faceMatchThreshold,
+        faceMatchThreshold: sanitizedFaceMatchThreshold,
         faceLivenessMode: faceLivenessMode,
         faceDoorDeviceId: faceDoorDeviceId,
-        faceCheckoutMinDwellMinutes: faceCheckoutMinDwellMinutes,
+        faceCheckoutMinDwellMinutes: sanitizedFaceCheckoutMinDwellMinutes,
         cardOrder: cardOrder,
       };
 
@@ -953,10 +976,10 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
           {faceModelVersion || 'not set — auto-pins on the first face enrollment'}
         </Typography>
         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-          Enabling this alone does not turn on automatic door unlock — that also requires
-          `ENABLE_BIOMETRIC=true` on the server and a Door Device ID that matches a registered,
-          online ESP32 device (see ESP32 Devices tab). The check-in kiosk itself lives at{' '}
-          <code>/checkin</code> and needs its own device secret configured there on first run.
+          Enabling this alone does not turn on automatic door unlock — that also requires{' '}
+          <code>ENABLE_BIOMETRIC=true</code> on the server and a Door Device ID that matches a
+          registered, online ESP32 device (see ESP32 Devices tab). The check-in kiosk itself lives
+          at <code>/checkin</code> and needs its own device secret configured there on first run.
         </Typography>
       </div>
 
