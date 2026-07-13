@@ -6,6 +6,7 @@ import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import FaceRetouchingNaturalRoundedIcon from '@mui/icons-material/FaceRetouchingNaturalRounded';
 import useFaceCheckin from '../hooks/useFaceCheckin';
 import { saveStationConfig, loadStationConfig } from '../utils/faceStation';
+import { DEFAULT_LIVENESS_CONFIG } from '../utils/faceLiveness';
 
 /**
  * Fullscreen, distraction-free check-in kiosk (plan Section 3.2). Rendered
@@ -111,9 +112,19 @@ function PhaseContent({ kiosk }) {
           title="Check-in unavailable"
           body={kiosk.errorMessage || 'Something went wrong.'}
           action={
-            <Button onClick={kiosk.retry} variant="contained" size="large">
-              Retry
-            </Button>
+            <Stack direction="row" spacing={2}>
+              <Button onClick={kiosk.retry} variant="contained" size="large">
+                Retry
+              </Button>
+              <Button
+                onClick={kiosk.resetStation}
+                variant="text"
+                size="large"
+                sx={{ color: '#fff' }}
+              >
+                Change device secret
+              </Button>
+            </Stack>
           }
         />
       );
@@ -139,7 +150,10 @@ function PhaseContent({ kiosk }) {
           <Typography variant="h2" fontWeight={800} mt={1}>
             {kiosk.prompt}
           </Typography>
-          <CountdownBar remainingMs={kiosk.remainingMs} totalMs={4000} />
+          <CountdownBar
+            remainingMs={kiosk.remainingMs}
+            totalMs={DEFAULT_LIVENESS_CONFIG.timeoutMs}
+          />
           <TroubleHint />
         </Centered>
       );

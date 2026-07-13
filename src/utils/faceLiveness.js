@@ -89,23 +89,27 @@ export class LivenessChallenge {
   }
 
   _satisfied(obs) {
+    // No signal this frame (face lost mid-challenge): never treat that as
+    // "eyes open" / "yaw centered" — a dropped detection must not be able to
+    // complete a blink or turn on its own. Let the timeout run its course.
     if (this.type === 'blink') {
+      if (obs.blinkLeft == null || obs.blinkRight == null) return false;
       const bothClosed =
-        (obs.blinkLeft ?? 0) >= this.config.blinkClosed &&
-        (obs.blinkRight ?? 0) >= this.config.blinkClosed;
+        obs.blinkLeft >= this.config.blinkClosed && obs.blinkRight >= this.config.blinkClosed;
       const bothOpen =
-        (obs.blinkLeft ?? 0) <= this.config.blinkOpen &&
-        (obs.blinkRight ?? 0) <= this.config.blinkOpen;
+        obs.blinkLeft <= this.config.blinkOpen && obs.blinkRight <= this.config.blinkOpen;
       if (bothClosed) this._eyesClosed = true;
       // A blink is only complete once eyes have gone closed THEN reopened.
       return this._eyesClosed && bothOpen;
     }
     if (this.type === 'turn_left') {
+      if (obs.yawRatio == null) return false;
       // Image-left = negative yaw ratio.
-      return (obs.yawRatio ?? 0) <= -this.config.turnRatio;
+      return obs.yawRatio <= -this.config.turnRatio;
     }
     if (this.type === 'turn_right') {
-      return (obs.yawRatio ?? 0) >= this.config.turnRatio;
+      if (obs.yawRatio == null) return false;
+      return obs.yawRatio >= this.config.turnRatio;
     }
     return false;
   }

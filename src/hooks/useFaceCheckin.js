@@ -25,6 +25,7 @@ import {
   fetchFaceConfig,
   syncGallery,
   submitCheckIn,
+  clearStationConfig,
 } from '../utils/faceStation';
 
 const WELCOME_COOLDOWN_MS = 5000; // linger on the welcome/checkout screen
@@ -440,6 +441,16 @@ export default function useFaceCheckin() {
     start();
   }, [start, teardown]);
 
+  // Escape hatch from a stuck 'error' state: a config-fetch failure is often a
+  // wrong/expired device secret, and the secret is the one thing 'retry' can't
+  // fix since it re-reads the same bad value from localStorage. This clears it
+  // and re-bootstraps, which lands back on the 'setup' screen to re-enter it.
+  const resetStation = useCallback(() => {
+    teardown();
+    clearStationConfig();
+    start();
+  }, [start, teardown]);
+
   return {
     phase,
     hint,
@@ -452,6 +463,7 @@ export default function useFaceCheckin() {
     debug,
     videoRef,
     retry,
+    resetStation,
   };
 }
 

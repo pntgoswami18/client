@@ -47,6 +47,18 @@ describe('blink challenge', () => {
     expect(r.state).toBe('failed');
     expect(r.remainingMs).toBe(0);
   });
+
+  it('does NOT pass on a face-lost frame (no blink signal) even after eyes were seen closed', () => {
+    // Regression: a frame with no detection must never be read as "eyes open" —
+    // that would let losing face tracking right after a genuine blink-start
+    // spuriously complete the challenge.
+    const c = new LivenessChallenge('blink', cfg, 0);
+    c.observe({ now: 100, blinkLeft: 0.8, blinkRight: 0.9 }); // eyes close
+    const r = c.observe({ now: 200 }); // face lost — no blinkLeft/blinkRight
+    expect(r.state).toBe('waiting');
+    // A genuine reopen afterward still completes it.
+    expect(c.observe({ now: 300, blinkLeft: 0.05, blinkRight: 0.05 }).state).toBe('passed');
+  });
 });
 
 describe('head-turn challenge', () => {
@@ -66,6 +78,11 @@ describe('head-turn challenge', () => {
     const c = new LivenessChallenge('turn_left', cfg, 0);
     c.observe({ now: 0, yawRatio: 0 });
     expect(c.observe({ now: 1000, yawRatio: 0 }).state).toBe('failed');
+  });
+
+  it('a face-lost frame (no yaw signal) does not satisfy the turn', () => {
+    const c = new LivenessChallenge('turn_left', cfg, 0);
+    expect(c.observe({ now: 100 }).state).toBe('waiting');
   });
 });
 
