@@ -54,6 +54,7 @@ const DENY_MESSAGES = {
   model_version_mismatch: 'Please re-enroll your face at the front desk',
   invalid_member_id: 'Not recognized — please see the front desk',
   member_not_found: 'Not recognized — please see the front desk',
+  invalid_probe_embedding: "Couldn't read your face clearly — please try again",
   // Membership / payment
   member_inactive: 'Your membership is inactive — please see the front desk',
   payment_overdue_grace_expired: 'Your membership payment is overdue — please see the front desk',
@@ -63,7 +64,6 @@ const DENY_MESSAGES = {
   already_completed: "You've already completed today's session",
   // Attendance-record edge cases
   invalid_attendance_record: 'Your attendance record needs attention — please see the front desk',
-  dwell_time_not_met: "You're already checked in",
   // System
   face_checkin_disabled: 'Face check-in is currently disabled',
   offline: 'System offline — please see the front desk',
