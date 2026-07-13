@@ -477,9 +477,6 @@ export default function useFaceCheckin() {
 
   useEffect(() => {
     mountedRef.current = true;
-    overlayStateRef.current.reducedMotion = !!(
-      window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    );
     start();
     return () => {
       mountedRef.current = false;
