@@ -477,15 +477,32 @@ export default function useFaceCheckin() {
 
   useEffect(() => {
     mountedRef.current = true;
-    overlayStateRef.current.reducedMotion = !!(
-      window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    );
     start();
     return () => {
       mountedRef.current = false;
       teardown();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep the overlay's reduced-motion preference live. The kiosk runs unattended
+  // for long stretches, so a one-time read at mount can go stale if the OS
+  // setting changes; subscribe and update the ref in place (the RAF loop reads
+  // it each frame, so no re-render is needed).
+  useEffect(() => {
+    if (!window.matchMedia) return undefined;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => {
+      overlayStateRef.current.reducedMotion = mq.matches;
+    };
+    apply();
+    // Safari < 14 only supports the legacy addListener/removeListener API.
+    if (mq.addEventListener) {
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+    mq.addListener(apply);
+    return () => mq.removeListener(apply);
   }, []);
 
   // Re-run bootstrap after the station-setup form saves a secret.
