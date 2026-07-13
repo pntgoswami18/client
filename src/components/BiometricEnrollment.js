@@ -41,6 +41,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
+import FaceEnrollment from './FaceEnrollment';
 import {
   Fingerprint as FingerprintIcon,
   Person as PersonIcon,
@@ -50,6 +51,7 @@ import {
   Warning as WarningIcon,
   Settings as SettingsIcon,
   History as HistoryIcon,
+  Face as FaceTabIcon,
   Monitor as MonitorIcon,
   Delete as DeleteIcon,
   Star as StarIcon,
@@ -174,7 +176,9 @@ const BiometricEnrollment = () => {
         search: search || '',
       });
 
-      const response = await apiFetch(`/api/biometric/members/without-biometric?${params.toString()}`);
+      const response = await apiFetch(
+        `/api/biometric/members/without-biometric?${params.toString()}`
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -224,9 +228,12 @@ const BiometricEnrollment = () => {
         search: search || '',
       });
 
-      const response = await apiFetch(`/api/biometric/members/with-biometric?${params.toString()}`, {
-        signal: abortControllerRef.current.signal,
-      });
+      const response = await apiFetch(
+        `/api/biometric/members/with-biometric?${params.toString()}`,
+        {
+          signal: abortControllerRef.current.signal,
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1296,6 +1303,7 @@ const BiometricEnrollment = () => {
                 <Tab icon={<PersonIcon />} label="Members" />
                 <Tab icon={<DeviceIcon />} label="Devices" />
                 <Tab icon={<HistoryIcon />} label="Events" />
+                <Tab icon={<FaceTabIcon />} label="Face" />
               </Tabs>
             </Paper>
           </Box>
@@ -2157,6 +2165,9 @@ const BiometricEnrollment = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Face Tab */}
+      {currentTab === 3 && <FaceEnrollment />}
 
       {/* Enrollment Dialog */}
       <Dialog
