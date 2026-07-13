@@ -4,6 +4,7 @@ import {
   loadStationConfig,
   saveStationConfig,
   clearStationConfig,
+  submitCheckIn,
 } from './faceStation';
 
 describe('deriveStationStatus — fail-closed screen selection (plan 6.2)', () => {
@@ -81,5 +82,72 @@ describe('station config round-trip (localStorage)', () => {
     saveStationConfig({ deviceSecret: 'x', stationLabel: 'y' });
     clearStationConfig();
     expect(loadStationConfig()).toEqual({ deviceSecret: '', stationLabel: '' });
+  });
+});
+
+describe('submitCheckIn — sends the probe for server-side re-scoring', () => {
+  afterEach(() => {
+    delete global.fetch;
+  });
+
+  it('includes the probe embedding and device secret in the POST body', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ authorized: true, action: 'checkin', memberName: 'A' }),
+    });
+    global.fetch = fetchMock;
+
+    const embedding = Array.from({ length: 128 }, (_, i) => i / 128);
+    const resp = await submitCheckIn('s3cret', {
+      memberId: 7,
+      matchScore: 0.8,
+      livenessPassed: true,
+      deviceId: 'Front Desk',
+      embedding,
+    });
+
+    expect(resp.authorized).toBe(true);
+    const [url, opts] = fetchMock.mock.calls[0];
+    expect(url).toContain('/face/check-in');
+    expect(opts.headers['X-Device-Secret']).toBe('s3cret');
+    const sent = JSON.parse(opts.body);
+    expect(sent.embedding).toEqual(embedding);
+    expect(sent.memberId).toBe(7);
+  });
+
+  it('throws on 5xx so the kiosk fails closed rather than guessing', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ reason: 'face_checkin_disabled' }),
+    });
+    await expect(submitCheckIn('s3cret', { memberId: 1, embedding: [] })).rejects.toThrow();
+  });
+
+  it('does NOT throw on a 4xx — surfaces the structured denial so the kiosk shows the reason', async () => {
+    // 403/400 (disabled, bad claim, invalid_probe_embedding) are business
+    // denials, not outages: the hook renders resp.reason and keeps the door
+    // locked. Throwing here would flip a specific denial into a generic
+    // "offline" screen.
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({ authorized: false, reason: 'invalid_probe_embedding' }),
+    });
+    const resp = await submitCheckIn('s3cret', { memberId: 1, embedding: [] });
+    expect(resp.authorized).toBe(false);
+    expect(resp.reason).toBe('invalid_probe_embedding');
+  });
+
+  it('returns a 2xx-but-unauthorized body as-is (deny path, no throw)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ authorized: false, reason: 'below_match_threshold' }),
+    });
+    const resp = await submitCheckIn('s3cret', { memberId: 1, embedding: [0.1, 0.2] });
+    expect(resp.authorized).toBe(false);
+    expect(resp.reason).toBe('below_match_threshold');
   });
 });
