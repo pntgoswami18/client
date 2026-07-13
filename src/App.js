@@ -38,6 +38,7 @@ import InvoiceView from './components/InvoiceView';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import BiometricEnrollment from './components/BiometricEnrollment';
+import CheckIn from './components/CheckIn';
 
 const buildTheme = (primary = '#3f51b5', secondary = '#f50057') =>
   createTheme({
@@ -166,6 +167,18 @@ function App() {
 
   if (loading) {
     return null;
+  }
+
+  // The check-in kiosk runs fullscreen and unattended, outside the admin chrome
+  // and the staff-login gate — it authenticates to the backend with its own
+  // device secret (plan 3.2). Branch before the auth/layout below.
+  if (location.pathname === '/checkin') {
+    return (
+      <ThemeProvider theme={buildTheme(primaryColor, secondaryColor)}>
+        <CssBaseline />
+        <CheckIn />
+      </ThemeProvider>
+    );
   }
 
   if (!isAuthenticated) {
