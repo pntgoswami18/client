@@ -18,6 +18,7 @@ import { MatchAccumulator, DEFAULT_MATCH_CONFIG } from '../utils/faceMatching';
 import { LivenessChallenge, pickChallenge } from '../utils/faceLiveness';
 import { applySyncDelta, computeCursor, toGalleryArray } from '../utils/faceCacheDb';
 import * as cacheDb from '../utils/faceCacheDb';
+import { renderOverlay, clearOverlay } from '../utils/faceOverlayDraw';
 import {
   loadStationConfig,
   hasStationSecret,
@@ -81,6 +82,10 @@ export default function useFaceCheckin() {
   const [debug, setDebug] = useState({ backend: null, galleryCount: 0, modelVersion: '' });
 
   const videoRef = useRef(null);
+  const overlayCanvasRef = useRef(null);
+  // Overlay draw state (mutated in place by renderOverlay): smoothed rect +
+  // reduced-motion preference, resolved once on mount.
+  const overlayStateRef = useRef({ lastRect: null, reducedMotion: false });
 
   // Loop-internal refs.
   const streamRef = useRef(null);
@@ -219,11 +224,26 @@ export default function useFaceCheckin() {
     // Only 'idle' and 'liveness' actively process frames; other phases (welcome,
     // denied, verifying) just hold until their cooldown flips back to idle.
     if ((p !== 'idle' && p !== 'liveness') || !video || video.readyState < 2) {
+      // Not scanning (welcome/denied/verifying or camera warming up): wipe any
+      // lingering reticle so it doesn't hang over a success/deny screen.
+      clearOverlay(overlayCanvasRef.current, overlayStateRef.current);
       schedule();
       return;
     }
 
     const det = faceEngine.detect(video, performance.now());
+
+    // Face-tracking overlay: reticle on the detected face, plus the turn arrow /
+    // blink cue during a liveness challenge. Imperative (no per-frame setState).
+    renderOverlay(
+      overlayCanvasRef.current,
+      video,
+      det,
+      p,
+      challengeRef.current?.type,
+      performance.now(),
+      overlayStateRef.current
+    );
 
     if (p === 'liveness') {
       const challenge = challengeRef.current;
@@ -447,6 +467,9 @@ export default function useFaceCheckin() {
 
   useEffect(() => {
     mountedRef.current = true;
+    overlayStateRef.current.reducedMotion = !!(
+      window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
     start();
     return () => {
       mountedRef.current = false;
@@ -482,6 +505,7 @@ export default function useFaceCheckin() {
     errorMessage,
     debug,
     videoRef,
+    overlayCanvasRef,
     retry,
     resetStation,
   };

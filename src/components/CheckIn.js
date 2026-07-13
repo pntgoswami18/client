@@ -51,7 +51,33 @@ export default function CheckIn() {
           transition: 'opacity 0.4s',
         }}
       />
-      {/* Overlay layer */}
+      {/* Dim gradient for text legibility — its own layer so the face-tracking
+          overlay can sit above it without being muddied by the tint. */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background: CAMERA_PHASES.has(phase)
+            ? 'linear-gradient(180deg, rgba(11,16,32,0.55) 0%, rgba(11,16,32,0.15) 40%, rgba(11,16,32,0.75) 100%)'
+            : '#0b1020',
+        }}
+      />
+      {/* Face-tracking overlay: reticle on the detected face, plus the turn
+          arrow / blink cue during a liveness challenge. Deliberately NOT
+          css-mirrored — the geometry applies the flip so glyphs stay upright. */}
+      <canvas
+        ref={kiosk.overlayCanvasRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Prompt / status text (kept interactive: setup & error screens have
+          buttons). Above the reticle so copy is never occluded. */}
       <Box
         sx={{
           position: 'absolute',
@@ -61,9 +87,6 @@ export default function CheckIn() {
           justifyContent: 'center',
           textAlign: 'center',
           p: 4,
-          background: CAMERA_PHASES.has(phase)
-            ? 'linear-gradient(180deg, rgba(11,16,32,0.55) 0%, rgba(11,16,32,0.15) 40%, rgba(11,16,32,0.75) 100%)'
-            : '#0b1020',
         }}
       >
         <PhaseContent kiosk={kiosk} />
