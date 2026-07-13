@@ -153,6 +153,9 @@ export default function useFaceCheckin() {
           matchScore: member.score,
           livenessPassed,
           deviceId: stationLabelRef.current || undefined,
+          // The probe that triggered the accept — the server re-scores against
+          // its gallery and authorizes on ITS result, not our matchScore.
+          embedding: member.embedding,
         });
         if (!mountedRef.current) return;
         if (resp.authorized) {
@@ -252,7 +255,14 @@ export default function useFaceCheckin() {
         if (!mountedRef.current || phaseRef.current !== 'idle') return;
         const obs = accumulatorRef.current.observe(probe, galleryRef.current);
         if (obs.state === 'accepted') {
-          beginLivenessOrVerify({ memberId: obs.memberId, name: obs.name, score: obs.score });
+          beginLivenessOrVerify({
+            memberId: obs.memberId,
+            name: obs.name,
+            score: obs.score,
+            // Carry this frame's probe to the server for authoritative
+            // re-scoring. Array (not Float32Array) so it JSON-serializes.
+            embedding: Array.from(probe),
+          });
         }
       })
       .catch(() => {

@@ -130,22 +130,30 @@ export async function syncGallery(deviceSecret, since) {
 }
 
 /**
- * Submit a local match claim for server re-validation (plan 3.5). The server
- * decides authorization and, only on success, sends the door-unlock command;
- * the client never unlocks anything itself. Returns
+ * Submit a local match claim for server re-validation (plan 3.5). We send
+ * `embedding` (the probe that triggered the accept) so the server can re-score
+ * the match against its own gallery and authorize on ITS result rather than our
+ * self-reported `matchScore` (the check-in trust model, handoff §3.9).
+ *
+ * NOTE: that server-side recompute ships with the companion change gmgmt#27.
+ * Until it is deployed the server ignores `embedding` and still authorizes on
+ * the client-submitted `matchScore` (see docs/face-checkin-handoff.md §3.9) —
+ * the two must land together. Either way the server alone decides authorization
+ * and, only on success, sends the door-unlock command; the client never unlocks
+ * anything itself. Returns
  * { authorized, action, reason, memberId, memberName, doorCommandSent }.
  * Network/5xx failures throw so the kiosk shows "system offline" and stays
  * locked rather than guessing.
  */
 export async function submitCheckIn(
   deviceSecret,
-  { memberId, matchScore, livenessPassed, deviceId }
+  { memberId, matchScore, livenessPassed, deviceId, embedding }
 ) {
   const res = await fetch(API.checkIn, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...secretHeaders(deviceSecret) },
     credentials: 'include',
-    body: JSON.stringify({ memberId, matchScore, livenessPassed, deviceId }),
+    body: JSON.stringify({ memberId, matchScore, livenessPassed, deviceId, embedding }),
   });
   const body = await readJson(res);
   if (!res.ok && res.status >= 500) {
