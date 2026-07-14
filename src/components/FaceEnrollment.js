@@ -59,6 +59,7 @@ const FaceEnrollment = () => {
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [deviceSecretConfigured, setDeviceSecretConfigured] = useState(true);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -87,6 +88,18 @@ const FaceEnrollment = () => {
         setMembers(all);
       } catch {
         setMembers([]);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await apiFetch('/api/biometric/face/config');
+        const data = await response.json();
+        setDeviceSecretConfigured(!!data.data?.deviceSecretConfigured);
+      } catch {
+        // leave the default (no false-positive warning) if the fetch fails
       }
     })();
   }, []);
@@ -304,6 +317,20 @@ const FaceEnrollment = () => {
         Captures are processed entirely in this browser — only the face template (a numeric
         embedding) is stored on the gym server. No photos are uploaded.
       </Typography>
+
+      <Button
+        variant="outlined"
+        sx={{ mb: 2 }}
+        onClick={() => window.open('/checkin', '_blank', 'noopener')}
+      >
+        Launch check-in kiosk
+      </Button>
+      {!deviceSecretConfigured && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          Server device secret not set — the kiosk can't accept scans until{' '}
+          <code>DEVICE_SHARED_SECRET</code> is configured on the server.
+        </Alert>
+      )}
 
       <Stepper activeStep={activeStep} orientation="vertical">
         <Step>
