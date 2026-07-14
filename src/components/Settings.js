@@ -85,6 +85,7 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
   const [faceDoorDeviceId, setFaceDoorDeviceId] = useState('');
   const [faceCheckoutMinDwellMinutes, setFaceCheckoutMinDwellMinutes] = useState('15');
   const [faceModelVersion, setFaceModelVersion] = useState('');
+  const [faceDeviceSecretConfigured, setFaceDeviceSecretConfigured] = useState(true);
   const [cardOrder, setCardOrder] = useState([
     'total_members',
     'total_revenue',
@@ -302,6 +303,17 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  useEffect(() => {
+    axios
+      .get('/api/biometric/face/config')
+      .then((response) => {
+        setFaceDeviceSecretConfigured(!!response.data?.data?.deviceSecretConfigured);
+      })
+      .catch((error) => {
+        console.error('Error fetching face check-in config', error);
+      });
+  }, []);
 
   const handleSaveAllSettings = async () => {
     try {
@@ -924,6 +936,19 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             label="Enable face check-in"
           />
         </FormGroup>
+        <Button
+          variant="outlined"
+          sx={{ mt: 1 }}
+          onClick={() => window.open('/checkin', '_blank', 'noopener')}
+        >
+          Launch check-in kiosk
+        </Button>
+        {!faceDeviceSecretConfigured && (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Server device secret not set — the kiosk can't accept scans until{' '}
+            <code>DEVICE_SHARED_SECRET</code> is configured on the server.
+          </Alert>
+        )}
         <Grid container spacing={2} sx={{ mt: 1 }}>
           <Grid item xs={12} sm={6} md={3}>
             <TextField
