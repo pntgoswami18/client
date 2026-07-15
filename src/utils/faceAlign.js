@@ -123,8 +123,13 @@ export function poseLabel(fivePoints, { frontBand = 0.12, sideBand = 0.3 } = {})
   const interEye = Math.hypot(eyeR[0] - eyeL[0], eyeR[1] - eyeL[1]);
   if (interEye < 1e-6) return { label: 'front', ratio: 0 };
   const ratio = (nose[0] - midX) / interEye;
+  // ratio > 0 means the nose sits toward image-right, which is the subject's
+  // OWN left (their left side faces the camera's right) — see faceLiveness.js
+  // for the same image-space-vs-own-side mapping. Label by the subject's own
+  // side so it matches what they see on the mirrored preview and what the
+  // capture chips report.
   let label = 'front';
-  if (Math.abs(ratio) >= sideBand) label = ratio > 0 ? 'right' : 'left';
+  if (Math.abs(ratio) >= sideBand) label = ratio > 0 ? 'left' : 'right';
   else if (Math.abs(ratio) > frontBand) label = null; // in-between, don't capture
   return { label, ratio };
 }

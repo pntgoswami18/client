@@ -87,8 +87,8 @@ describe('poseLabel', () => {
     expect(poseLabel(face(0)).label).toBe('front');
   });
   it('labels a strongly offset nose as a side pose', () => {
-    expect(poseLabel(face(12)).label).toBe('right');
-    expect(poseLabel(face(-12)).label).toBe('left');
+    expect(poseLabel(face(12)).label).toBe('left');
+    expect(poseLabel(face(-12)).label).toBe('right');
   });
   it('returns null in the ambiguous band (no capture)', () => {
     expect(poseLabel(face(6)).label).toBeNull();
