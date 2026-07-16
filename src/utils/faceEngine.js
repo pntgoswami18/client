@@ -47,10 +47,17 @@ class FaceEngine {
     this._cropCanvas = null;
   }
 
-  /** Idempotent init; safe to call from multiple components. */
-  init() {
+  /**
+   * Idempotent init; safe to call from multiple components.
+   * @param deviceSecret Required on the unattended kiosk (no staff session) —
+   *   the /face/model-manifest bootstrap route accepts EITHER an
+   *   X-Device-Secret header OR a staff session cookie (see FACE_BOOTSTRAP_PATHS
+   *   in src/app.js). The staff-session enrollment UI omits this and rides the
+   *   cookie instead.
+   */
+  init(deviceSecret) {
     if (!this._initPromise) {
-      this._initPromise = this._init().catch((err) => {
+      this._initPromise = this._init(deviceSecret).catch((err) => {
         this._initPromise = null; // allow retry after failure
         throw err;
       });
@@ -58,8 +65,11 @@ class FaceEngine {
     return this._initPromise;
   }
 
-  async _init() {
-    const res = await fetch(MANIFEST_URL, { credentials: 'include' });
+  async _init(deviceSecret) {
+    const res = await fetch(MANIFEST_URL, {
+      credentials: 'include',
+      headers: deviceSecret ? { 'X-Device-Secret': deviceSecret } : {},
+    });
     if (!res.ok) {
       throw new Error(
         res.status === 404

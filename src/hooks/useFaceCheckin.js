@@ -359,9 +359,10 @@ export default function useFaceCheckin() {
     };
     accumulatorRef.current = new MatchAccumulator(matchCfgRef.current);
 
-    // Load models + gallery.
+    // Load models + gallery. The kiosk has no staff session, so the manifest
+    // fetch must present the device secret (see faceEngine.init's jsdoc).
     try {
-      await faceEngine.init();
+      await faceEngine.init(secretRef.current);
     } catch (err) {
       setErrorMessage(err.message || 'Face model failed to load');
       setPhaseBoth('error');
