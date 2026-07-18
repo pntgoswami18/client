@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { apiFetch } from '../api/client';
+import SafeListItemText from './SafeListItemText';
 
 const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   const [realtimeEvents, setRealtimeEvents] = useState([]);
@@ -405,7 +406,10 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
               filteredEvents.map((event, index) => (
                 <ListItem key={event.id || index} divider>
                   <ListItemIcon>{getEventIcon(event.event_type, event.success)}</ListItemIcon>
-                  <ListItemText
+                  {/* SafeListItemText renders the secondary slot as a <div> so the
+                      <Box>/<Chip> below don't trigger a DOM-nesting warning
+                      (MUI's ListItemText otherwise wraps secondary in a <p>). */}
+                  <SafeListItemText
                     primary={formatEventMessage(event)}
                     secondary={
                       <Box>

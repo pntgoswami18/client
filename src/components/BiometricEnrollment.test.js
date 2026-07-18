@@ -76,6 +76,8 @@ function mockApiFetch(url) {
 }
 
 describe('BiometricEnrollment - Events tab status badges', () => {
+  let consoleErrorSpy;
+
   beforeEach(() => {
     // The component opens a WebSocket on mount for real-time updates.
     global.WebSocket = class {
@@ -83,13 +85,19 @@ describe('BiometricEnrollment - Events tab status badges', () => {
       close() {}
     };
     apiFetch.mockImplementation(mockApiFetch);
+    // Regression guard for the EventListItemContent DOM-nesting fix (see
+    // SafeListItemText.js): spy on console.error so the test can assert the
+    // React "cannot be a descendant of" DOM-nesting warning never fires,
+    // instead of that warning silently passing an otherwise-green test.
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
     jest.clearAllMocks();
   });
 
-  test('shows "In Progress" (not "Error") for an enrollment_progress event', async () => {
+  test('shows "In Progress" (not "Error") for an enrollment_progress event, with no DOM-nesting warning', async () => {
     render(<BiometricEnrollment />);
 
     fireEvent.click(screen.getByText('Events'));
@@ -101,5 +109,22 @@ describe('BiometricEnrollment - Events tab status badges', () => {
     expect(screen.getByText('Error')).toBeInTheDocument();
     // No event in this fixture should render as "Success".
     expect(screen.queryByText('Success')).not.toBeInTheDocument();
+
+    // Regression guard for the EventListItemContent DOM-nesting fix (see
+    // SafeListItemText.js): a block-level element (e.g. Box/Chip, which
+    // render <div>) inside ListItemText's default secondary
+    // <Typography component="p"> wrapper triggers React's
+    // validateDOMNesting warning: "In HTML, %s cannot be a descendant of
+    // <%s>. This will cause a hydration error." (confirmed against the
+    // installed react-dom version's source, react-dom-client.development.js).
+    // This assertion MUST live in the same test as the render above —
+    // React dedupes this warning per tag-pair for the lifetime of the
+    // module, so a render in a later/separate test would silently pass
+    // even with the bug reintroduced, once an earlier test has already
+    // triggered (and thus cached) the same warning.
+    const nestingWarningCalls = consoleErrorSpy.mock.calls.filter((args) =>
+      args.some((arg) => typeof arg === 'string' && arg.includes('cannot be a descendant of'))
+    );
+    expect(nestingWarningCalls).toEqual([]);
   });
 });

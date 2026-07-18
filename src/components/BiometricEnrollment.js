@@ -42,6 +42,7 @@ import {
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import FaceEnrollment from './FaceEnrollment';
+import SafeListItemText from './SafeListItemText';
 import {
   Fingerprint as FingerprintIcon,
   Person as PersonIcon,
@@ -68,12 +69,10 @@ const EventListItemContent = ({ event, badge, formatEventMessage, formatDateTime
     <ListItemIcon>
       <Chip size="small" label={badge.label} color={badge.color} />
     </ListItemIcon>
-    <ListItemText
+    {/* SafeListItemText renders the secondary slot as a <div> so the <Box>
+        below doesn't trigger a DOM-nesting warning — see SafeListItemText.js. */}
+    <SafeListItemText
       primary={formatEventMessage(event)}
-      // ListItemText's secondary wraps in a <Typography component="p"> by
-      // default — the <Box> below renders a <div>, which is invalid inside
-      // a <p> (React DOM-nesting warning). Render the wrapper as a div instead.
-      slotProps={{ secondary: { component: 'div' } }}
       secondary={
         <Box>
           <Typography variant="caption" display="block">
