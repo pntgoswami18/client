@@ -59,6 +59,43 @@ import {
   Clear as ClearIcon,
 } from '@mui/icons-material';
 
+// Shared row body for a biometric event list item (status Chip + details).
+// Used by both the virtualized EventItem (react-window, >50 events) and the
+// plain List .map below it, so the two rendering paths can't silently drift
+// apart when a future change touches only one of them.
+const EventListItemContent = ({ event, badge, formatEventMessage, formatDateTime }) => (
+  <>
+    <ListItemIcon>
+      <Chip size="small" label={badge.label} color={badge.color} />
+    </ListItemIcon>
+    <ListItemText
+      primary={formatEventMessage(event)}
+      secondary={
+        <Box>
+          <Typography variant="caption" display="block">
+            {formatDateTime(event.timestamp)}
+          </Typography>
+          {event.device_id && (
+            <Typography variant="caption" display="block">
+              Device: {event.device_id}
+            </Typography>
+          )}
+          {event.biometric_id && (
+            <Typography variant="caption" display="block">
+              Device ID: {event.biometric_id}
+            </Typography>
+          )}
+          {event.error_message && (
+            <Typography variant="caption" color="error" display="block">
+              Error: {event.error_message}
+            </Typography>
+          )}
+        </Box>
+      }
+    />
+  </>
+);
+
 const BiometricEnrollment = () => {
   // Add CSS animation for pulsing effect
   React.useEffect(() => {
@@ -659,33 +696,11 @@ const BiometricEnrollment = () => {
       return (
         <div style={style}>
           <ListItem divider>
-            <ListItemIcon>
-              <Chip size="small" label={badge.label} color={badge.color} />
-            </ListItemIcon>
-            <ListItemText
-              primary={formatEventMessage(event)}
-              secondary={
-                <Box>
-                  <Typography variant="caption" display="block">
-                    {formatDateTime(event.timestamp)}
-                  </Typography>
-                  {event.device_id && (
-                    <Typography variant="caption" display="block">
-                      Device: {event.device_id}
-                    </Typography>
-                  )}
-                  {event.biometric_id && (
-                    <Typography variant="caption" display="block">
-                      Device ID: {event.biometric_id}
-                    </Typography>
-                  )}
-                  {event.error_message && (
-                    <Typography variant="caption" color="error" display="block">
-                      Error: {event.error_message}
-                    </Typography>
-                  )}
-                </Box>
-              }
+            <EventListItemContent
+              event={event}
+              badge={badge}
+              formatEventMessage={formatEventMessage}
+              formatDateTime={formatDateTime}
             />
           </ListItem>
         </div>
@@ -2125,33 +2140,11 @@ const BiometricEnrollment = () => {
                       const badge = getEventStatusBadge(event);
                       return (
                         <ListItem key={event.id} divider>
-                          <ListItemIcon>
-                            <Chip size="small" label={badge.label} color={badge.color} />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={formatEventMessage(event)}
-                            secondary={
-                              <Box>
-                                <Typography variant="caption" display="block">
-                                  {formatDateTime(event.timestamp)}
-                                </Typography>
-                                {event.device_id && (
-                                  <Typography variant="caption" display="block">
-                                    Device: {event.device_id}
-                                  </Typography>
-                                )}
-                                {event.biometric_id && (
-                                  <Typography variant="caption" display="block">
-                                    Device ID: {event.biometric_id}
-                                  </Typography>
-                                )}
-                                {event.error_message && (
-                                  <Typography variant="caption" color="error" display="block">
-                                    Error: {event.error_message}
-                                  </Typography>
-                                )}
-                              </Box>
-                            }
+                          <EventListItemContent
+                            event={event}
+                            badge={badge}
+                            formatEventMessage={formatEventMessage}
+                            formatDateTime={formatDateTime}
                           />
                         </ListItem>
                       );
