@@ -631,6 +631,22 @@ const BiometricEnrollment = () => {
     }
   }, []);
 
+  // The `success` column is NOT NULL, so non-terminal events need some value in
+  // it — enrollment_progress rows always store success=false (see
+  // biometricController.js's webhook handler: "Progress events should not mark
+  // as successful completion"), even though a progress step isn't a failure.
+  // Badge on event_type for that one case instead of taking `success` at face
+  // value, so an in-progress scan doesn't render as a red "Error".
+  const getEventStatusBadge = useCallback((event) => {
+    if (event.event_type === 'enrollment_progress') {
+      return { label: 'In Progress', color: 'info' };
+    }
+    return {
+      label: event.success ? 'Success' : 'Error',
+      color: event.success ? 'success' : 'error',
+    };
+  }, []);
+
   // Memoized event item component for virtual scrolling performance
   const EventItem = useCallback(
     ({ index, style, data }) => {
@@ -639,15 +655,12 @@ const BiometricEnrollment = () => {
         return null;
       }
 
+      const badge = getEventStatusBadge(event);
       return (
         <div style={style}>
           <ListItem divider>
             <ListItemIcon>
-              <Chip
-                size="small"
-                label={event.success ? 'Success' : 'Error'}
-                color={event.success ? 'success' : 'error'}
-              />
+              <Chip size="small" label={badge.label} color={badge.color} />
             </ListItemIcon>
             <ListItemText
               primary={formatEventMessage(event)}
@@ -678,7 +691,7 @@ const BiometricEnrollment = () => {
         </div>
       );
     },
-    [formatDateTime, formatEventMessage]
+    [formatDateTime, formatEventMessage, getEventStatusBadge]
   );
 
   // Event filter handling
@@ -2108,42 +2121,41 @@ const BiometricEnrollment = () => {
                   </Box>
                 ) : (
                   <List>
-                    {filteredBiometricEvents.map((event) => (
-                      <ListItem key={event.id} divider>
-                        <ListItemIcon>
-                          <Chip
-                            size="small"
-                            label={event.success ? 'Success' : 'Error'}
-                            color={event.success ? 'success' : 'error'}
+                    {filteredBiometricEvents.map((event) => {
+                      const badge = getEventStatusBadge(event);
+                      return (
+                        <ListItem key={event.id} divider>
+                          <ListItemIcon>
+                            <Chip size="small" label={badge.label} color={badge.color} />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={formatEventMessage(event)}
+                            secondary={
+                              <Box>
+                                <Typography variant="caption" display="block">
+                                  {formatDateTime(event.timestamp)}
+                                </Typography>
+                                {event.device_id && (
+                                  <Typography variant="caption" display="block">
+                                    Device: {event.device_id}
+                                  </Typography>
+                                )}
+                                {event.biometric_id && (
+                                  <Typography variant="caption" display="block">
+                                    Device ID: {event.biometric_id}
+                                  </Typography>
+                                )}
+                                {event.error_message && (
+                                  <Typography variant="caption" color="error" display="block">
+                                    Error: {event.error_message}
+                                  </Typography>
+                                )}
+                              </Box>
+                            }
                           />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={formatEventMessage(event)}
-                          secondary={
-                            <Box>
-                              <Typography variant="caption" display="block">
-                                {formatDateTime(event.timestamp)}
-                              </Typography>
-                              {event.device_id && (
-                                <Typography variant="caption" display="block">
-                                  Device: {event.device_id}
-                                </Typography>
-                              )}
-                              {event.biometric_id && (
-                                <Typography variant="caption" display="block">
-                                  Device ID: {event.biometric_id}
-                                </Typography>
-                              )}
-                              {event.error_message && (
-                                <Typography variant="caption" color="error" display="block">
-                                  Error: {event.error_message}
-                                </Typography>
-                              )}
-                            </Box>
-                          }
-                        />
-                      </ListItem>
-                    ))}
+                        </ListItem>
+                      );
+                    })}
                   </List>
                 )}
 
