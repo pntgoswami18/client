@@ -70,6 +70,10 @@ const EventListItemContent = ({ event, badge, formatEventMessage, formatDateTime
     </ListItemIcon>
     <ListItemText
       primary={formatEventMessage(event)}
+      // ListItemText's secondary wraps in a <Typography component="p"> by
+      // default — the <Box> below renders a <div>, which is invalid inside
+      // a <p> (React DOM-nesting warning). Render the wrapper as a div instead.
+      slotProps={{ secondary: { component: 'div' } }}
       secondary={
         <Box>
           <Typography variant="caption" display="block">
