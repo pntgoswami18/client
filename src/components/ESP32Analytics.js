@@ -102,13 +102,22 @@ const getRelativeTime = (timestamp) => {
   }
 };
 
+// enrollment_progress rows always store success=false (the `success` column is
+// NOT NULL and progress events aren't terminal outcomes — see
+// biometricController.js's webhook handler). Treat them as neither a success
+// nor a failure so they don't get counted/rendered as errors here.
+const isProgressEvent = (event) => event.event_type === 'enrollment_progress';
+
 const buildSummary = (events = [], devices = []) => {
   const totalEvents = events.length;
-  const successCount = events.filter((event) => event.success).length;
-  const failureCount = totalEvents - successCount;
-  const successRate = totalEvents ? Math.round((successCount / totalEvents) * 100) : 0;
+  const terminalEvents = events.filter((event) => !isProgressEvent(event));
+  const successCount = terminalEvents.filter((event) => event.success).length;
+  const failureCount = terminalEvents.length - successCount;
+  const successRate = terminalEvents.length
+    ? Math.round((successCount / terminalEvents.length) * 100)
+    : 0;
 
-  const eventTypeStats = events.reduce((accumulator, event) => {
+  const eventTypeStats = terminalEvents.reduce((accumulator, event) => {
     const key = event.event_type || 'unknown';
     if (!accumulator[key]) {
       accumulator[key] = {
@@ -181,7 +190,7 @@ const buildSummary = (events = [], devices = []) => {
     .sort((a, b) => b.total - a.total);
 
   const enrollmentEvents = events.filter((event) =>
-    ['enrollment', 'enrollment_failed', 'manual_enrollment'].includes(event.event_type),
+    ['enrollment', 'enrollment_failed', 'manual_enrollment'].includes(event.event_type)
   );
   const enrollmentSuccess = enrollmentEvents.filter((event) => event.success).length;
   const enrollmentTotal = enrollmentEvents.length;
@@ -192,9 +201,9 @@ const buildSummary = (events = [], devices = []) => {
   const recentAlerts = events
     .filter(
       (event) =>
-        !event.success ||
+        (!isProgressEvent(event) && !event.success) ||
         ALERT_EVENT_TYPES.has(event.event_type) ||
-        (event.error_message && event.error_message.trim()),
+        (event.error_message && event.error_message.trim())
     )
     .slice(0, 10);
 
@@ -314,8 +323,7 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
         axios.get('/api/biometric/devices'),
       ]);
 
-      const fetchedEvents =
-        eventsResponse?.data?.data || eventsResponse?.data?.events || [];
+      const fetchedEvents = eventsResponse?.data?.data || eventsResponse?.data?.events || [];
       const fetchedDevices = devicesResponse?.data?.devices || [];
 
       setEvents(fetchedEvents);
@@ -325,7 +333,7 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
       setError(
         fetchError?.response?.data?.message ||
           fetchError?.message ||
-          'Failed to load analytics data.',
+          'Failed to load analytics data.'
       );
     } finally {
       setLoading(false);
@@ -500,7 +508,7 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
               ) : (
                 <Stack spacing={2}>
                   {summary.recentAlerts.slice(0, 6).map((event) => {
-                    const isFailure = !event.success;
+                    const isFailure = !isProgressEvent(event) && !event.success;
                     const label = getFriendlyLabel(event.event_type);
                     const description = event.error_message || event.message || '';
                     return (
@@ -521,10 +529,20 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
                           />
                           <Typography variant="subtitle2">{label}</Typography>
                           <StatusChip
-                            label={event.success ? 'Success' : 'Failed'}
-                            color={event.success ? 'success' : 'error'}
+                            label={
+                              isProgressEvent(event)
+                                ? 'In Progress'
+                                : event.success
+                                  ? 'Success'
+                                  : 'Failed'
+                            }
+                            color={
+                              isProgressEvent(event) ? 'info' : event.success ? 'success' : 'error'
+                            }
                             icon={
-                              event.success ? (
+                              isProgressEvent(event) ? (
+                                <TimelineIcon fontSize="small" />
+                              ) : event.success ? (
                                 <SuccessIcon fontSize="small" />
                               ) : (
                                 <ErrorIcon fontSize="small" />
@@ -601,7 +619,9 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
                         <LinearProgress
                           variant="determinate"
                           value={successRate}
-                          color={successRate >= 80 ? 'success' : successRate >= 60 ? 'warning' : 'error'}
+                          color={
+                            successRate >= 80 ? 'success' : successRate >= 60 ? 'warning' : 'error'
+                          }
                           sx={{ mt: 0.5, height: 6, borderRadius: 3 }}
                         />
                       </Box>
@@ -618,9 +638,7 @@ const ESP32Analytics = ({ onUnsavedChanges, onSave }) => {
                         <Tooltip title="Signal strength (RSSI)">
                           <Chip
                             icon={<WifiIcon fontSize="small" />}
-                            label={
-                              wifiRssi !== undefined ? `${wifiRssi} dBm` : 'Signal: unknown'
-                            }
+                            label={wifiRssi !== undefined ? `${wifiRssi} dBm` : 'Signal: unknown'}
                             variant="outlined"
                             size="small"
                           />

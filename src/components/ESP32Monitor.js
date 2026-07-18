@@ -148,6 +148,10 @@ const ESP32Monitor = ({ onUnsavedChanges, onSave }) => {
   };
 
   const getEventColor = (eventType, success) => {
+    if (eventType === 'enrollment_progress') {
+      return 'info';
+    }
+
     if (!success) {
       return 'error';
     }
