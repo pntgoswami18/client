@@ -51,6 +51,7 @@ import {
   History as HistoryIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import SafeListItemText from './SafeListItemText';
 
 // Parse SQLite datetime: stores "YYYY-MM-DD HH:MM:SS" (UTC) without timezone.
 // Treat as UTC by converting to ISO format; ISO strings with Z are passed through.
@@ -1851,7 +1852,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                                 <WifiOffIcon color="error" />
                               )}
                             </ListItemIcon>
-                            <ListItemText
+                            {/* SafeListItemText renders the secondary slot as a <div> so
+                                the "Up to date" Chip below doesn't trigger a DOM-nesting
+                                warning (MUI's ListItemText otherwise wraps secondary in a <p>). */}
+                            <SafeListItemText
                               primary={device.device_id}
                               secondary={
                                 <>
@@ -1928,7 +1932,10 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
                             {log.status === 'pending' && <CircularProgress size={20} />}
                             {log.status === 'failed' && <ErrorIcon color="error" />}
                           </ListItemIcon>
-                          <ListItemText
+                          {/* SafeListItemText renders the secondary slot as a <div> so
+                              the status Chip below doesn't trigger a DOM-nesting warning
+                              (MUI's ListItemText otherwise wraps secondary in a <p>). */}
+                          <SafeListItemText
                             primary={`${log.device_id} → v${log.firmware_version}`}
                             secondary={
                               <>

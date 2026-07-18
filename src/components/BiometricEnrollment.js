@@ -42,6 +42,7 @@ import {
 } from '@mui/material';
 import SearchableMemberDropdown from './SearchableMemberDropdown';
 import FaceEnrollment from './FaceEnrollment';
+import SafeListItemText from './SafeListItemText';
 import {
   Fingerprint as FingerprintIcon,
   Person as PersonIcon,
@@ -68,7 +69,9 @@ const EventListItemContent = ({ event, badge, formatEventMessage, formatDateTime
     <ListItemIcon>
       <Chip size="small" label={badge.label} color={badge.color} />
     </ListItemIcon>
-    <ListItemText
+    {/* SafeListItemText renders the secondary slot as a <div> so the <Box>
+        below doesn't trigger a DOM-nesting warning — see SafeListItemText.js. */}
+    <SafeListItemText
       primary={formatEventMessage(event)}
       secondary={
         <Box>
