@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import faceEngine from '../utils/faceEngine';
-import { MatchAccumulator, DEFAULT_MATCH_CONFIG } from '../utils/faceMatching';
+import { MatchAccumulator, DEFAULT_MATCH_CONFIG, evaluateFrame } from '../utils/faceMatching';
 import { LivenessChallenge, pickChallenge } from '../utils/faceLiveness';
 import { applySyncDelta, computeCursor, toGalleryArray } from '../utils/faceCacheDb';
 import * as cacheDb from '../utils/faceCacheDb';
@@ -259,7 +259,37 @@ export default function useFaceCheckin() {
         });
         setRemainingMs(r.remainingMs);
         if (r.state === 'passed') {
-          verify(pendingRef.current, true);
+          // Don't submit the pre-challenge probe stashed in pendingRef — it
+          // was captured before the liveness challenge even started, so
+          // nothing binds it to the frames that just proved liveness (a
+          // replayed/leaked embedding would sail through the same way).
+          // Re-embed THIS frame (the one that just passed) and re-check it
+          // against the accumulated identity before submitting, so the
+          // embedding the server re-scores is drawn from the same capture
+          // window as the liveness proof. Null out challengeRef first so a
+          // 'passed' state observed again on the next frame (before this
+          // async work resolves) is a no-op rather than firing a second
+          // re-embed/verify race.
+          challengeRef.current = null;
+          const member = pendingRef.current;
+          const { imageData } = faceEngine.alignCrop(video, det.fivePoints);
+          faceEngine
+            .embed(imageData)
+            .then((freshProbe) => {
+              if (!mountedRef.current || phaseRef.current !== 'liveness') return;
+              const frame = evaluateFrame(freshProbe, galleryRef.current, matchCfgRef.current);
+              if (!frame.passed || frame.memberId !== member.memberId) {
+                // Face present through the whole liveness challenge, but no
+                // longer resolves to the same locked-in identity at the
+                // proof moment — fail closed rather than submit a stale claim.
+                deny('liveness_failed');
+                return;
+              }
+              verify({ ...member, score: frame.score, embedding: Array.from(freshProbe) }, true);
+            })
+            .catch(() => {
+              if (mountedRef.current) deny('liveness_failed');
+            });
         } else if (r.state === 'failed') {
           deny('liveness_failed');
         }
