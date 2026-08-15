@@ -69,6 +69,16 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [success, setSuccess] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
 
+  // Add Device (mDNS discovery) — devices that have joined WiFi via the
+  // captive-portal provisioning flow but haven't sent a heartbeat yet, so
+  // they aren't in `devices` and have no manually-entered IP.
+  const [showAddDeviceDialog, setShowAddDeviceDialog] = useState(false);
+  const [discoveredDevices, setDiscoveredDevices] = useState([]);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoverError, setDiscoverError] = useState(null);
+  const [justClaimedIds, setJustClaimedIds] = useState([]);
+  const prevDiscoveredIdsRef = useRef(new Set());
+
   // ESP32 Biometric Reader Configuration
   const [esp32Host, setEsp32Host] = useState('192.168.1.100');
   const [esp32Port, setEsp32Port] = useState('80');
@@ -205,6 +215,39 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     const interval = setInterval(fetchDevices, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Poll for freshly-provisioned devices only while the Add Device dialog is
+  // open — also refreshes the registered device list so a device that just
+  // sent its first heartbeat (and so dropped off the discovery list) shows
+  // up as claimed right away.
+  useEffect(() => {
+    if (!showAddDeviceDialog) return undefined;
+
+    prevDiscoveredIdsRef.current = new Set();
+    setJustClaimedIds([]);
+    fetchDiscoveredDevices();
+    const interval = setInterval(() => {
+      fetchDiscoveredDevices();
+      fetchDevices();
+    }, 4000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAddDeviceDialog]);
+
+  // A device_id that was discovered (unclaimed) and then drops out of the
+  // discovery list, while the dialog is still open, has almost certainly
+  // just sent its first heartbeat and registered — surface that as a
+  // one-line success note instead of leaving the user guessing why it
+  // disappeared.
+  useEffect(() => {
+    if (!showAddDeviceDialog) return;
+    const currentIds = new Set(discoveredDevices.map((d) => d.device_id));
+    const newlyClaimed = [...prevDiscoveredIdsRef.current].filter((id) => !currentIds.has(id));
+    if (newlyClaimed.length > 0) {
+      setJustClaimedIds((prev) => [...new Set([...prev, ...newlyClaimed])]);
+    }
+    prevDiscoveredIdsRef.current = currentIds;
+  }, [discoveredDevices, showAddDeviceDialog]);
 
   // WebSocket for real-time enrollment progress feedback
   useEffect(() => {
@@ -758,6 +801,25 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       setError('Failed to fetch devices: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDiscoveredDevices = async () => {
+    setDiscovering(true);
+    try {
+      const response = await apiFetch('/api/biometric/devices/discover');
+      const data = await response.json();
+
+      if (data.success) {
+        setDiscoveredDevices(data.devices || []);
+        setDiscoverError(null);
+      } else {
+        setDiscoverError(data.message || 'Failed to search for devices');
+      }
+    } catch (error) {
+      setDiscoverError('Failed to search for devices: ' + error.message);
+    } finally {
+      setDiscovering(false);
     }
   };
 
@@ -1317,6 +1379,13 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
             disabled={loading}
           >
             Refresh
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<NetworkWifiIcon />}
+            onClick={() => setShowAddDeviceDialog(true)}
+          >
+            Add Device
           </Button>
           <Tooltip
             title={
@@ -1976,6 +2045,78 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       )}
 
       {/* Unlock Dialog */}
+      {/* Add Device Dialog — discovers freshly-provisioned devices via mDNS,
+          no manual IP entry needed. See deviceDiscoveryService on the backend. */}
+      <Dialog
+        open={showAddDeviceDialog}
+        onClose={() => setShowAddDeviceDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add Device</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Looking for devices on your network that have finished WiFi setup but haven&apos;t
+            connected to the server yet. Provision a new door lock by connecting to its WiFi network
+            (named &quot;GMGMT-DoorLock-XXXX&quot;) and entering this server&apos;s address — it
+            will appear here automatically.
+          </Typography>
+
+          {discoverError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {discoverError}
+            </Alert>
+          )}
+
+          <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            {discovering && <CircularProgress size={18} />}
+            <Typography variant="caption" color="text.secondary">
+              {discovering ? 'Searching…' : `Last checked ${new Date().toLocaleTimeString()}`}
+            </Typography>
+          </Box>
+
+          <List sx={{ mt: 1 }}>
+            {discoveredDevices.length === 0 && !discovering && (
+              <ListItem>
+                <ListItemText
+                  primary="No unclaimed devices found yet"
+                  secondary="Make sure the device is powered on and has completed WiFi provisioning."
+                />
+              </ListItem>
+            )}
+            {discoveredDevices.map((device) => (
+              <ListItem key={device.device_id}>
+                <ListItemIcon>
+                  <NetworkWifiIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={device.device_id}
+                  secondary={`${device.ip_address || 'unknown IP'}${
+                    device.firmware_version ? ` · firmware ${device.firmware_version}` : ''
+                  }`}
+                />
+                <Chip size="small" label="Waiting for first check-in" color="warning" />
+              </ListItem>
+            ))}
+          </List>
+
+          {justClaimedIds.length > 0 && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              {justClaimedIds.join(', ')} just checked in and now appears in the Device Overview
+              tab.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={fetchDiscoveredDevices} disabled={discovering}>
+            Search Again
+          </Button>
+          <Button onClick={() => setShowAddDeviceDialog(false)} variant="contained">
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={unlockDialogOpen} onClose={() => setUnlockDialogOpen(false)}>
         <DialogTitle>Remote Door Unlock</DialogTitle>
         <DialogContent>
