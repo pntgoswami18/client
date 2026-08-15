@@ -60,3 +60,4 @@ All components are in `src/components/`. Most are large monolithic files — avo
 - **PDF generation** (`jspdf` + `html2canvas`) in `InvoiceView.js`
 - **Image cropping** (`react-image-crop`) in `Member.js` for profile photos
 - WebSocket connection opened in `BiometricEnrollment.js` for real-time enrollment progress
+- **Device discovery polling**: `ESP32DeviceManager.js`'s Add Device dialog polls `GET /api/biometric/devices/discover` every 4s only while open (mDNS-visible devices not yet in the `devices` table), plus `fetchDevices()` to catch a device claiming itself via its first heartbeat

@@ -25,6 +25,7 @@ This is the React frontend for the Gym Management System.
 - ESP32 biometric device management
 - Remote device configuration
 - Device status monitoring
+- **Add Device**: discovers freshly-provisioned ESP32 devices on the LAN via mDNS (`GET /api/biometric/devices/discover`) — no manual IP entry needed
 
 ### Searchable Member Dropdowns
 
