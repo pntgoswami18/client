@@ -47,6 +47,10 @@ const DENY_MESSAGES = {
   // Liveness (server reason + client-side timeout)
   liveness_not_passed: "Couldn't confirm liveness — please try again",
   liveness_failed: "Couldn't confirm liveness — please try again",
+  // Fresh post-challenge re-embed resolved to a different identity than the
+  // one locked in pre-challenge — a genuine identity mismatch, not a failed
+  // blink/head-turn, so it gets its own reason string for denial-log clarity.
+  liveness_identity_mismatch: "Couldn't confirm liveness — please try again",
   // Recognition / identity
   below_match_threshold: 'Not recognized — please try again or see the front desk',
   not_recognized: 'Not recognized — please try again or see the front desk',
@@ -278,7 +282,15 @@ export default function useFaceCheckin() {
             .then((freshProbe) => {
               if (!mountedRef.current || phaseRef.current !== 'liveness') return;
               const frame = evaluateFrame(freshProbe, galleryRef.current, matchCfgRef.current);
-              if (!frame.passed || frame.memberId !== member.memberId) {
+              if (frame.passed && frame.memberId !== member.memberId) {
+                // Face present through the whole liveness challenge, but now
+                // resolves to a *different* locked-in identity at the proof
+                // moment — fail closed, with a distinct reason so denial logs
+                // aren't misread as a liveness-challenge failure.
+                deny('liveness_identity_mismatch');
+                return;
+              }
+              if (!frame.passed) {
                 // Face present through the whole liveness challenge, but no
                 // longer resolves to the same locked-in identity at the
                 // proof moment — fail closed rather than submit a stale claim.
@@ -287,7 +299,12 @@ export default function useFaceCheckin() {
               }
               verify({ ...member, score: frame.score, embedding: Array.from(freshProbe) }, true);
             })
-            .catch(() => {
+            .catch((err) => {
+              // Collapses network glitches, ONNX/WASM embed rejections, and
+              // thrown errors from evaluateFrame into the same fail-closed
+              // deny — but log first so a real bug isn't indistinguishable
+              // from a legitimate liveness failure/spoof with zero signal.
+              console.error('useFaceCheckin: post-challenge re-embed/verify failed', err);
               if (mountedRef.current) deny('liveness_failed');
             });
         } else if (r.state === 'failed') {
