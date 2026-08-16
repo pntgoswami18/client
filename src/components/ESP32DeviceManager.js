@@ -93,6 +93,11 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
   const [enrollmentProgress, setEnrollmentProgress] = useState(null); // { message, severity }
   const initialConfigValues = useRef({});
   const wsRef = useRef(null);
+  // Fallback esp32_host/esp32_port from saved settings, and load-tracking for
+  // the auto-populate-from-connected-device effect — see fetchEsp32Settings.
+  const esp32SettingsRef = useRef({ host: null, port: null });
+  const [esp32SettingsLoaded, setEsp32SettingsLoaded] = useState(false);
+  const esp32AutoPopulatedRef = useRef(false);
 
   // Dialog states
   const [unlockDialogOpen, setUnlockDialogOpen] = useState(false);
@@ -381,12 +386,14 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
         ask_unlock_reason,
       } = response.data;
 
-      if (esp32_host) {
-        setEsp32Host(esp32_host);
-      }
-      if (esp32_port !== undefined) {
-        setEsp32Port(String(esp32_port));
-      }
+      // esp32Host/esp32Port are deliberately NOT set here — the saved setting
+      // is only a fallback for when no device is currently connected. The
+      // effect below (keyed on `devices`) applies it, preferring a connected
+      // device's actual IP so this field doesn't sit on a stale saved value
+      // (e.g. left over from testing against a different device) once a real
+      // one is online.
+      esp32SettingsRef.current = { host: esp32_host, port: esp32_port };
+
       if (local_listen_host) {
         setLocalListenHost(local_listen_host);
       }
@@ -400,11 +407,11 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
         setAskUnlockReason(String(ask_unlock_reason) !== 'false');
       }
 
-      // Store initial values for change tracking (including environment values for reference)
+      // Store initial values for change tracking (including environment values for reference).
+      // esp32Host/esp32Port are filled in by the auto-populate effect below.
       setTimeout(() => {
         initialConfigValues.current = {
-          esp32Host: esp32_host || '192.168.1.100',
-          esp32Port: String(esp32_port || '80'),
+          ...initialConfigValues.current,
           localListenHost: local_listen_host || '0.0.0.0',
           localListenPort: String(local_listen_port || '8080'),
           mainServerPort: String(main_server_port || '3001'),
@@ -414,8 +421,42 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
       }, 100);
     } catch (error) {
       console.error('Error fetching ESP32 settings', error);
+    } finally {
+      setEsp32SettingsLoaded(true);
     }
   };
+
+  // Auto-populate the ESP32 host/port fields from a currently-connected
+  // device rather than always trusting the saved setting, which is easy to
+  // leave pointing at whatever was last tested (e.g. a stale localhost:5005
+  // from local dev testing) instead of the device actually in use. Runs once
+  // both `devices` and the saved settings have loaded, and only once overall
+  // (via the ref guard) so it doesn't clobber an in-progress manual edit on
+  // a later `devices` poll.
+  useEffect(() => {
+    if (loading || !esp32SettingsLoaded || esp32AutoPopulatedRef.current) {
+      return;
+    }
+    esp32AutoPopulatedRef.current = true;
+
+    const connectedDevice = devices.find((d) => d.status === 'online' && d.ip_address);
+    const host = connectedDevice
+      ? connectedDevice.ip_address
+      : esp32SettingsRef.current.host || '192.168.1.100';
+    // Port 80 is the ESP32 firmware's own persistent web interface
+    // (initializeWebServer() in esp32_door_lock.ino), not the biometric TCP
+    // port the server listens on — every device uses it, so a connected
+    // device's port is always 80 regardless of which device it is.
+    const port = connectedDevice ? '80' : String(esp32SettingsRef.current.port || '80');
+
+    setEsp32Host(host);
+    setEsp32Port(port);
+    initialConfigValues.current = {
+      ...initialConfigValues.current,
+      esp32Host: host,
+      esp32Port: port,
+    };
+  }, [devices, loading, esp32SettingsLoaded]);
 
   const saveEsp32Settings = async () => {
     try {
