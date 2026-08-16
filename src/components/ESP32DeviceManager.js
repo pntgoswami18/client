@@ -439,9 +439,15 @@ const ESP32DeviceManager = ({ onUnsavedChanges, onSave }) => {
     }
     esp32AutoPopulatedRef.current = true;
 
-    const connectedDevice = devices.find((d) => d.status === 'online' && d.ip_address);
+    // GET /api/biometric/devices (getAllDevices) nests the ESP32-reported
+    // fields under deviceData (merged from the latest heartbeat event) rather
+    // than putting ip_address at the top level — only status/last_seen live
+    // there directly. Falling back to the top-level field too in case that
+    // ever changes.
+    const getIpAddress = (d) => d.deviceData?.ip_address || d.ip_address;
+    const connectedDevice = devices.find((d) => d.status === 'online' && getIpAddress(d));
     const host = connectedDevice
-      ? connectedDevice.ip_address
+      ? getIpAddress(connectedDevice)
       : esp32SettingsRef.current.host || '192.168.1.100';
     // Port 80 is the ESP32 firmware's own persistent web interface
     // (initializeWebServer() in esp32_door_lock.ino), not the biometric TCP
