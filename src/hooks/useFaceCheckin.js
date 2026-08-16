@@ -32,6 +32,10 @@ import {
 const WELCOME_COOLDOWN_MS = 5000; // linger on the welcome/checkout screen
 const DENY_COOLDOWN_MS = 2200; // brief "not recognized" before resuming
 const SYNC_INTERVAL_MS = 60000; // periodic gallery delta sync
+// The kiosk is unattended — nobody's there to click "Retry" while the server
+// finishes its first-boot model download (tools/face-model/deploy-models.js),
+// so 'models_pending' polls itself instead of sitting on a dead screen.
+const MODELS_PENDING_RETRY_MS = 10000;
 
 const REASON_HINTS = {
   no_face: 'Step in front of the camera to check in',
@@ -97,6 +101,7 @@ export default function useFaceCheckin() {
   const wsRef = useRef(null);
   const syncTimerRef = useRef(null);
   const cooldownRef = useRef(null);
+  const modelsPendingRetryRef = useRef(null);
   const mountedRef = useRef(true);
 
   const phaseRef = useRef('loading');
@@ -364,6 +369,10 @@ export default function useFaceCheckin() {
   // ---- bootstrap ----------------------------------------------------------
 
   const start = useCallback(async () => {
+    if (modelsPendingRetryRef.current) {
+      clearTimeout(modelsPendingRetryRef.current);
+      modelsPendingRetryRef.current = null;
+    }
     setErrorMessage('');
     setPhaseBoth('loading');
 
@@ -394,6 +403,14 @@ export default function useFaceCheckin() {
         setErrorMessage('Could not reach the server. Check the station secret and try again.');
       }
       setPhaseBoth(status);
+      if (status === 'models_pending') {
+        // Unattended kiosk — nobody's there to click Retry, so poll until the
+        // server's first-boot model download finishes (or fails and starts
+        // reporting 'error'/'disabled' instead).
+        modelsPendingRetryRef.current = setTimeout(() => {
+          if (mountedRef.current) start();
+        }, MODELS_PENDING_RETRY_MS);
+      }
       return;
     }
 
@@ -508,6 +525,7 @@ export default function useFaceCheckin() {
   const teardown = useCallback(() => {
     if (loopRef.current) cancelAnimationFrame(loopRef.current);
     if (cooldownRef.current) clearTimeout(cooldownRef.current);
+    if (modelsPendingRetryRef.current) clearTimeout(modelsPendingRetryRef.current);
     if (syncTimerRef.current) clearInterval(syncTimerRef.current);
     if (wsRef.current) {
       try {

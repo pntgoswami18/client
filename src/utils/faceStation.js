@@ -67,13 +67,22 @@ export function hasStationSecret(config) {
  * states. Everything resolves to a concrete, diagnosable screen — never to
  * "scan anyway".
  *
- * @returns 'error' | 'setup' | 'disabled' | 'no_door' | 'ready'
+ * `config.modelsReady` distinguishes "deployed on this server but the model
+ * files haven't finished downloading yet" (transient — the server fetches
+ * them sha256-verified at boot, see tools/face-model/deploy-models.js) from a
+ * hard failure. Checked last, right before 'ready': it only matters once the
+ * feature is actually enabled and configured, and `=== false` specifically
+ * (not falsy) so an older server that doesn't send the field at all — or a
+ * config fetch that legitimately omits it — doesn't get misread as pending.
+ *
+ * @returns 'error' | 'setup' | 'disabled' | 'no_door' | 'models_pending' | 'ready'
  */
 export function deriveStationStatus({ hasSecret, config, configError }) {
   if (!hasSecret) return 'setup';
   if (configError || !config) return 'error';
   if (!config.enabled) return 'disabled';
   if (!config.doorDeviceConfigured) return 'no_door';
+  if (config.modelsReady === false) return 'models_pending';
   return 'ready';
 }
 
