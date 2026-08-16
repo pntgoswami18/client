@@ -327,7 +327,14 @@ const GeneralSettings = ({ onUnsavedChanges, onSave }) => {
             'Content-Type': 'multipart/form-data',
           },
         });
-        if (uploadRes.data.success && uploadRes.data.logoUrl) {
+        // axios rejects on a non-2xx response, so reaching here already means
+        // the upload succeeded - the backend's success response never included
+        // a `success` field, only `message`/`logoUrl`, so checking for one
+        // made this branch always take the `else` and throw its own success
+        // message back as an error (masked by the caller's generic "Error
+        // updating settings" alert). logoUrl is the one field the backend
+        // actually guarantees on success.
+        if (uploadRes.data.logoUrl) {
           logoUrl = uploadRes.data.logoUrl;
         } else {
           throw new Error(uploadRes.data.message || 'Logo upload failed');
