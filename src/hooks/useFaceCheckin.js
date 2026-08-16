@@ -403,7 +403,7 @@ export default function useFaceCheckin() {
         setErrorMessage('Could not reach the server. Check the station secret and try again.');
       }
       setPhaseBoth(status);
-      if (status === 'models_pending') {
+      if (status === 'models_pending' && mountedRef.current) {
         // Unattended kiosk — nobody's there to click Retry, so poll until the
         // server's first-boot model download finishes (or fails and starts
         // reporting 'error'/'disabled' instead).
