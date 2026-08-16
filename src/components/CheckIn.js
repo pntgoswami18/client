@@ -128,6 +128,19 @@ function PhaseContent({ kiosk }) {
           body="Set the face check-in door device in Settings so an authorized scan can unlock it."
         />
       );
+    case 'models_pending':
+      return (
+        <Centered>
+          <CircularProgress sx={{ color: '#fff' }} />
+          <Typography variant="h5" mt={3}>
+            Setting up face check-in…
+          </Typography>
+          <Typography variant="body1" mt={1} sx={{ opacity: 0.75, maxWidth: 480 }}>
+            Downloading the face recognition model. This runs once and only takes a minute — the
+            station will start scanning automatically.
+          </Typography>
+        </Centered>
+      );
     case 'error':
       return (
         <Message

@@ -42,6 +42,34 @@ describe('deriveStationStatus — fail-closed screen selection (plan 6.2)', () =
     expect(deriveStationStatus({ hasSecret: true, config: ready })).toBe('ready');
   });
 
+  it('reports models_pending when the server has not finished deploying the model files yet', () => {
+    expect(deriveStationStatus({ hasSecret: true, config: { ...ready, modelsReady: false } })).toBe(
+      'models_pending'
+    );
+  });
+
+  it('treats a missing modelsReady field as ready (older server, or field genuinely absent)', () => {
+    expect(deriveStationStatus({ hasSecret: true, config: ready })).toBe('ready');
+    expect(deriveStationStatus({ hasSecret: true, config: { ...ready, modelsReady: true } })).toBe(
+      'ready'
+    );
+  });
+
+  it('checks disabled/no_door before models_pending — a bigger misconfiguration wins', () => {
+    expect(
+      deriveStationStatus({
+        hasSecret: true,
+        config: { enabled: false, doorDeviceConfigured: true, modelsReady: false },
+      })
+    ).toBe('disabled');
+    expect(
+      deriveStationStatus({
+        hasSecret: true,
+        config: { enabled: true, doorDeviceConfigured: false, modelsReady: false },
+      })
+    ).toBe('no_door');
+  });
+
   it('checks disabled before no_door (a disabled feature is the more fundamental block)', () => {
     expect(
       deriveStationStatus({
